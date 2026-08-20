@@ -1,0 +1,142 @@
+# Finanzplan
+
+Eine clean designte Web-App zum Planen von monatlichen Einnahmen, Fixkosten und
+Sparzielen – pro Kalenderjahr in einer Tabellenansicht, mit Live-Berechnung
+und drei Abo-Tarifen (Free, Pro, Max).
+
+## Tech-Stack
+
+- **Next.js 14** (App Router) + TypeScript
+- **Tailwind CSS** für das Design-System
+- **Supabase** (Auth + Postgres) für Nutzerverwaltung und Datenpersistenz
+- **Stripe** für Abo-Zahlungen (Checkout + Customer Portal, 3 Preisstufen)
+- Deployment-fähig für **Vercel**
+
+## Getting Started
+
+### 1. Abhängigkeiten installieren
+
+```bash
+npm install
+```
+
+### 2. Supabase-Projekt einrichten
+
+1. Neues Projekt auf [supabase.com](https://supabase.com) anlegen.
+2. Im SQL-Editor den Inhalt von [`supabase/schema.sql`](./supabase/schema.sql)
+   ausführen. Das legt alle Tabellen, RLS-Policies, Trigger (inkl. serverseitiger
+   Tarif-Limit-Durchsetzung) und die automatische Profil-/Free-Subscription-
+   Anlage bei Registrierung an.
+3. Falls Google-Login gewünscht ist: unter **Authentication → Providers →
+   Google** aktivieren und OAuth-Client-ID/Secret hinterlegen. Die App
+   funktioniert auch ohne Google-Login (E-Mail/Passwort reicht).
+4. Projekt-URL, `anon`-Key und `service_role`-Key aus **Project Settings →
+   API** entnehmen.
+
+### 3. Stripe einrichten
+
+1. Drei Produkte mit je einem monatlichen Preis anlegen: **Pro** und **Max**
+   (Free ist kostenlos und braucht kein Stripe-Produkt).
+2. Preis-IDs (`price_...`) in die Umgebungsvariablen eintragen (siehe unten).
+3. Webhook-Endpoint auf `https://<deine-domain>/api/stripe/webhook` anlegen,
+   mit den Events `checkout.session.completed`,
+   `customer.subscription.created`, `customer.subscription.updated`,
+   `customer.subscription.deleted`. Das Webhook-Secret in die Env-Variable
+   `STRIPE_WEBHOOK_SECRET` eintragen.
+4. Für lokale Entwicklung kann `stripe listen --forward-to
+   localhost:3000/api/stripe/webhook` verwendet werden.
+
+### 4. Umgebungsvariablen
+
+`.env.example` nach `.env.local` kopieren und ausfüllen:
+
+```bash
+cp .env.example .env.local
+```
+
+| Variable | Beschreibung |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Projekt-URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public Key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role Key (nur serverseitig, für den Stripe-Webhook) |
+| `NEXT_PUBLIC_SITE_URL` | Basis-URL der App (für Stripe-Redirects) |
+| `STRIPE_SECRET_KEY` | Stripe Secret Key |
+| `STRIPE_WEBHOOK_SECRET` | Signing Secret des Stripe-Webhooks |
+| `NEXT_PUBLIC_STRIPE_PRICE_PRO` | Price-ID des Pro-Tarifs |
+| `NEXT_PUBLIC_STRIPE_PRICE_MAX` | Price-ID des Max-Tarifs |
+
+### 5. Entwicklung starten
+
+```bash
+npm run dev
+```
+
+App läuft unter `http://localhost:3000`.
+
+## Angenommene Defaults (bitte bei Bedarf anpassen)
+
+Da im Auftrag konkrete Preise und einige Details offengelassen wurden, sind
+folgende Annahmen getroffen worden:
+
+- **Preise**: Free 0 €, Pro 6,99 €/Monat, Max 14,99 €/Monat (`src/lib/plans.ts`).
+  Einfach anpassbar, die tatsächliche Abrechnung erfolgt aber ausschließlich
+  über die in Stripe hinterlegten Preise.
+- **Login**: E-Mail/Passwort + optional Google OAuth (Google-Button ist immer
+  sichtbar, funktioniert aber erst nach Aktivierung des Providers in Supabase).
+- **Produktname**: "Finanzplan" wie im Arbeitstitel vorgeschlagen.
+
+## Architektur
+
+```
+src/
+  app/
+    page.tsx                 Landingpage inkl. Pricing-Sektion
+    pricing/                 Eigenständige Preisseite (Upgrade/Downgrade)
+    login/, signup/          Auth-Formulare (Supabase Auth)
+    auth/callback/           OAuth/Magic-Link Callback
+    (app)/                   Geschützter Bereich (Middleware + Layout-Check)
+      dashboard/              Jahres-Grid mit Inline-Editing
+      settings/                Kategorien/Sparpockets verwalten, Abo verwalten
+    api/
+      categories/, pockets/   CRUD mit serverseitiger Tarif-Limit-Prüfung
+      values/                 Upsert der monatlichen Werte (Einnahmen, Fixkosten, Sparpockets)
+      years/                  Neues Planungsjahr anlegen
+      stripe/                 Checkout-Session, Customer-Portal-Session, Webhook
+  components/
+    dashboard/                Grid, editierbare Zellen, Sparziel-Rechner
+    settings/                 Kategorie-/Sparpocket-Verwaltung, Billing-Karte
+    marketing/                Landingpage-Bausteine
+  lib/
+    plans.ts                  Tarif-Konfiguration (Limits, Preise, Stripe-Price-IDs)
+    calculations.ts           Rest-zum-Ausgeben, kumulierte Kontostände, Rückwärtsrechnung
+    supabase/                 Browser-/Server-/Admin-Clients
+    stripe.ts                 Stripe-SDK-Singleton
+supabase/
+  schema.sql                  Tabellen, RLS-Policies, Tarif-Limit-Trigger
+```
+
+## Tarif-Feature-Gating
+
+Die Limits (Fixkosten-Kategorien, Sparpockets) sind **serverseitig** über zwei
+Ebenen durchgesetzt, nicht nur im UI:
+
+1. Die API-Routen (`/api/categories`, `/api/pockets`) prüfen den aktuellen
+   Tarif und die vorhandene Anzahl, bevor sie einen Insert ausführen.
+2. Zusätzlich verhindern Postgres-Trigger (`enforce_fixed_cost_category_limit`,
+   `enforce_savings_pocket_limit`) in `supabase/schema.sql` das Anlegen weiterer
+   Einträge über das Limit hinaus – selbst bei direktem DB-Zugriff unter
+   Umgehung der API. Row Level Security sorgt zusätzlich dafür, dass Nutzer
+   ausschließlich ihre eigenen Daten lesen/schreiben können.
+3. Der Tarif selbst (`subscriptions.plan`) kann von Nutzern nicht direkt
+   geändert werden (RLS erlaubt nur `select`), sondern ausschließlich durch
+   den Stripe-Webhook über den Service-Role-Key.
+
+## Bekannte Follow-ups
+
+- `npm audit` zeigt noch einige High-Severity-Advisories in Next.js' intern
+  gebündeltem `postcss` sowie ein Next.js-eigenes Advisory, die erst mit einem
+  Umstieg auf Next.js 15/16 vollständig behoben sind (breaking API-Changes bei
+  `cookies()` und dynamischen Route-Params). Für einen produktiven Rollout vor
+  dem Launch empfehlenswert.
+- E2E-Tests (z. B. Playwright) sind nicht enthalten und sollten vor dem
+  Launch ergänzt werden.
