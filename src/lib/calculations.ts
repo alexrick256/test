@@ -48,19 +48,26 @@ export function sumRow(row: MonthlyAmounts): number {
 }
 
 /**
- * Rückwärtsrechnung: wie viel muss pro Monat (ab dem aktuellen Monat bis inkl. Dezember)
- * beiseitegelegt werden, um ein Sparziel im Dezember zu erreichen.
+ * Anzahl Monate zwischen zwei Monats-/Jahresangaben (0-indexierte Monate, Jan = 0).
+ * Ergebnis ist negativ, wenn das Zieldatum vor dem Startdatum liegt.
+ */
+export function monthsBetween(fromYear: number, fromMonthIndex: number, toYear: number, toMonthIndex: number): number {
+  return (toYear - fromYear) * MONTHS_IN_YEAR + (toMonthIndex - fromMonthIndex);
+}
+
+/**
+ * Rückwärtsrechnung: wie viel muss pro Monat beiseitegelegt werden, um ein
+ * Sparziel innerhalb der angegebenen Anzahl an Monaten zu erreichen.
  */
 export function requiredMonthlySavingToReachGoal(
-  targetYearEndBalance: number,
-  currentCumulativeBalanceBeforeMonth: number,
-  fromMonthIndex: number,
+  targetBalance: number,
+  currentBalance: number,
+  monthsRemaining: number,
 ): number {
-  const remainingMonths = MONTHS_IN_YEAR - fromMonthIndex;
-  if (remainingMonths <= 0) return 0;
-  const stillNeeded = targetYearEndBalance - currentCumulativeBalanceBeforeMonth;
+  if (monthsRemaining <= 0) return 0;
+  const stillNeeded = targetBalance - currentBalance;
   if (stillNeeded <= 0) return 0;
-  return stillNeeded / remainingMonths;
+  return stillNeeded / monthsRemaining;
 }
 
 export function formatCurrency(value: number, currency = "EUR"): string {

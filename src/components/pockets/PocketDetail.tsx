@@ -3,12 +3,15 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import clsx from "clsx";
 import { calculateCumulativeBalance, emptyMonths, formatCurrency, type MonthlyAmounts } from "@/lib/calculations";
 import { type CurrencyCode } from "@/lib/currency";
+import { type PocketHistoryEntry } from "@/lib/pocket-history";
 import { EditableCell } from "@/components/dashboard/EditableCell";
 import { YearSwitcher } from "@/components/dashboard/YearSwitcher";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useToast } from "@/components/toast/ToastProvider";
+import { copyValueToAllMonths } from "@/lib/copy-to-year";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
@@ -19,12 +22,14 @@ type Props = {
   years: number[];
   currency: CurrencyCode;
   initialValues: MonthlyAmounts;
+  history: PocketHistoryEntry[];
 };
 
-export function PocketDetail({ pocketId, pocketName, year, years, currency, initialValues }: Props) {
+export function PocketDetail({ pocketId, pocketName, year, years, currency, initialValues, history }: Props) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { toast } = useToast();
+  const dateLocale = locale === "de" ? "de-DE" : locale === "es" ? "es-ES" : "en-US";
   const [values, setValues] = useState<MonthlyAmounts>(initialValues);
   const [deleting, setDeleting] = useState(false);
 
@@ -46,22 +51,16 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
   }
 
   async function copyToAllMonths(monthIndex: number) {
-    const value = values[monthIndex];
-    const hasDifferences = values.some((v, i) => i !== monthIndex && v !== value);
-    if (hasDifferences && !window.confirm(t("grid.copyConfirm"))) return;
-
-    const newRow = Array(12).fill(value);
-    setValues(newRow);
-    await Promise.all(
-      Array.from({ length: 12 }, (_, i) =>
-        fetch("/api/values/pocket", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pocketId, year, month: i + 1, amount: value }),
-        }),
-      ),
-    );
-    toast(t("grid.copySuccess"));
+    const success = await copyValueToAllMonths({
+      endpoint: "/api/values/pocket",
+      extraFields: { pocketId },
+      year,
+      currentRow: values,
+      monthIndex,
+      confirmMessage: t("grid.copyConfirm"),
+      onOptimisticUpdate: setValues,
+    });
+    if (success) toast(t("grid.copySuccess"));
   }
 
   async function handleDelete() {
@@ -101,15 +100,15 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
       </div>
 
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="table-scroll-shadow max-h-[70vh] overflow-auto">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-line bg-surface-alt">
-                <th className="sticky left-0 w-44 bg-surface-alt px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
+                <th className="sticky left-0 top-0 z-20 w-44 bg-surface-alt px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
                   {year}
                 </th>
                 {MONTH_LABELS.map((m) => (
-                  <th key={m} className="min-w-[72px] px-2 py-3 text-right text-xs font-medium text-fg-faint">
+                  <th key={m} className="sticky top-0 z-10 min-w-[72px] bg-surface-alt px-2 py-3 text-right text-xs font-medium text-fg-faint">
                     {m}
                   </th>
                 ))}
@@ -117,11 +116,11 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
             </thead>
             <tbody>
               <tr className="border-b border-line bg-surface">
-                <td className="sticky left-0 bg-surface px-4 py-2 text-left font-medium text-fg">
+                <td className="sticky left-0 bg-surface px-4 py-3 text-left font-medium text-fg">
                   {t("pocketDetail.deposits")}
                 </td>
                 {values.map((v, i) => (
-                  <td key={i} className="px-1 py-1">
+                  <td key={i} className="px-1 py-1.5">
                     <EditableCell
                       value={v}
                       currency={currency}
@@ -132,12 +131,12 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
                   </td>
                 ))}
               </tr>
-              <tr className="bg-surface">
-                <td className="sticky left-0 bg-surface px-4 py-2 text-left text-fg-faint">
+              <tr className="border-t-2 border-line-strong bg-accent-50/70 dark:bg-accent-950/30">
+                <td className="sticky left-0 bg-accent-50/70 px-4 py-3 text-left font-semibold text-fg dark:bg-accent-950/30">
                   {t("pocketDetail.balance")}
                 </td>
                 {cumulative.map((v, i) => (
-                  <td key={i} className="px-3 py-2 text-right text-sm tabular-nums text-fg-faint">
+                  <td key={i} className="px-3 py-3 text-right text-sm font-semibold tabular-nums text-fg">
                     {formatCurrency(v, currency)}
                   </td>
                 ))}
@@ -145,6 +144,49 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="card p-6">
+        <h2 className="font-semibold text-fg">{t("pocketDetail.historyTitle")}</h2>
+        {history.length === 0 ? (
+          <p className="mt-2 text-sm text-fg-muted">{t("pocketDetail.historyEmpty")}</p>
+        ) : (
+          <div className="table-scroll-shadow mt-4 max-h-[50vh] overflow-auto rounded-lg border border-line">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-line bg-surface-alt">
+                  <th className="sticky top-0 z-10 bg-surface-alt px-4 py-2.5 text-left text-xs font-medium text-fg-faint">
+                    {t("pocketDetail.historyDateCol")}
+                  </th>
+                  <th className="sticky top-0 z-10 bg-surface-alt px-4 py-2.5 text-left text-xs font-medium text-fg-faint">
+                    {t("pocketDetail.historySourceCol")}
+                  </th>
+                  <th className="sticky top-0 z-10 bg-surface-alt px-4 py-2.5 text-right text-xs font-medium text-fg-faint">
+                    {t("pocketDetail.historyAmountCol")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((entry, i) => (
+                  <tr
+                    key={entry.id}
+                    className={clsx("border-b border-line last:border-b-0", i % 2 === 1 ? "bg-surface-alt/40" : "bg-surface")}
+                  >
+                    <td className="px-4 py-2.5 text-left text-fg-muted">
+                      {entry.source === "monthly"
+                        ? new Date(entry.date).toLocaleDateString(dateLocale, { month: "long", year: "numeric" })
+                        : new Date(entry.date).toLocaleDateString(dateLocale, { day: "2-digit", month: "2-digit", year: "numeric" })}
+                    </td>
+                    <td className="px-4 py-2.5 text-left text-fg-muted">
+                      {entry.source === "monthly" ? t("pocketDetail.sourceMonthly") : t("pocketDetail.sourceCapital")}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-fg">{formatCurrency(entry.amount, currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

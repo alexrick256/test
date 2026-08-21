@@ -38,6 +38,7 @@ const config: Config = {
           700: "#1f3fc4",
           800: "#1f379e",
           900: "#1e327d",
+          950: "#141d4d",
         },
         positive: "#1a9e6f",
         negative: "#e0432b",

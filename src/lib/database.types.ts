@@ -118,9 +118,34 @@ export interface Database {
           updated_at?: string;
         }
       >;
+      capital_transactions: Table<
+        {
+          id: string;
+          user_id: string;
+          type: "deposit" | "allocation";
+          amount: number;
+          pocket_id: string | null;
+          occurred_at: string;
+          created_at: string;
+        },
+        {
+          id?: string;
+          user_id: string;
+          type: "deposit" | "allocation";
+          amount: number;
+          pocket_id?: string | null;
+          occurred_at?: string;
+          created_at?: string;
+        }
+      >;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      allocate_capital_to_pocket: {
+        Args: { p_pocket_id: string; p_amount: number; p_year: number; p_month: number };
+        Returns: number;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

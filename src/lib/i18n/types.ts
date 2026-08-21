@@ -3,6 +3,7 @@ export type Dictionary = {
     home: string;
     dashboard: string;
     savingsPlans: string;
+    capital: string;
     tips: string;
     settings: string;
     planSuffix: string;
@@ -113,12 +114,14 @@ export type Dictionary = {
     title: string;
     subtitle: string;
     pocketLabel: string;
-    targetLabel: string;
+    targetAmountLabel: string;
     targetPlaceholder: string;
-    fromMonthLabel: string;
+    targetMonthLabel: string;
+    targetYearLabel: string;
     requiredText: string;
     feasibleText: string;
     notFeasibleText: string;
+    futureDateError: string;
     months: string[];
   };
   settings: {
@@ -159,6 +162,40 @@ export type Dictionary = {
     balance: string;
     deleteConfirm: string;
     notFound: string;
+    historyTitle: string;
+    historyEmpty: string;
+    historyDateCol: string;
+    historySourceCol: string;
+    historyAmountCol: string;
+    sourceMonthly: string;
+    sourceCapital: string;
+  };
+  capital: {
+    title: string;
+    subtitle: string;
+    currentBalance: string;
+    depositTitle: string;
+    depositSubtitle: string;
+    depositButton: string;
+    depositSuccess: string;
+    allocateTitle: string;
+    allocateSubtitle: string;
+    allocateButton: string;
+    allocateSuccess: string;
+    amountLabel: string;
+    amountPlaceholder: string;
+    pocketLabel: string;
+    noPockets: string;
+    invalidAmount: string;
+    insufficientBalance: string;
+    genericError: string;
+    historyTitle: string;
+    historyEmpty: string;
+    historyDateCol: string;
+    historyTypeCol: string;
+    historyAmountCol: string;
+    typeDeposit: string;
+    typeAllocation: string;
   };
   onboarding: {
     close: string;
