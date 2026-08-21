@@ -11,15 +11,19 @@ export default async function OnboardingPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: profile }, { data: subscription }] = await Promise.all([
-    supabase.from("profiles").select("onboarding_completed_at, currency").eq("id", user.id).maybeSingle(),
+  // Bewusst getrennt von der Währungs-Abfrage: onboarding_completed_at ist
+  // das kritische Gate. Würde die Spalte "currency" (optionale Migration)
+  // fehlen, dürfte das NICHT den kompletten Select zum Scheitern bringen.
+  const [{ data: profile }, { data: subscription }, { data: currencyRow }] = await Promise.all([
+    supabase.from("profiles").select("onboarding_completed_at").eq("id", user.id).maybeSingle(),
     supabase.from("subscriptions").select("plan").eq("user_id", user.id).maybeSingle(),
+    supabase.from("profiles").select("currency").eq("id", user.id).maybeSingle(),
   ]);
 
   if (profile?.onboarding_completed_at) redirect("/dashboard");
 
   const plan = isValidPlan(subscription?.plan) ? subscription.plan : "free";
-  const currency = isValidCurrency(profile?.currency) ? profile.currency : DEFAULT_CURRENCY;
+  const currency = isValidCurrency(currencyRow?.currency) ? currencyRow.currency : DEFAULT_CURRENCY;
 
   return (
     <div className="min-h-screen bg-bg">

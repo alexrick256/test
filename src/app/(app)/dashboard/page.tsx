@@ -27,13 +27,23 @@ export default async function DashboardPage({
   if (!user) redirect("/login");
   const { t } = getServerTranslator();
 
+  // Bewusst getrennt von der Währungs-Abfrage: onboarding_completed_at ist
+  // das kritische Gate. Würde die Spalte "currency" (optionale Migration)
+  // fehlen, dürfte das NICHT den kompletten Select zum Scheitern bringen
+  // und Nutzer fälschlich zurück ins Onboarding schicken.
   const { data: profileRow } = await supabase
     .from("profiles")
-    .select("onboarding_completed_at, currency")
+    .select("onboarding_completed_at")
     .eq("id", user.id)
     .maybeSingle();
   if (!profileRow?.onboarding_completed_at) redirect("/onboarding");
-  const currency = isValidCurrency(profileRow.currency) ? profileRow.currency : DEFAULT_CURRENCY;
+
+  const { data: currencyRow } = await supabase
+    .from("profiles")
+    .select("currency")
+    .eq("id", user.id)
+    .maybeSingle();
+  const currency = isValidCurrency(currencyRow?.currency) ? currencyRow.currency : DEFAULT_CURRENCY;
 
   const { data: subscriptionRow } = await supabase
     .from("subscriptions")
