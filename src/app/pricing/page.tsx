@@ -3,12 +3,14 @@ import { Footer } from "@/components/marketing/Footer";
 import { PricingCards } from "@/components/PricingCards";
 import { createClient } from "@/lib/supabase/server";
 import type { PlanId } from "@/lib/plans";
+import { getServerTranslator } from "@/lib/i18n/server-t";
 
 export default async function PricingPage() {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const { t } = getServerTranslator();
 
   let currentPlan: PlanId | undefined;
   if (user) {
@@ -26,10 +28,8 @@ export default async function PricingPage() {
       <main className="flex-1">
         <section className="mx-auto max-w-6xl px-6 py-20">
           <div className="mx-auto mb-12 max-w-xl text-center">
-            <h1 className="text-4xl font-semibold tracking-tight text-ink-950">Preise</h1>
-            <p className="mt-3 text-ink-500">
-              Monatlich kündbar. Up- und Downgrade jederzeit über das Kundenportal.
-            </p>
+            <h1 className="text-4xl font-semibold tracking-tight text-fg">{t("pricing.pageTitle")}</h1>
+            <p className="mt-3 text-fg-muted">{t("pricing.pageSubtitle")}</p>
           </div>
           <PricingCards mode={user ? "account" : "public"} currentPlan={currentPlan} />
         </section>

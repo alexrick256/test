@@ -1,0 +1,212 @@
+import type { Dictionary } from "@/lib/i18n/types";
+
+const es: Dictionary = {
+  nav: {
+    dashboard: "Vista anual",
+    settings: "Ajustes",
+    planSuffix: "plan",
+    signOut: "Cerrar sesión",
+  },
+  marketing: {
+    nav: { features: "Funciones", pricing: "Precios", login: "Iniciar sesión", getStarted: "Empezar gratis" },
+    hero: {
+      title: "Tu dinero, un plan claro cada año.",
+      subtitle:
+        "Leviro es la forma más sencilla de planificar ingresos, gastos fijos y metas de ahorro mes a mes: limpio como una hoja de cálculo, inteligente como un asesor financiero.",
+      ctaPrimary: "Empezar gratis",
+      ctaSecondary: "Ver precios",
+      note: "No se necesita tarjeta de crédito · listo en 2 minutos",
+    },
+    features: {
+      title: "Todo lo que necesitas para tu plan financiero",
+      items: [
+        {
+          title: "Un año, una vista",
+          description:
+            "Ingresos, gastos fijos y metas de ahorro para todo un año en una sola tabla, editable mes a mes.",
+        },
+        {
+          title: "Ve al instante lo que te queda",
+          description:
+            "El \"disponible para gastar\" se calcula en tiempo real y se resalta en rojo en cuanto entras en números rojos.",
+        },
+        {
+          title: "Bolsillos de ahorro con saldos",
+          description:
+            "Crea metas de ahorro y sigue el saldo acumulado durante el año, automáticamente, sin fórmulas de Excel.",
+        },
+        {
+          title: "Calcula hacia atrás",
+          description:
+            "Indica en enero tu meta de diciembre y descubre al instante cuánto debes apartar cada mes.",
+        },
+      ],
+    },
+    pricing: {
+      title: "Un plan que crece contigo",
+      subtitle: "Cancela cuando quieras, sube o baja de plan en cualquier momento.",
+    },
+    cta: { title: "¿Listo para tener las cuentas claras?", button: "Empezar gratis" },
+  },
+  footer: {
+    rights: "Todos los derechos reservados.",
+    pricing: "Precios",
+    login: "Iniciar sesión",
+  },
+  auth: {
+    login: { title: "Bienvenido de nuevo", subtitle: "Inicia sesión para abrir tu plan financiero." },
+    signup: { title: "Crea tu cuenta", subtitle: "Empieza gratis, sin necesidad de tarjeta." },
+    google: "Continuar con Google",
+    orEmail: "o con correo electrónico",
+    email: "Correo electrónico",
+    password: "Contraseña",
+    passwordHint: "Al menos 8 caracteres",
+    submitLogin: "Iniciar sesión",
+    submitSignup: "Crear cuenta",
+    loading: "Un momento…",
+    noAccount: "¿Aún no tienes cuenta?",
+    registerLink: "Regístrate gratis",
+    hasAccount: "¿Ya tienes una cuenta?",
+    loginLink: "Iniciar sesión",
+    signupSuccess: "¡Ya casi! Confirma tu correo electrónico con el enlace que te acabamos de enviar.",
+    genericError: "Algo salió mal.",
+  },
+  pricing: {
+    plans: {
+      free: {
+        tagline: "Para tener una primera visión de tu dinero.",
+        features: ["Ingresos y gastos por mes", "Hasta 3 categorías de gastos fijos", "\"Disponible para gastar\" en tiempo real"],
+      },
+      pro: {
+        tagline: "Para quienes quieren ahorrar con un objetivo claro.",
+        features: ["Hasta 5 categorías de gastos fijos", "Hasta 3 bolsillos de ahorro", "Resumen de cuentas con saldos"],
+      },
+      max: {
+        tagline: "Para tener el control total, hasta el último detalle.",
+        features: ["Hasta 20 categorías de gastos fijos", "Hasta 20 bolsillos de ahorro", "Resumen de cuentas con saldos"],
+      },
+    },
+    badge: "Más elegido",
+    perMonth: "/ mes",
+    currentPlan: "Plan actual",
+    downgradeHint: "Cambia a un plan inferior desde el portal de cliente",
+    switchTo: "Cambiar a {{plan}}",
+    startFree: "Empezar gratis",
+    startNow: "Empezar ahora",
+    redirecting: "Redirigiendo…",
+    checkoutError: "No se pudo iniciar el pago.",
+    pageTitle: "Precios",
+    pageSubtitle: "Cancela cuando quieras. Sube o baja de plan cuando quieras desde el portal de cliente.",
+  },
+  dashboard: {
+    title: "Vista anual",
+    subtitle: "Haz clic en una celda para editar ingresos, gastos fijos o bolsillos de ahorro.",
+    addYear: "Añadir el próximo año",
+  },
+  grid: {
+    income: "Ingresos",
+    fixedCosts: "Gastos fijos",
+    pockets: "Bolsillos de ahorro",
+    remaining: "Disponible para gastar",
+    accounts: "Cuentas",
+    accountPrefix: "Cuenta",
+    addCategory: "+ Categoría de gasto fijo",
+    addPocket: "+ Bolsillo de ahorro",
+    categoryNamePlaceholder: "p. ej. Alquiler",
+    pocketNamePlaceholder: "p. ej. Vacaciones",
+    add: "Añadir",
+    cancel: "Cancelar",
+    delete: "Eliminar",
+    deleteConfirm: "¿Eliminar de verdad? Se perderán todos los valores de este año.",
+    limitReachedCategories: "Límite alcanzado ({{limit}} categorías).",
+    limitReachedPockets: "Límite alcanzado ({{limit}} bolsillos de ahorro).",
+    upgrade: "Mejorar plan",
+    pocketsLocked: "Los bolsillos de ahorro están disponibles a partir del plan Pro.",
+    onboardingTip:
+      "Consejo: indica en enero cuánto quieres tener ahorrado en un bolsillo para diciembre; la calculadora de ahorro de abajo te muestra al instante cuánto debes apartar cada mes y si es viable con tu \"disponible para gastar\".",
+  },
+  savingsCalculator: {
+    title: "Calculadora de meta de ahorro",
+    subtitle: "¿Cuánto necesitas apartar cada mes para alcanzar tu meta de diciembre?",
+    pocketLabel: "Bolsillo de ahorro",
+    targetLabel: "Meta para diciembre de {{year}}",
+    targetPlaceholder: "p. ej. 2000",
+    fromMonthLabel: "¿Desde qué mes empezar a ahorrar?",
+    requiredText: "Debes ingresar {{amount}} al mes.",
+    feasibleText: "Viable: tu \"disponible para gastar\" en {{month}} es suficiente.",
+    notFeasibleText: "No es viable sin ajustes: tu \"disponible para gastar\" en {{month}} es solo {{amount}}.",
+    months: [
+      "enero", "febrero", "marzo", "abril", "mayo", "junio",
+      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+    ],
+  },
+  settings: {
+    title: "Ajustes",
+    subtitle: "Gestiona tus categorías, bolsillos de ahorro y suscripción.",
+    billing: {
+      title: "Suscripción",
+      currentPlanText: "Actualmente estás en el plan {{plan}}.",
+      nextBilling: "Próximo cobro el {{date}}.",
+      expiresOn: "Vence el {{date}}.",
+      viewPlans: "Ver planes",
+      managePlan: "Gestionar suscripción",
+      portalError: "No se pudo abrir el portal de cliente.",
+    },
+    categories: {
+      title: "Categorías de gastos fijos",
+      description: "Categorías con nombre libre como alquiler, seguro o contrato de móvil.",
+    },
+    pockets: {
+      title: "Bolsillos de ahorro",
+      description: "Metas de ahorro como vacaciones, fondo de emergencia o un coche nuevo.",
+      locked: "Los bolsillos de ahorro están disponibles a partir del plan Pro.",
+    },
+    manage: {
+      empty: "Todavía no hay entradas.",
+      add: "+ Añadir",
+      limitReached: "Límite alcanzado.",
+      upgrade: "Mejorar plan",
+      delete: "Eliminar",
+      addError: "No se pudo crear la entrada.",
+      renameError: "No se pudo renombrar la entrada.",
+      deleteError: "No se pudo eliminar la entrada.",
+      cancel: "Cancelar",
+    },
+  },
+  onboarding: {
+    step1: {
+      title: "¿Cuáles son tus ingresos mensuales?",
+      subtitle: "Tu ingreso neto medio disponible cada mes.",
+      label: "Ingresos mensuales",
+      placeholder: "p. ej. 3200",
+      next: "Siguiente",
+    },
+    step2: {
+      title: "¿Qué gastos fijos tienes?",
+      subtitle: "Elige las categorías que encajen o añade las tuyas. Los importes se pueden ajustar en cualquier momento.",
+      presets: { rent: "Alquiler", electricity: "Electricidad", phone: "Móvil", internet: "Internet" },
+      customPlaceholder: "Categoría personalizada",
+      addCustom: "+ Categoría personalizada",
+      amountPlaceholder: "Importe",
+      back: "Atrás",
+      next: "Siguiente",
+    },
+    step3: {
+      title: "¿Cuánto quieres ahorrar cada mes?",
+      subtitle: "Un importe fijo que se convertirá automáticamente en un bolsillo de ahorro.",
+      tip: "Regla general: aparta cerca del 20% de tus ingresos; aquí serían {{amount}} al mes.",
+      applySuggestion: "Usar sugerencia",
+      label: "Importe de ahorro mensual",
+      placeholder: "p. ej. 400",
+      pocketName: "Ahorros",
+      freeNotice:
+        "En el plan Free los bolsillos de ahorro no se guardan. Mejora a Pro para seguir tu meta de ahorro automáticamente.",
+      back: "Atrás",
+      finish: "Finalizar",
+      skip: "Omitir",
+    },
+    progress: "Paso {{current}} de {{total}}",
+  },
+};
+
+export default es;

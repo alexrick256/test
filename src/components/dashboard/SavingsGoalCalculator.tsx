@@ -8,8 +8,7 @@ import {
   requiredMonthlySavingToReachGoal,
   type MonthlyAmounts,
 } from "@/lib/calculations";
-
-const MONTH_LABELS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 type Pocket = { id: string; name: string };
 
@@ -21,6 +20,8 @@ type Props = {
 };
 
 export function SavingsGoalCalculator({ year, pockets, pocketValues, remaining }: Props) {
+  const { t, tList } = useTranslation();
+  const monthLabels = tList("savingsCalculator.months");
   const now = new Date();
   const defaultMonthIndex = now.getFullYear() === year ? now.getMonth() : 0;
 
@@ -44,14 +45,12 @@ export function SavingsGoalCalculator({ year, pockets, pocketValues, remaining }
 
   return (
     <div className="card p-6">
-      <h2 className="font-semibold text-ink-950">Sparziel-Rechner</h2>
-      <p className="mt-1 text-sm text-ink-500">
-        Wie viel musst du monatlich beiseitelegen, um dein Jahresziel im Dezember zu erreichen?
-      </p>
+      <h2 className="font-semibold text-fg">{t("savingsCalculator.title")}</h2>
+      <p className="mt-1 text-sm text-fg-muted">{t("savingsCalculator.subtitle")}</p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
         <div>
-          <label className="label">Sparpocket</label>
+          <label className="label">{t("savingsCalculator.pocketLabel")}</label>
           <select
             value={pocketId}
             onChange={(e) => setPocketId(e.target.value)}
@@ -65,23 +64,23 @@ export function SavingsGoalCalculator({ year, pockets, pocketValues, remaining }
           </select>
         </div>
         <div>
-          <label className="label">Ziel bis Dezember {year}</label>
+          <label className="label">{t("savingsCalculator.targetLabel", { year })}</label>
           <input
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            placeholder="z. B. 2000"
+            placeholder={t("savingsCalculator.targetPlaceholder")}
             inputMode="decimal"
             className="input mt-1.5"
           />
         </div>
         <div>
-          <label className="label">Ab welchem Monat sparen?</label>
+          <label className="label">{t("savingsCalculator.fromMonthLabel")}</label>
           <select
             value={fromMonth}
             onChange={(e) => setFromMonth(Number(e.target.value))}
             className="input mt-1.5"
           >
-            {MONTH_LABELS.map((label, i) => (
+            {monthLabels.map((label, i) => (
               <option key={label} value={i}>
                 {label}
               </option>
@@ -96,13 +95,14 @@ export function SavingsGoalCalculator({ year, pockets, pocketValues, remaining }
             feasible ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative"
           }`}
         >
-          <span>
-            Du musst <strong>{formatCurrency(requiredPerMonth)}</strong> pro Monat einzahlen.
-          </span>
+          <span>{t("savingsCalculator.requiredText", { amount: formatCurrency(requiredPerMonth) })}</span>
           <span>
             {feasible
-              ? `Machbar – „Rest zum Ausgeben“ im ${MONTH_LABELS[fromMonth]} reicht aus.`
-              : `Nicht machbar ohne Anpassung – „Rest zum Ausgeben“ im ${MONTH_LABELS[fromMonth]} beträgt nur ${formatCurrency(restInStartMonth)}.`}
+              ? t("savingsCalculator.feasibleText", { month: monthLabels[fromMonth] })
+              : t("savingsCalculator.notFeasibleText", {
+                  month: monthLabels[fromMonth],
+                  amount: formatCurrency(restInStartMonth),
+                })}
           </span>
         </div>
       ) : null}

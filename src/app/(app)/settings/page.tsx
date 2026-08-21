@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isValidPlan, PLANS } from "@/lib/plans";
 import { ManageList } from "@/components/settings/ManageList";
 import { BillingCard } from "@/components/settings/BillingCard";
+import { getServerTranslator } from "@/lib/i18n/server-t";
 
 export default async function SettingsPage() {
   const supabase = createClient();
@@ -10,6 +11,7 @@ export default async function SettingsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const { t } = getServerTranslator();
 
   const [{ data: subscription }, { data: categories }, { data: pockets }] = await Promise.all([
     supabase
@@ -37,10 +39,8 @@ export default async function SettingsPage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink-950">Einstellungen</h1>
-        <p className="mt-1 text-sm text-ink-500">
-          Verwalte deine Kategorien, Sparpockets und dein Abo.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">{t("settings.title")}</h1>
+        <p className="mt-1 text-sm text-fg-muted">{t("settings.subtitle")}</p>
       </div>
 
       <BillingCard
@@ -52,23 +52,23 @@ export default async function SettingsPage() {
       />
 
       <ManageList
-        title="Fixkosten-Kategorien"
-        description="Frei benennbare Kategorien wie Miete, Versicherung oder Handyvertrag."
+        title={t("settings.categories.title")}
+        description={t("settings.categories.description")}
         items={categories ?? []}
         limit={planConfig.fixedCostLimit}
         apiBase="/api/categories"
-        addPlaceholder="z. B. Miete"
+        addPlaceholder={t("grid.categoryNamePlaceholder")}
       />
 
       <ManageList
-        title="Sparpockets"
-        description="Sparziele wie Urlaub, Notgroschen oder ein neues Auto."
+        title={t("settings.pockets.title")}
+        description={t("settings.pockets.description")}
         items={pockets ?? []}
         limit={planConfig.savingsPocketLimit}
         locked={planConfig.savingsPocketLimit === 0}
-        lockedMessage="Sparpockets sind ab dem Pro-Tarif verfügbar."
+        lockedMessage={t("settings.pockets.locked")}
         apiBase="/api/pockets"
-        addPlaceholder="z. B. Urlaub"
+        addPlaceholder={t("grid.pocketNamePlaceholder")}
       />
     </div>
   );

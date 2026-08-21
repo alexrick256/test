@@ -16,6 +16,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text,
   full_name text,
+  onboarding_completed_at timestamptz,
   created_at timestamptz not null default now()
 );
 

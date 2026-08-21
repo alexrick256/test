@@ -1,6 +1,6 @@
 {
-  "name": "Finanzplan",
-  "short_name": "Finanzplan",
+  "name": "Leviro",
+  "short_name": "Leviro",
   "description": "Plane deine monatlichen Einnahmen, Ausgaben und Sparziele.",
   "start_url": "/dashboard",
   "scope": "/",

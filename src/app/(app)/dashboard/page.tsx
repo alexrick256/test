@@ -4,6 +4,7 @@ import { isValidPlan } from "@/lib/plans";
 import { emptyMonths, type MonthlyAmounts } from "@/lib/calculations";
 import { FinanceGrid } from "@/components/dashboard/FinanceGrid";
 import { YearSwitcher } from "@/components/dashboard/YearSwitcher";
+import { getServerTranslator } from "@/lib/i18n/server-t";
 
 function rowsToMonthly(rows: { month: number; amount: number }[]): MonthlyAmounts {
   const months = emptyMonths();
@@ -23,6 +24,14 @@ export default async function DashboardPage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const { t } = getServerTranslator();
+
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("onboarding_completed_at")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (!profileRow?.onboarding_completed_at) redirect("/onboarding");
 
   const { data: subscriptionRow } = await supabase
     .from("subscriptions")
@@ -103,10 +112,8 @@ export default async function DashboardPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink-950">Jahresansicht</h1>
-          <p className="mt-1 text-sm text-ink-500">
-            Klicke auf eine Zelle, um Einnahmen, Fixkosten oder Sparpockets zu bearbeiten.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-fg">{t("dashboard.title")}</h1>
+          <p className="mt-1 text-sm text-fg-muted">{t("dashboard.subtitle")}</p>
         </div>
         <YearSwitcher years={years} selectedYear={year} />
       </div>

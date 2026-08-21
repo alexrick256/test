@@ -9,8 +9,6 @@ export type PlanConfig = {
   savingsPocketLimit: number;
   hasAccountsOverview: boolean;
   stripePriceId: string | null;
-  tagline: string;
-  features: string[];
   highlighted?: boolean;
 };
 
@@ -24,12 +22,6 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     savingsPocketLimit: 0,
     hasAccountsOverview: false,
     stripePriceId: null,
-    tagline: "Für den ersten Überblick über dein Geld.",
-    features: [
-      "Einnahmen & Ausgaben pro Monat",
-      "Bis zu 3 Fixkosten-Kategorien",
-      "„Rest zum Ausgeben“ live berechnet",
-    ],
   },
   pro: {
     id: "pro",
@@ -40,12 +32,6 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     savingsPocketLimit: 3,
     hasAccountsOverview: true,
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO ?? null,
-    tagline: "Für alle, die gezielt sparen wollen.",
-    features: [
-      "Bis zu 5 Fixkosten-Kategorien",
-      "Bis zu 3 Sparpockets",
-      "Konten-Übersicht mit Kontoständen",
-    ],
     highlighted: true,
   },
   max: {
@@ -57,12 +43,6 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     savingsPocketLimit: 20,
     hasAccountsOverview: true,
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_MAX ?? null,
-    tagline: "Für den vollen Durchblick, jedes Detail.",
-    features: [
-      "Bis zu 20 Fixkosten-Kategorien",
-      "Bis zu 20 Sparpockets",
-      "Konten-Übersicht mit Kontoständen",
-    ],
   },
 };
 

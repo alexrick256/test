@@ -8,7 +8,7 @@ export default function SignupPage() {
       <div className="absolute left-6 top-6">
         <Link href="/" className="flex items-center gap-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-ink-950 text-sm font-semibold text-white">
-            F
+            L
           </span>
         </Link>
       </div>

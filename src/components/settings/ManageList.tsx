@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 type Item = { id: string; name: string };
 
@@ -28,6 +29,7 @@ export function ManageList({
   addPlaceholder,
 }: Props) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -49,12 +51,12 @@ export function ManageList({
         body: JSON.stringify({ name }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Fehler beim Anlegen.");
+      if (!res.ok) throw new Error(data.error ?? t("settings.manage.addError"));
       setNewName("");
       setAdding(false);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Fehler beim Anlegen.");
+      setError(err instanceof Error ? err.message : t("settings.manage.addError"));
     } finally {
       setBusy(false);
     }
@@ -72,11 +74,11 @@ export function ManageList({
         body: JSON.stringify({ name }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Fehler beim Umbenennen.");
+      if (!res.ok) throw new Error(data.error ?? t("settings.manage.renameError"));
       setEditingId(null);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Fehler beim Umbenennen.");
+      setError(err instanceof Error ? err.message : t("settings.manage.renameError"));
     } finally {
       setBusy(false);
     }
@@ -88,10 +90,10 @@ export function ManageList({
     try {
       const res = await fetch(`${apiBase}/${id}`, { method: "DELETE" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Fehler beim Löschen.");
+      if (!res.ok) throw new Error(data.error ?? t("settings.manage.deleteError"));
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Fehler beim Löschen.");
+      setError(err instanceof Error ? err.message : t("settings.manage.deleteError"));
     } finally {
       setBusy(false);
     }
@@ -101,28 +103,28 @@ export function ManageList({
     <div className="card p-6">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="font-semibold text-ink-950">{title}</h2>
-          <p className="mt-1 text-sm text-ink-500">{description}</p>
+          <h2 className="font-semibold text-fg">{title}</h2>
+          <p className="mt-1 text-sm text-fg-muted">{description}</p>
         </div>
         {!locked ? (
-          <span className="shrink-0 rounded-full bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-500">
+          <span className="shrink-0 rounded-full bg-surface-alt px-2.5 py-1 text-xs font-medium text-fg-muted">
             {items.length} / {limit}
           </span>
         ) : null}
       </div>
 
       {locked ? (
-        <p className="mt-4 rounded-lg bg-ink-50 px-4 py-3 text-sm text-ink-500">
+        <p className="mt-4 rounded-lg bg-surface-alt px-4 py-3 text-sm text-fg-muted">
           {lockedMessage}{" "}
-          <Link href="/pricing" className="font-medium text-accent-600 hover:underline">
-            Tarif upgraden
+          <Link href="/pricing" className="font-medium text-accent-600 hover:underline dark:text-accent-400">
+            {t("settings.manage.upgrade")}
           </Link>
         </p>
       ) : (
         <>
           {error ? <p className="mt-4 text-sm text-negative">{error}</p> : null}
 
-          <ul className="mt-4 divide-y divide-ink-50">
+          <ul className="mt-4 divide-y divide-line">
             {items.map((item) => (
               <li key={item.id} className="flex items-center gap-3 py-2.5">
                 {editingId === item.id ? (
@@ -140,7 +142,7 @@ export function ManageList({
                       setEditingId(item.id);
                       setEditingName(item.name);
                     }}
-                    className="flex-1 rounded-md px-2 py-1.5 text-left text-sm text-ink-800 hover:bg-ink-50"
+                    className="flex-1 rounded-md px-2 py-1.5 text-left text-sm text-fg hover:bg-surface-alt"
                   >
                     {item.name}
                   </button>
@@ -148,14 +150,14 @@ export function ManageList({
                 <button
                   onClick={() => handleDelete(item.id)}
                   disabled={busy}
-                  className="rounded-md px-2 py-1.5 text-xs font-medium text-ink-400 hover:bg-negative/10 hover:text-negative"
+                  className="rounded-md px-2 py-1.5 text-xs font-medium text-fg-faint hover:bg-negative/10 hover:text-negative"
                 >
-                  Löschen
+                  {t("settings.manage.delete")}
                 </button>
               </li>
             ))}
             {items.length === 0 ? (
-              <li className="py-3 text-sm text-ink-400">Noch keine Einträge.</li>
+              <li className="py-3 text-sm text-fg-faint">{t("settings.manage.empty")}</li>
             ) : null}
           </ul>
 
@@ -171,25 +173,25 @@ export function ManageList({
                   className="input py-1.5"
                 />
                 <button onClick={handleAdd} disabled={busy} className="btn-primary py-1.5 text-xs">
-                  Hinzufügen
+                  {t("grid.add")}
                 </button>
                 <button onClick={() => setAdding(false)} className="btn-ghost py-1.5 text-xs">
-                  Abbrechen
+                  {t("settings.manage.cancel")}
                 </button>
               </div>
             ) : atLimit ? (
-              <p className="text-xs text-ink-400">
-                Limit erreicht.{" "}
-                <Link href="/pricing" className="font-medium text-accent-600 hover:underline">
-                  Tarif upgraden
+              <p className="text-xs text-fg-faint">
+                {t("settings.manage.limitReached")}{" "}
+                <Link href="/pricing" className="font-medium text-accent-600 hover:underline dark:text-accent-400">
+                  {t("settings.manage.upgrade")}
                 </Link>
               </p>
             ) : (
               <button
                 onClick={() => setAdding(true)}
-                className="text-sm font-medium text-ink-500 hover:text-ink-900"
+                className="text-sm font-medium text-fg-muted hover:text-fg"
               >
-                + Hinzufügen
+                {t("settings.manage.add")}
               </button>
             )}
           </div>

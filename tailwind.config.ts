@@ -1,10 +1,19 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
+        bg: "var(--color-bg)",
+        surface: "var(--color-surface)",
+        "surface-alt": "var(--color-surface-alt)",
+        line: "var(--color-border)",
+        "line-strong": "var(--color-border-strong)",
+        fg: "var(--color-fg)",
+        "fg-muted": "var(--color-fg-muted)",
+        "fg-faint": "var(--color-fg-faint)",
         ink: {
           950: "#0b0c0e",
           900: "#111318",
@@ -35,7 +44,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: [
-          "Inter",
+          "var(--font-inter)",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",

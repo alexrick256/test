@@ -14,8 +14,20 @@ export interface Database {
   public: {
     Tables: {
       profiles: Table<
-        { id: string; email: string | null; full_name: string | null; created_at: string },
-        { id: string; email?: string | null; full_name?: string | null; created_at?: string }
+        {
+          id: string;
+          email: string | null;
+          full_name: string | null;
+          onboarding_completed_at: string | null;
+          created_at: string;
+        },
+        {
+          id: string;
+          email?: string | null;
+          full_name?: string | null;
+          onboarding_completed_at?: string | null;
+          created_at?: string;
+        }
       >;
       subscriptions: Table<
         {
