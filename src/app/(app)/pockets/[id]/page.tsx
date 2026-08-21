@@ -42,6 +42,9 @@ export default async function PocketDetailPage({
     );
   }
 
+  // Fällige monatliche Kapitalraten nachholen, bevor Werte/Historie gelesen werden.
+  await supabase.rpc("apply_due_recurring_capital_allocations");
+
   const currency = isValidCurrency(profile?.currency) ? profile.currency : DEFAULT_CURRENCY;
   const currentCalendarYear = new Date().getFullYear();
   const years = yearRows && yearRows.length > 0 ? yearRows.map((r) => r.year) : [currentCalendarYear];
@@ -53,14 +56,19 @@ export default async function PocketDetailPage({
     supabase.from("savings_pocket_values").select("year, month, amount").eq("pocket_id", pocket.id),
     supabase
       .from("capital_transactions")
-      .select("id, amount, occurred_at")
+      .select("id, amount, occurred_at, recurring_allocation_id")
       .eq("pocket_id", pocket.id)
       .eq("type", "allocation"),
   ]);
 
   const history = buildPocketHistory(
     (allValueRows ?? []).map((r) => ({ year: r.year, month: r.month, amount: Number(r.amount) })),
-    (allocationRows ?? []).map((r) => ({ id: r.id, amount: Number(r.amount), occurredAt: r.occurred_at })),
+    (allocationRows ?? []).map((r) => ({
+      id: r.id,
+      amount: Number(r.amount),
+      occurredAt: r.occurred_at,
+      isRecurring: r.recurring_allocation_id !== null,
+    })),
   );
 
   return (

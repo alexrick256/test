@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import clsx from "clsx";
 import { formatCurrency } from "@/lib/calculations";
 import { DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currency";
@@ -15,6 +15,15 @@ export type CapitalTransaction = {
   amount: number;
   occurredAt: string;
   pocketName: string | null;
+  isRecurring?: boolean;
+};
+
+export type RecurringAllocation = {
+  id: string;
+  pocketId: string;
+  pocketName: string;
+  amount: number;
+  status: "active" | "paused";
 };
 
 type Props = {
@@ -22,15 +31,25 @@ type Props = {
   pockets: Pocket[];
   initialBalance: number;
   initialTransactions: CapitalTransaction[];
+  initialRecurringAllocations: RecurringAllocation[];
 };
 
-export function CapitalManager({ currency = DEFAULT_CURRENCY, pockets, initialBalance, initialTransactions }: Props) {
-  const { t, locale } = useTranslation();
+export function CapitalManager({
+  currency = DEFAULT_CURRENCY,
+  pockets,
+  initialBalance,
+  initialTransactions,
+  initialRecurringAllocations,
+}: Props) {
+  const { t, locale, tList } = useTranslation();
   const { toast } = useToast();
   const dateLocale = locale === "de" ? "de-DE" : locale === "es" ? "es-ES" : "en-US";
+  const monthLabels = tList("savingsCalculator.months");
+  const now = new Date();
 
   const [balance, setBalance] = useState(initialBalance);
   const [transactions, setTransactions] = useState(initialTransactions);
+  const [recurring, setRecurring] = useState(initialRecurringAllocations);
 
   const [depositAmount, setDepositAmount] = useState("");
   const [depositLoading, setDepositLoading] = useState(false);
@@ -38,8 +57,26 @@ export function CapitalManager({ currency = DEFAULT_CURRENCY, pockets, initialBa
 
   const [allocatePocketId, setAllocatePocketId] = useState(pockets[0]?.id ?? "");
   const [allocateAmount, setAllocateAmount] = useState("");
+  const [allocateMonthIndex, setAllocateMonthIndex] = useState(now.getMonth());
+  const [allocateYear, setAllocateYear] = useState(now.getFullYear());
   const [allocateLoading, setAllocateLoading] = useState(false);
   const [allocateError, setAllocateError] = useState<string | null>(null);
+
+  const [recurringDrafts, setRecurringDrafts] = useState<Record<string, string>>(() => {
+    const drafts: Record<string, string> = {};
+    for (const rule of initialRecurringAllocations) drafts[rule.pocketId] = String(rule.amount);
+    return drafts;
+  });
+  const [recurringLoadingPocketId, setRecurringLoadingPocketId] = useState<string | null>(null);
+  const [recurringError, setRecurringError] = useState<string | null>(null);
+
+  const recurringByPocketId = useMemo(() => {
+    const map = new Map<string, RecurringAllocation>();
+    for (const rule of recurring) map.set(rule.pocketId, rule);
+    return map;
+  }, [recurring]);
+
+  const allocateYearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
 
   function parseAmount(raw: string): number | null {
     const value = Number.parseFloat(raw.replace(",", "."));
@@ -89,7 +126,12 @@ export function CapitalManager({ currency = DEFAULT_CURRENCY, pockets, initialBa
     const res = await fetch("/api/capital/allocate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pocketId: allocatePocketId, amount }),
+      body: JSON.stringify({
+        pocketId: allocatePocketId,
+        amount,
+        year: allocateYear,
+        month: allocateMonthIndex + 1,
+      }),
     });
     const data = await res.json().catch(() => null);
     setAllocateLoading(false);
@@ -105,6 +147,46 @@ export function CapitalManager({ currency = DEFAULT_CURRENCY, pockets, initialBa
     ]);
     setAllocateAmount("");
     toast(t("capital.allocateSuccess", { pocket: pocketName }));
+  }
+
+  async function saveRecurring(pocketId: string, status: "active" | "paused") {
+    setRecurringError(null);
+    const raw = recurringDrafts[pocketId] ?? "";
+    const amount = parseAmount(raw);
+    if (amount === null) {
+      setRecurringError(t("capital.invalidAmount"));
+      return;
+    }
+    setRecurringLoadingPocketId(pocketId);
+    const res = await fetch("/api/capital/recurring", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pocketId, amount, status }),
+    });
+    const data = await res.json().catch(() => null);
+    setRecurringLoadingPocketId(null);
+    if (!res.ok) {
+      setRecurringError(data?.error ?? t("capital.genericError"));
+      return;
+    }
+    const pocketName = pockets.find((p) => p.id === pocketId)?.name ?? "";
+    setRecurring((prev) => {
+      const existing = prev.find((r) => r.pocketId === pocketId);
+      if (existing) return prev.map((r) => (r.pocketId === pocketId ? { ...r, amount, status } : r));
+      return [...prev, { id: `tmp-${Date.now()}`, pocketId, pocketName, amount, status }];
+    });
+    toast(status === "active" ? t("capital.recurringSaved") : t("capital.recurringPaused"));
+    // Bei Aktivierung wird die fällige Rate serverseitig sofort verbucht – der
+    // Kapitalbestand hier lokal grob nachführen, exakter Stand beim nächsten Laden.
+    if (status === "active") {
+      setBalance((b) => Math.max(0, b - amount));
+    }
+  }
+
+  async function toggleRecurring(pocketId: string) {
+    const rule = recurringByPocketId.get(pocketId);
+    if (!rule) return;
+    await saveRecurring(pocketId, rule.status === "active" ? "paused" : "active");
   }
 
   return (
@@ -162,6 +244,36 @@ export function CapitalManager({ currency = DEFAULT_CURRENCY, pockets, initialBa
                   ))}
                 </select>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label">{t("capital.fromMonthLabel")}</label>
+                  <select
+                    value={allocateMonthIndex}
+                    onChange={(e) => setAllocateMonthIndex(Number(e.target.value))}
+                    className="input mt-1.5"
+                  >
+                    {monthLabels.map((label, i) => (
+                      <option key={label} value={i}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">{t("capital.fromYearLabel")}</label>
+                  <select
+                    value={allocateYear}
+                    onChange={(e) => setAllocateYear(Number(e.target.value))}
+                    className="input mt-1.5"
+                  >
+                    {allocateYearOptions.map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="flex items-end gap-2">
                 <div className="flex-1">
                   <label className="label">{t("capital.amountLabel")}</label>
@@ -181,6 +293,57 @@ export function CapitalManager({ currency = DEFAULT_CURRENCY, pockets, initialBa
           )}
           {allocateError ? <p className="mt-2 text-sm text-negative">{allocateError}</p> : null}
         </div>
+      </div>
+
+      <div className="card p-6">
+        <h2 className="font-semibold text-fg">{t("capital.recurringTitle")}</h2>
+        <p className="mt-1 text-sm text-fg-muted">{t("capital.recurringSubtitle")}</p>
+        {pockets.length === 0 ? (
+          <p className="mt-4 text-sm text-fg-faint">{t("capital.noPockets")}</p>
+        ) : (
+          <div className="mt-4 space-y-2.5">
+            {pockets.map((pocket) => {
+              const rule = recurringByPocketId.get(pocket.id);
+              const isPaused = rule?.status === "paused";
+              return (
+                <div key={pocket.id} className="flex flex-wrap items-end gap-2 rounded-lg border border-line px-3 py-2.5">
+                  <div className="min-w-[120px] flex-1">
+                    <p className="text-sm font-medium text-fg">{pocket.name}</p>
+                    {rule ? (
+                      <p className="text-xs text-fg-faint">
+                        {isPaused ? t("capital.recurringStatusPaused") : t("capital.recurringStatusActive")}
+                      </p>
+                    ) : null}
+                  </div>
+                  <input
+                    value={recurringDrafts[pocket.id] ?? ""}
+                    onChange={(e) => setRecurringDrafts((prev) => ({ ...prev, [pocket.id]: e.target.value }))}
+                    placeholder={t("capital.amountPlaceholder")}
+                    inputMode="decimal"
+                    className="input w-28 py-1.5"
+                  />
+                  <button
+                    onClick={() => saveRecurring(pocket.id, "active")}
+                    disabled={recurringLoadingPocketId === pocket.id}
+                    className="btn-secondary py-1.5 text-xs"
+                  >
+                    {rule ? t("capital.recurringUpdateButton") : t("capital.recurringSetButton")}
+                  </button>
+                  {rule ? (
+                    <button
+                      onClick={() => toggleRecurring(pocket.id)}
+                      disabled={recurringLoadingPocketId === pocket.id}
+                      className="btn-ghost py-1.5 text-xs"
+                    >
+                      {isPaused ? t("capital.recurringResumeButton") : t("capital.recurringPauseButton")}
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {recurringError ? <p className="mt-2 text-sm text-negative">{recurringError}</p> : null}
       </div>
 
       <div className="card p-6">
@@ -207,7 +370,7 @@ export function CapitalManager({ currency = DEFAULT_CURRENCY, pockets, initialBa
                 {transactions.map((tx, i) => (
                   <tr
                     key={tx.id}
-                    className={clsx("border-b border-line last:border-b-0", i % 2 === 1 ? "bg-surface-alt/40" : "bg-surface")}
+                    className={clsx("border-b border-line last:border-b-0", i % 2 === 1 ? "bg-surface-alt" : "bg-surface")}
                   >
                     <td className="px-4 py-2.5 text-left text-fg-muted">
                       {new Date(tx.occurredAt).toLocaleDateString(dateLocale, {
@@ -217,7 +380,11 @@ export function CapitalManager({ currency = DEFAULT_CURRENCY, pockets, initialBa
                       })}
                     </td>
                     <td className="px-4 py-2.5 text-left text-fg-muted">
-                      {tx.type === "deposit" ? t("capital.typeDeposit") : t("capital.typeAllocation", { pocket: tx.pocketName ?? "" })}
+                      {tx.type === "deposit"
+                        ? t("capital.typeDeposit")
+                        : tx.isRecurring
+                          ? t("capital.typeRecurringAllocation", { pocket: tx.pocketName ?? "" })
+                          : t("capital.typeAllocation", { pocket: tx.pocketName ?? "" })}
                     </td>
                     <td
                       className={clsx(

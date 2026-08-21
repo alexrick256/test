@@ -178,7 +178,11 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
                         : new Date(entry.date).toLocaleDateString(dateLocale, { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </td>
                     <td className="px-4 py-2.5 text-left text-fg-muted">
-                      {entry.source === "monthly" ? t("pocketDetail.sourceMonthly") : t("pocketDetail.sourceCapital")}
+                      {entry.source === "monthly"
+                        ? t("pocketDetail.sourceMonthly")
+                        : entry.source === "capital-recurring"
+                          ? t("pocketDetail.sourceCapitalRecurring")
+                          : t("pocketDetail.sourceCapitalOnetime")}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-fg">{formatCurrency(entry.amount, currency)}</td>
                   </tr>

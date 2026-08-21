@@ -168,7 +168,8 @@ export type Dictionary = {
     historySourceCol: string;
     historyAmountCol: string;
     sourceMonthly: string;
-    sourceCapital: string;
+    sourceCapitalOnetime: string;
+    sourceCapitalRecurring: string;
   };
   capital: {
     title: string;
@@ -185,10 +186,22 @@ export type Dictionary = {
     amountLabel: string;
     amountPlaceholder: string;
     pocketLabel: string;
+    fromMonthLabel: string;
+    fromYearLabel: string;
     noPockets: string;
     invalidAmount: string;
     insufficientBalance: string;
     genericError: string;
+    recurringTitle: string;
+    recurringSubtitle: string;
+    recurringStatusActive: string;
+    recurringStatusPaused: string;
+    recurringSetButton: string;
+    recurringUpdateButton: string;
+    recurringPauseButton: string;
+    recurringResumeButton: string;
+    recurringSaved: string;
+    recurringPaused: string;
     historyTitle: string;
     historyEmpty: string;
     historyDateCol: string;
@@ -196,6 +209,7 @@ export type Dictionary = {
     historyAmountCol: string;
     typeDeposit: string;
     typeAllocation: string;
+    typeRecurringAllocation: string;
   };
   onboarding: {
     close: string;
