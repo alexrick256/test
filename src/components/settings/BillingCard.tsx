@@ -24,8 +24,8 @@ export function BillingCard({ plan, status, currentPeriodEnd, cancelAtPeriodEnd,
     setLoading(true);
     try {
       const res = await fetch("/api/stripe/portal", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? t("settings.billing.portalError"));
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data?.error ?? t("settings.billing.portalError"));
       window.location.href = data.url;
     } catch (err) {
       setError(err instanceof Error ? err.message : t("auth.genericError"));

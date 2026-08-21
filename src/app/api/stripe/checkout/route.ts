@@ -21,40 +21,45 @@ export async function POST(request: Request) {
     );
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin;
-  const stripe = getStripe();
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin;
+    const stripe = getStripe();
 
-  const { data: subscription } = await supabase
-    .from("subscriptions")
-    .select("stripe_customer_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
+    const { data: subscription } = await supabase
+      .from("subscriptions")
+      .select("stripe_customer_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-  let customerId = subscription?.stripe_customer_id ?? undefined;
+    let customerId = subscription?.stripe_customer_id ?? undefined;
 
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: user.email ?? undefined,
-      metadata: { supabase_user_id: user.id },
-    });
-    customerId = customer.id;
-  }
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email ?? undefined,
+        metadata: { supabase_user_id: user.id },
+      });
+      customerId = customer.id;
+    }
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    line_items: [{ price: plan.stripePriceId, quantity: 1 }],
-    success_url: `${siteUrl}/dashboard?checkout=success`,
-    cancel_url: `${siteUrl}/pricing?checkout=cancelled`,
-    subscription_data: {
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      line_items: [{ price: plan.stripePriceId, quantity: 1 }],
+      success_url: `${siteUrl}/dashboard?checkout=success`,
+      cancel_url: `${siteUrl}/pricing?checkout=cancelled`,
+      subscription_data: {
+        metadata: { supabase_user_id: user.id, plan: planId },
+      },
       metadata: { supabase_user_id: user.id, plan: planId },
-    },
-    metadata: { supabase_user_id: user.id, plan: planId },
-  });
+    });
 
-  if (!session.url) {
-    return NextResponse.json({ error: "Checkout-Session konnte nicht erstellt werden." }, { status: 500 });
+    if (!session.url) {
+      return NextResponse.json({ error: "Checkout-Session konnte nicht erstellt werden." }, { status: 500 });
+    }
+
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Checkout konnte nicht gestartet werden.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  return NextResponse.json({ url: session.url });
 }
