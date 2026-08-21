@@ -36,6 +36,20 @@ type Props = {
   pocketCurrentBalances: Record<string, number>;
 };
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={clsx("h-3.5 w-3.5 shrink-0 transition-transform", open && "rotate-90")}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2.5}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+    </svg>
+  );
+}
+
 function TrashIcon() {
   return (
     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -70,6 +84,9 @@ export function FinanceGrid({
   const [pocketValues, setPocketValues] =
     useState<Record<string, MonthlyAmounts>>(initialPocketValues);
   const [showOnboarding, setShowOnboarding] = useState(true);
+  const [fixedCostsOpen, setFixedCostsOpen] = useState(true);
+  const [pocketsOpen, setPocketsOpen] = useState(true);
+  const [accountsOpen, setAccountsOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newPocketName, setNewPocketName] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
@@ -292,11 +309,20 @@ export function FinanceGrid({
 
               {/* Fixkosten */}
               <tr>
-                <td colSpan={13} className="bg-surface-alt px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-fg-faint">
-                  {t("grid.fixedCosts")}
+                <td colSpan={13} className="bg-surface-alt p-0">
+                  <button
+                    type="button"
+                    onClick={() => setFixedCostsOpen((v) => !v)}
+                    className="flex w-full items-center gap-1.5 px-4 py-1.5 text-left text-xs font-medium uppercase tracking-wide text-fg-faint hover:text-fg"
+                  >
+                    <ChevronIcon open={fixedCostsOpen} />
+                    {t("grid.fixedCosts")} ({categories.length})
+                  </button>
                 </td>
               </tr>
-              {categories.map((category, rowIndex) => (
+              {fixedCostsOpen ? (
+                <>
+                  {categories.map((category, rowIndex) => (
                 <tr
                   key={category.id}
                   className={clsx(
@@ -371,16 +397,27 @@ export function FinanceGrid({
                   )}
                 </td>
               </tr>
+                </>
+              ) : null}
 
               {/* Sparpockets */}
               {pocketsAvailable ? (
                 <>
                   <tr>
-                    <td colSpan={13} className="bg-surface-alt px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-fg-faint">
-                      {t("grid.pockets")}
+                    <td colSpan={13} className="bg-surface-alt p-0">
+                      <button
+                        type="button"
+                        onClick={() => setPocketsOpen((v) => !v)}
+                        className="flex w-full items-center gap-1.5 px-4 py-1.5 text-left text-xs font-medium uppercase tracking-wide text-fg-faint hover:text-fg"
+                      >
+                        <ChevronIcon open={pocketsOpen} />
+                        {t("grid.pockets")} ({pockets.length})
+                      </button>
                     </td>
                   </tr>
-                  {pockets.map((pocket, rowIndex) => (
+                  {pocketsOpen ? (
+                    <>
+                      {pockets.map((pocket, rowIndex) => (
                     <tr
                       key={pocket.id}
                       className={clsx(
@@ -455,6 +492,8 @@ export function FinanceGrid({
                       )}
                     </td>
                   </tr>
+                    </>
+                  ) : null}
                 </>
               ) : (
                 <tr>
@@ -490,33 +529,42 @@ export function FinanceGrid({
               {planConfig.hasAccountsOverview && pockets.length > 0 ? (
                 <>
                   <tr>
-                    <td colSpan={13} className="bg-surface-alt px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-fg-faint">
-                      {t("grid.accounts")}
+                    <td colSpan={13} className="bg-surface-alt p-0">
+                      <button
+                        type="button"
+                        onClick={() => setAccountsOpen((v) => !v)}
+                        className="flex w-full items-center gap-1.5 px-4 py-1.5 text-left text-xs font-medium uppercase tracking-wide text-fg-faint hover:text-fg"
+                      >
+                        <ChevronIcon open={accountsOpen} />
+                        {t("grid.accounts")}
+                      </button>
                     </td>
                   </tr>
-                  {pockets.map((pocket, rowIndex) => (
-                    <tr
-                      key={pocket.id}
-                      className={clsx(
-                        "border-b border-line",
-                        rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
-                      )}
-                    >
-                      <td
-                        className={clsx(
-                          "sticky left-0 z-10 px-4 py-3 text-left text-fg-faint",
-                          rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
-                        )}
-                      >
-                        {t("grid.accountPrefix")} · {pocket.name}
-                      </td>
-                      {(cumulativeByPocket[pocket.id] ?? emptyMonths()).map((v, i) => (
-                        <td key={i} className="px-3 py-3 text-right text-sm tabular-nums text-fg-faint">
-                          {formatCurrency(v, currency)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
+                  {accountsOpen
+                    ? pockets.map((pocket, rowIndex) => (
+                        <tr
+                          key={pocket.id}
+                          className={clsx(
+                            "border-b border-line",
+                            rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
+                          )}
+                        >
+                          <td
+                            className={clsx(
+                              "sticky left-0 z-10 px-4 py-3 text-left text-fg-faint",
+                              rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
+                            )}
+                          >
+                            {t("grid.accountPrefix")} · {pocket.name}
+                          </td>
+                          {(cumulativeByPocket[pocket.id] ?? emptyMonths()).map((v, i) => (
+                            <td key={i} className="px-3 py-3 text-right text-sm tabular-nums text-fg-faint">
+                              {formatCurrency(v, currency)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    : null}
                 </>
               ) : null}
             </tbody>
