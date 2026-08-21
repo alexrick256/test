@@ -28,6 +28,14 @@ Reihe nach im SQL-Editor ausgeführt werden:
    Pro 10).
 3. `0004_currency_preference.sql` – fügt die persönliche Anzeige-Währung zu
    `profiles` hinzu.
+4. `0005_backfill_missing_profiles.sql` – **wichtig, falls einzelne Konten
+   (z. B. sehr frühe Test-Registrierungen) gar keine `profiles`-Zeile haben.**
+   Das passiert, wenn der Erstellungs-Trigger beim Signup nicht lief; die
+   Folge ist eine Onboarding-Endlosschleife, weil ein `UPDATE ... WHERE id =
+   ...` auf eine nicht existierende Zeile lautlos 0 Zeilen betrifft, statt
+   einen Fehler zu werfen. Diese Migration installiert den Trigger neu
+   (idempotent) und legt fehlende `profiles`-/`subscriptions`-Zeilen für
+   bestehende `auth.users`-Konten nach.
 
 Bei einem **neuen** Projekt reicht `schema.sql` allein, alle Spalten sind
 dort bereits enthalten.

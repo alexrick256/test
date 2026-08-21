@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isValidPlan } from "@/lib/plans";
 import { isValidCurrency, DEFAULT_CURRENCY } from "@/lib/currency";
+import { ensureProfile } from "@/lib/ensure-profile";
 import { emptyMonths, type MonthlyAmounts } from "@/lib/calculations";
 import { FinanceGrid } from "@/components/dashboard/FinanceGrid";
 import { YearSwitcher } from "@/components/dashboard/YearSwitcher";
@@ -26,6 +27,8 @@ export default async function DashboardPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
   const { t } = getServerTranslator();
+
+  await ensureProfile(supabase, user.id, user.email ?? null);
 
   // Bewusst getrennt von der Währungs-Abfrage: onboarding_completed_at ist
   // das kritische Gate. Würde die Spalte "currency" (optionale Migration)

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isValidPlan } from "@/lib/plans";
 import { isValidCurrency, DEFAULT_CURRENCY } from "@/lib/currency";
+import { ensureProfile } from "@/lib/ensure-profile";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 
 export default async function OnboardingPage() {
@@ -10,6 +11,8 @@ export default async function OnboardingPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  await ensureProfile(supabase, user.id, user.email ?? null);
 
   // Bewusst getrennt von der Währungs-Abfrage: onboarding_completed_at ist
   // das kritische Gate. Würde die Spalte "currency" (optionale Migration)
