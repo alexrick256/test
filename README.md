@@ -1,16 +1,26 @@
-# Finanzplan
+# Leviro
 
 Eine clean designte Web-App zum Planen von monatlichen Einnahmen, Fixkosten und
 Sparzielen – pro Kalenderjahr in einer Tabellenansicht, mit Live-Berechnung
-und drei Abo-Tarifen (Free, Pro, Max).
+und drei Abo-Tarifen (Free, Pro, Max). Mehrsprachig (DE/EN/ES) und mit Dark Mode.
 
 ## Tech-Stack
 
 - **Next.js 14** (App Router) + TypeScript
-- **Tailwind CSS** für das Design-System
+- **Tailwind CSS** für das Design-System, inkl. Dark Mode (Klassen-basiert)
 - **Supabase** (Auth + Postgres) für Nutzerverwaltung und Datenpersistenz
 - **Stripe** für Abo-Zahlungen (Checkout + Customer Portal, 3 Preisstufen)
+- Eigenes leichtgewichtiges i18n-System (DE/EN/ES, umschaltbar im Header)
 - Deployment-fähig für **Vercel**
+
+## ⚠️ Update für bereits laufende Projekte
+
+Falls dein Supabase-Projekt bereits mit einer früheren Version läuft, muss
+zusätzlich [`supabase/migrations/0002_onboarding.sql`](./supabase/migrations/0002_onboarding.sql)
+im SQL-Editor ausgeführt werden (fügt das Onboarding-Flag zu `profiles` hinzu
+und markiert bestehende Nutzer automatisch als "bereits onboarded", damit sie
+nicht in den neuen Setup-Wizard geschickt werden). Bei einem **neuen** Projekt
+reicht `schema.sql` allein, die Spalte ist dort bereits enthalten.
 
 ## Getting Started
 
@@ -83,7 +93,29 @@ folgende Annahmen getroffen worden:
   über die in Stripe hinterlegten Preise.
 - **Login**: E-Mail/Passwort + optional Google OAuth (Google-Button ist immer
   sichtbar, funktioniert aber erst nach Aktivierung des Providers in Supabase).
-- **Produktname**: "Finanzplan" wie im Arbeitstitel vorgeschlagen.
+- **Produktname**: "Leviro".
+- **Standardsprache**: Deutsch, umschaltbar auf Englisch/Spanisch über den
+  Header (Auswahl wird in einem Cookie gespeichert).
+- **Sparziel im Onboarding bei Free-Tarif**: Der Tarifvergleich sieht 0
+  Sparpockets für Free vor. Der Spar-Tipp im Onboarding wird trotzdem allen
+  angezeigt, aber nur bei Pro/Max wird tatsächlich ein Sparpocket angelegt.
+
+## Neue Funktionen in diesem Update
+
+- **Dark Mode**: Umschaltbar über den Mond/Sonne-Button im Header, Auswahl
+  wird in `localStorage` gespeichert. Technisch über CSS-Variablen + Tailwind
+  `darkMode: "class"` umgesetzt (`src/app/globals.css`, `tailwind.config.ts`).
+- **Mehrsprachigkeit**: DE/EN/ES umschaltbar im Header. Server-Komponenten
+  lesen die Sprache aus einem Cookie (`src/lib/i18n/get-locale.server.ts`),
+  Client-Komponenten über `useTranslation()` (`src/lib/i18n/useTranslation.ts`).
+  Übersetzungstexte liegen in `src/lib/i18n/dictionaries/{de,en,es}.ts`.
+- **Fixkosten/Sparpockets direkt im Grid löschbar**: Papierkorb-Icon beim
+  Hovern über eine Zeile in der Jahresansicht (zusätzlich zur Verwaltung in
+  den Einstellungen).
+- **Onboarding-Wizard**: Nach der Registrierung (`/onboarding`, 3 Schritte:
+  Einnahmen → Fixkosten-Auswahl → Sparziel mit Tipp) werden die Werte für das
+  aktuelle Jahr in alle 12 Monate übernommen und bleiben danach frei editierbar.
+  Bereits bestehende Nutzer werden durch die Migration übersprungen (siehe oben).
 
 ## Architektur
 

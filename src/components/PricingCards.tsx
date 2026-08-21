@@ -5,6 +5,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import { PLAN_ORDER, PLANS, type PlanId } from "@/lib/plans";
 import { formatCurrency } from "@/lib/calculations";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 type Props = {
   mode: "public" | "account";
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function PricingCards({ mode, currentPlan }: Props) {
+  const { t, tList } = useTranslation();
   const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,10 +28,10 @@ export function PricingCards({ mode, currentPlan }: Props) {
         body: JSON.stringify({ plan: planId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Checkout konnte nicht gestartet werden.");
+      if (!res.ok) throw new Error(data.error ?? t("pricing.checkoutError"));
       window.location.href = data.url;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Etwas ist schiefgelaufen.");
+      setError(err instanceof Error ? err.message : t("auth.genericError"));
       setLoadingPlan(null);
     }
   }
@@ -43,6 +45,7 @@ export function PricingCards({ mode, currentPlan }: Props) {
         {PLAN_ORDER.map((planId) => {
           const plan = PLANS[planId];
           const isCurrent = mode === "account" && currentPlan === planId;
+          const features = tList(`pricing.plans.${planId}.features`);
 
           return (
             <div
@@ -53,23 +56,23 @@ export function PricingCards({ mode, currentPlan }: Props) {
               )}
             >
               {plan.highlighted ? (
-                <span className="mb-4 inline-flex w-fit items-center rounded-full bg-accent-50 px-2.5 py-1 text-xs font-medium text-accent-700">
-                  Beliebteste Wahl
+                <span className="mb-4 inline-flex w-fit items-center rounded-full bg-accent-50 px-2.5 py-1 text-xs font-medium text-accent-700 dark:bg-accent-900/40 dark:text-accent-300">
+                  {t("pricing.badge")}
                 </span>
               ) : (
                 <span className="mb-4 h-6" />
               )}
-              <h3 className="text-lg font-semibold text-ink-950">{plan.name}</h3>
-              <p className="mt-1 text-sm text-ink-500">{plan.tagline}</p>
+              <h3 className="text-lg font-semibold text-fg">{plan.name}</h3>
+              <p className="mt-1 text-sm text-fg-muted">{t(`pricing.plans.${planId}.tagline`)}</p>
               <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-3xl font-semibold tracking-tight text-ink-950">
+                <span className="text-3xl font-semibold tracking-tight text-fg">
                   {plan.priceMonthly === 0 ? "0€" : formatCurrency(plan.priceMonthly)}
                 </span>
-                <span className="text-sm text-ink-500">/ Monat</span>
+                <span className="text-sm text-fg-muted">{t("pricing.perMonth")}</span>
               </div>
 
-              <ul className="mt-6 flex-1 space-y-3 text-sm text-ink-700">
-                {plan.features.map((feature) => (
+              <ul className="mt-6 flex-1 space-y-3 text-sm text-fg">
+                {features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2">
                     <svg
                       className="mt-0.5 h-4 w-4 shrink-0 text-accent-500"
@@ -91,23 +94,21 @@ export function PricingCards({ mode, currentPlan }: Props) {
                     href={planId === "free" ? "/signup" : `/signup?plan=${planId}`}
                     className={clsx("w-full", plan.highlighted ? "btn-accent" : "btn-secondary")}
                   >
-                    {planId === "free" ? "Kostenlos starten" : "Jetzt starten"}
+                    {planId === "free" ? t("pricing.startFree") : t("pricing.startNow")}
                   </Link>
                 ) : isCurrent ? (
                   <button className="btn-secondary w-full" disabled>
-                    Aktueller Tarif
+                    {t("pricing.currentPlan")}
                   </button>
                 ) : planId === "free" ? (
-                  <span className="block text-center text-sm text-ink-400">
-                    Downgrade über Kundenportal
-                  </span>
+                  <span className="block text-center text-sm text-fg-faint">{t("pricing.downgradeHint")}</span>
                 ) : (
                   <button
                     className={clsx("w-full", plan.highlighted ? "btn-accent" : "btn-secondary")}
                     onClick={() => handleSelect(planId)}
                     disabled={loadingPlan !== null}
                   >
-                    {loadingPlan === planId ? "Weiterleitung…" : `Zu ${plan.name} wechseln`}
+                    {loadingPlan === planId ? t("pricing.redirecting") : t("pricing.switchTo", { plan: plan.name })}
                   </button>
                 )}
               </div>

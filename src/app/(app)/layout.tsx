@@ -22,7 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const plan = isValidPlan(data?.plan) ? data.plan : "free";
 
   return (
-    <div className="min-h-screen bg-ink-50">
+    <div className="min-h-screen bg-bg">
       <AppNav email={user.email ?? null} plan={plan} />
       <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
     </div>

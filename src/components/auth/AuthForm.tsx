@@ -4,12 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 type Mode = "login" | "signup";
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,7 +19,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = searchParams.get("next") ?? (mode === "signup" ? "/onboarding" : "/dashboard");
   const plan = searchParams.get("plan");
 
   async function handleSubmit(e: React.FormEvent) {
@@ -34,12 +36,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
-              plan ? `/pricing?plan=${plan}` : next,
+              plan ? `/onboarding?plan=${plan}` : next,
             )}`,
           },
         });
         if (signUpError) throw signUpError;
-        setInfo("Fast geschafft! Bitte bestätige deine E-Mail-Adresse über den Link, den wir dir geschickt haben.");
+        setInfo(t("auth.signupSuccess"));
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
@@ -47,7 +49,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         router.refresh();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Etwas ist schiefgelaufen.");
+      setError(err instanceof Error ? err.message : t("auth.genericError"));
     } finally {
       setLoading(false);
     }
@@ -71,13 +73,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   return (
     <div className="w-full max-w-sm">
-      <h1 className="text-2xl font-semibold tracking-tight text-ink-950">
-        {mode === "login" ? "Willkommen zurück" : "Konto erstellen"}
+      <h1 className="text-2xl font-semibold tracking-tight text-fg">
+        {mode === "login" ? t("auth.login.title") : t("auth.signup.title")}
       </h1>
-      <p className="mt-1.5 text-sm text-ink-500">
-        {mode === "login"
-          ? "Melde dich an, um deinen Finanzplan zu öffnen."
-          : "Kostenlos starten – kein Zahlungsmittel nötig."}
+      <p className="mt-1.5 text-sm text-fg-muted">
+        {mode === "login" ? t("auth.login.subtitle") : t("auth.signup.subtitle")}
       </p>
 
       <button
@@ -104,19 +104,19 @@ export function AuthForm({ mode }: { mode: Mode }) {
             d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.69 1.27 6.62l4 3.1c.95-2.85 3.6-4.97 6.73-4.97z"
           />
         </svg>
-        Mit Google fortfahren
+        {t("auth.google")}
       </button>
 
       <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-ink-100" />
-        <span className="text-xs text-ink-400">oder mit E-Mail</span>
-        <div className="h-px flex-1 bg-ink-100" />
+        <div className="h-px flex-1 bg-line" />
+        <span className="text-xs text-fg-faint">{t("auth.orEmail")}</span>
+        <div className="h-px flex-1 bg-line" />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="email" className="label">
-            E-Mail
+            {t("auth.email")}
           </label>
           <input
             id="email"
@@ -131,7 +131,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </div>
         <div>
           <label htmlFor="password" className="label">
-            Passwort
+            {t("auth.password")}
           </label>
           <input
             id="password"
@@ -142,7 +142,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="input mt-1.5"
-            placeholder="Mindestens 8 Zeichen"
+            placeholder={t("auth.passwordHint")}
           />
         </div>
 
@@ -150,23 +150,23 @@ export function AuthForm({ mode }: { mode: Mode }) {
         {info ? <p className="text-sm text-positive">{info}</p> : null}
 
         <button type="submit" disabled={loading} className="btn-primary w-full">
-          {loading ? "Einen Moment…" : mode === "login" ? "Anmelden" : "Konto erstellen"}
+          {loading ? t("auth.loading") : mode === "login" ? t("auth.submitLogin") : t("auth.submitSignup")}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-ink-500">
+      <p className="mt-6 text-center text-sm text-fg-muted">
         {mode === "login" ? (
           <>
-            Noch kein Konto?{" "}
-            <Link href="/signup" className="font-medium text-ink-900 hover:underline">
-              Kostenlos registrieren
+            {t("auth.noAccount")}{" "}
+            <Link href="/signup" className="font-medium text-fg hover:underline">
+              {t("auth.registerLink")}
             </Link>
           </>
         ) : (
           <>
-            Bereits ein Konto?{" "}
-            <Link href="/login" className="font-medium text-ink-900 hover:underline">
-              Anmelden
+            {t("auth.hasAccount")}{" "}
+            <Link href="/login" className="font-medium text-fg hover:underline">
+              {t("auth.loginLink")}
             </Link>
           </>
         )}

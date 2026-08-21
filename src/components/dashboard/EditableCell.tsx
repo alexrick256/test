@@ -50,7 +50,7 @@ export function EditableCell({ value, onCommit, negative, emphasize, disabled }:
           }
         }}
         inputMode="decimal"
-        className="w-full rounded-md border border-accent-400 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-ink-950 outline-none ring-2 ring-accent-100"
+        className="w-full rounded-md border border-accent-400 bg-surface px-2 py-1.5 text-right text-sm tabular-nums text-fg outline-none ring-2 ring-accent-100 dark:ring-accent-900/40"
       />
     );
   }
@@ -62,8 +62,8 @@ export function EditableCell({ value, onCommit, negative, emphasize, disabled }:
       onClick={() => !disabled && setEditing(true)}
       className={clsx(
         "w-full rounded-md px-2 py-1.5 text-right text-sm tabular-nums transition-colors",
-        disabled ? "cursor-default text-ink-300" : "hover:bg-ink-100",
-        negative ? "font-semibold text-negative" : emphasize ? "font-semibold text-ink-950" : "text-ink-700",
+        disabled ? "cursor-default text-fg-faint" : "hover:bg-surface-alt",
+        negative ? "font-semibold text-negative" : emphasize ? "font-semibold text-fg" : "text-fg-muted",
       )}
     >
       {formatCurrency(value)}

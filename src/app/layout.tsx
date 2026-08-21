@@ -1,8 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { LanguageProvider } from "@/components/i18n/LanguageProvider";
+import { getServerLocale } from "@/lib/i18n/get-locale.server";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Finanzplan – Einnahmen, Ausgaben & Sparziele planen",
+  title: "Leviro – Einnahmen, Ausgaben & Sparziele planen",
   description:
     "Plane deine monatlichen Einnahmen und Ausgaben und verfolge deine Sparziele – clean, einfach, wie ein Spreadsheet, das mitdenkt.",
   manifest: "/manifest.webmanifest",
@@ -16,7 +22,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Finanzplan",
+    title: "Leviro",
   },
 };
 
@@ -26,10 +32,27 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+const THEME_INIT_SCRIPT = `
+(function () {
+  try {
+    var stored = localStorage.getItem('leviro-theme');
+    var isDark = stored === 'dark' || (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (isDark) document.documentElement.classList.add('dark');
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = getServerLocale();
+
   return (
-    <html lang="de">
-      <body className="min-h-screen">{children}</body>
+    <html lang={locale} suppressHydrationWarning className={inter.variable}>
+      <body className="min-h-screen font-sans">
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <ThemeProvider>
+          <LanguageProvider initialLocale={locale}>{children}</LanguageProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

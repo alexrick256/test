@@ -13,6 +13,7 @@ import {
 import { PLANS, type PlanId } from "@/lib/plans";
 import { EditableCell } from "@/components/dashboard/EditableCell";
 import { SavingsGoalCalculator } from "@/components/dashboard/SavingsGoalCalculator";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
@@ -29,6 +30,18 @@ type Props = {
   initialPocketValues: Record<string, MonthlyAmounts>;
 };
 
+function TrashIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397M4.772 5.79c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+      />
+    </svg>
+  );
+}
+
 export function FinanceGrid({
   year,
   plan,
@@ -39,6 +52,7 @@ export function FinanceGrid({
   initialPocketValues,
 }: Props) {
   const router = useRouter();
+  const { t } = useTranslation();
   const planConfig = PLANS[plan];
 
   const [income, setIncome] = useState<MonthlyAmounts>(initialIncome);
@@ -52,6 +66,7 @@ export function FinanceGrid({
   const [addingCategory, setAddingCategory] = useState(false);
   const [addingPocket, setAddingPocket] = useState(false);
   const [gridError, setGridError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fixedCostRows = useMemo(
     () => categories.map((c) => fixedCostValues[c.id] ?? emptyMonths()),
@@ -130,7 +145,7 @@ export function FinanceGrid({
     });
     const data = await res.json();
     if (!res.ok) {
-      setGridError(data.error ?? "Kategorie konnte nicht angelegt werden.");
+      setGridError(data.error ?? t("settings.manage.addError"));
       return;
     }
     setNewCategoryName("");
@@ -149,7 +164,7 @@ export function FinanceGrid({
     });
     const data = await res.json();
     if (!res.ok) {
-      setGridError(data.error ?? "Sparpocket konnte nicht angelegt werden.");
+      setGridError(data.error ?? t("settings.manage.addError"));
       return;
     }
     setNewPocketName("");
@@ -157,21 +172,45 @@ export function FinanceGrid({
     router.refresh();
   }
 
+  async function deleteCategory(id: string) {
+    if (!window.confirm(t("grid.deleteConfirm"))) return;
+    setGridError(null);
+    setDeletingId(id);
+    const res = await fetch(`/api/categories/${id}`, { method: "DELETE" });
+    setDeletingId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setGridError(data?.error ?? t("settings.manage.deleteError"));
+      return;
+    }
+    router.refresh();
+  }
+
+  async function deletePocket(id: string) {
+    if (!window.confirm(t("grid.deleteConfirm"))) return;
+    setGridError(null);
+    setDeletingId(id);
+    const res = await fetch(`/api/pockets/${id}`, { method: "DELETE" });
+    setDeletingId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setGridError(data?.error ?? t("settings.manage.deleteError"));
+      return;
+    }
+    router.refresh();
+  }
+
   return (
     <div className="space-y-6">
       {showOnboarding ? (
-        <div className="card relative flex items-start gap-3 border-accent-200 bg-accent-50/60 p-4">
-          <svg className="mt-0.5 h-5 w-5 shrink-0 text-accent-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="card relative flex items-start gap-3 border-accent-200 bg-accent-50/60 p-4 dark:border-accent-800 dark:bg-accent-950/30">
+          <svg className="mt-0.5 h-5 w-5 shrink-0 text-accent-600 dark:text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <p className="text-sm text-ink-700">
-            <strong>Tipp:</strong> Trag im Januar direkt ein, wie viel du bis Dezember in einem
-            Sparpocket angespart haben möchtest – der Sparziel-Rechner unten zeigt dir sofort, wie
-            viel du pro Monat beiseitelegen musst und ob das mit deinem „Rest zum Ausgeben“ machbar ist.
-          </p>
+          <p className="text-sm text-fg">{t("grid.onboardingTip")}</p>
           <button
             onClick={() => setShowOnboarding(false)}
-            className="ml-auto text-ink-400 hover:text-ink-700"
+            className="ml-auto text-fg-faint hover:text-fg"
             aria-label="Hinweis schließen"
           >
             ✕
@@ -187,12 +226,12 @@ export function FinanceGrid({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[880px] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-ink-100 bg-ink-50/60">
-                <th className="sticky left-0 z-10 w-44 bg-ink-50/60 px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-ink-400">
+              <tr className="border-b border-line bg-surface-alt">
+                <th className="sticky left-0 z-10 w-44 bg-surface-alt px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
                   {year}
                 </th>
                 {MONTH_LABELS.map((m) => (
-                  <th key={m} className="min-w-[72px] px-2 py-3 text-right text-xs font-medium text-ink-400">
+                  <th key={m} className="min-w-[72px] px-2 py-3 text-right text-xs font-medium text-fg-faint">
                     {m}
                   </th>
                 ))}
@@ -200,9 +239,9 @@ export function FinanceGrid({
             </thead>
             <tbody>
               {/* Einnahmen */}
-              <tr className="border-b border-ink-50 bg-white">
-                <td className="sticky left-0 bg-white px-4 py-2 text-left font-medium text-ink-900">
-                  Einnahmen
+              <tr className="border-b border-line bg-surface">
+                <td className="sticky left-0 bg-surface px-4 py-2 text-left font-medium text-fg">
+                  {t("grid.income")}
                 </td>
                 {income.map((v, i) => (
                   <td key={i} className="px-1 py-1">
@@ -213,14 +252,24 @@ export function FinanceGrid({
 
               {/* Fixkosten */}
               <tr>
-                <td colSpan={13} className="bg-ink-50/50 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-ink-400">
-                  Fixkosten
+                <td colSpan={13} className="bg-surface-alt px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-fg-faint">
+                  {t("grid.fixedCosts")}
                 </td>
               </tr>
               {categories.map((category) => (
-                <tr key={category.id} className="border-b border-ink-50 bg-white">
-                  <td className="sticky left-0 bg-white px-4 py-2 text-left text-ink-700">
-                    {category.name}
+                <tr key={category.id} className="group border-b border-line bg-surface">
+                  <td className="sticky left-0 bg-surface px-4 py-2 text-left text-fg-muted">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{category.name}</span>
+                      <button
+                        onClick={() => deleteCategory(category.id)}
+                        disabled={deletingId === category.id}
+                        className="shrink-0 rounded p-1 text-fg-faint opacity-0 transition-opacity hover:bg-negative/10 hover:text-negative group-hover:opacity-100"
+                        aria-label={t("grid.delete")}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
                   </td>
                   {(fixedCostValues[category.id] ?? emptyMonths()).map((v, i) => (
                     <td key={i} className="px-1 py-1">
@@ -229,7 +278,7 @@ export function FinanceGrid({
                   ))}
                 </tr>
               ))}
-              <tr className="border-b border-ink-50">
+              <tr className="border-b border-line">
                 <td colSpan={13} className="px-4 py-2">
                   {addingCategory ? (
                     <div className="flex items-center gap-2">
@@ -238,29 +287,29 @@ export function FinanceGrid({
                         value={newCategoryName}
                         onChange={(e) => setNewCategoryName(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && addCategory()}
-                        placeholder="Name der Kategorie"
+                        placeholder={t("grid.categoryNamePlaceholder")}
                         className="input max-w-[240px] py-1.5"
                       />
                       <button onClick={addCategory} className="btn-primary py-1.5 text-xs">
-                        Hinzufügen
+                        {t("grid.add")}
                       </button>
                       <button onClick={() => setAddingCategory(false)} className="btn-ghost py-1.5 text-xs">
-                        Abbrechen
+                        {t("grid.cancel")}
                       </button>
                     </div>
                   ) : atCategoryLimit ? (
-                    <p className="text-xs text-ink-400">
-                      Limit erreicht ({planConfig.fixedCostLimit} Kategorien).{" "}
-                      <Link href="/pricing" className="font-medium text-accent-600 hover:underline">
-                        Tarif upgraden
+                    <p className="text-xs text-fg-faint">
+                      {t("grid.limitReachedCategories", { limit: planConfig.fixedCostLimit })}{" "}
+                      <Link href="/pricing" className="font-medium text-accent-600 hover:underline dark:text-accent-400">
+                        {t("grid.upgrade")}
                       </Link>
                     </p>
                   ) : (
                     <button
                       onClick={() => setAddingCategory(true)}
-                      className="text-xs font-medium text-ink-500 hover:text-ink-900"
+                      className="text-xs font-medium text-fg-muted hover:text-fg"
                     >
-                      + Fixkosten-Kategorie
+                      {t("grid.addCategory")}
                     </button>
                   )}
                 </td>
@@ -270,14 +319,24 @@ export function FinanceGrid({
               {pocketsAvailable ? (
                 <>
                   <tr>
-                    <td colSpan={13} className="bg-ink-50/50 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-ink-400">
-                      Sparpockets
+                    <td colSpan={13} className="bg-surface-alt px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-fg-faint">
+                      {t("grid.pockets")}
                     </td>
                   </tr>
                   {pockets.map((pocket) => (
-                    <tr key={pocket.id} className="border-b border-ink-50 bg-white">
-                      <td className="sticky left-0 bg-white px-4 py-2 text-left text-ink-700">
-                        {pocket.name}
+                    <tr key={pocket.id} className="group border-b border-line bg-surface">
+                      <td className="sticky left-0 bg-surface px-4 py-2 text-left text-fg-muted">
+                        <div className="flex items-center justify-between gap-2">
+                          <span>{pocket.name}</span>
+                          <button
+                            onClick={() => deletePocket(pocket.id)}
+                            disabled={deletingId === pocket.id}
+                            className="shrink-0 rounded p-1 text-fg-faint opacity-0 transition-opacity hover:bg-negative/10 hover:text-negative group-hover:opacity-100"
+                            aria-label={t("grid.delete")}
+                          >
+                            <TrashIcon />
+                          </button>
+                        </div>
                       </td>
                       {(pocketValues[pocket.id] ?? emptyMonths()).map((v, i) => (
                         <td key={i} className="px-1 py-1">
@@ -286,7 +345,7 @@ export function FinanceGrid({
                       ))}
                     </tr>
                   ))}
-                  <tr className="border-b border-ink-50">
+                  <tr className="border-b border-line">
                     <td colSpan={13} className="px-4 py-2">
                       {addingPocket ? (
                         <div className="flex items-center gap-2">
@@ -295,29 +354,29 @@ export function FinanceGrid({
                             value={newPocketName}
                             onChange={(e) => setNewPocketName(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && addPocket()}
-                            placeholder="Name des Sparpockets"
+                            placeholder={t("grid.pocketNamePlaceholder")}
                             className="input max-w-[240px] py-1.5"
                           />
                           <button onClick={addPocket} className="btn-primary py-1.5 text-xs">
-                            Hinzufügen
+                            {t("grid.add")}
                           </button>
                           <button onClick={() => setAddingPocket(false)} className="btn-ghost py-1.5 text-xs">
-                            Abbrechen
+                            {t("grid.cancel")}
                           </button>
                         </div>
                       ) : atPocketLimit ? (
-                        <p className="text-xs text-ink-400">
-                          Limit erreicht ({planConfig.savingsPocketLimit} Sparpockets).{" "}
-                          <Link href="/pricing" className="font-medium text-accent-600 hover:underline">
-                            Tarif upgraden
+                        <p className="text-xs text-fg-faint">
+                          {t("grid.limitReachedPockets", { limit: planConfig.savingsPocketLimit })}{" "}
+                          <Link href="/pricing" className="font-medium text-accent-600 hover:underline dark:text-accent-400">
+                            {t("grid.upgrade")}
                           </Link>
                         </p>
                       ) : (
                         <button
                           onClick={() => setAddingPocket(true)}
-                          className="text-xs font-medium text-ink-500 hover:text-ink-900"
+                          className="text-xs font-medium text-fg-muted hover:text-fg"
                         >
-                          + Sparpocket
+                          {t("grid.addPocket")}
                         </button>
                       )}
                     </td>
@@ -326,10 +385,10 @@ export function FinanceGrid({
               ) : (
                 <tr>
                   <td colSpan={13} className="px-4 py-3">
-                    <p className="text-xs text-ink-400">
-                      Sparpockets sind ab dem Pro-Tarif verfügbar.{" "}
-                      <Link href="/pricing" className="font-medium text-accent-600 hover:underline">
-                        Tarif upgraden
+                    <p className="text-xs text-fg-faint">
+                      {t("grid.pocketsLocked")}{" "}
+                      <Link href="/pricing" className="font-medium text-accent-600 hover:underline dark:text-accent-400">
+                        {t("grid.upgrade")}
                       </Link>
                     </p>
                   </td>
@@ -337,15 +396,15 @@ export function FinanceGrid({
               )}
 
               {/* Rest zum Ausgeben */}
-              <tr className="border-t-2 border-ink-100 bg-ink-50/40">
-                <td className="sticky left-0 bg-ink-50/40 px-4 py-2.5 text-left font-semibold text-ink-950">
-                  Rest zum Ausgeben
+              <tr className="border-t-2 border-line-strong bg-surface-alt">
+                <td className="sticky left-0 bg-surface-alt px-4 py-2.5 text-left font-semibold text-fg">
+                  {t("grid.remaining")}
                 </td>
                 {remaining.map((v, i) => (
                   <td
                     key={i}
                     className={`px-3 py-2.5 text-right text-sm font-semibold tabular-nums ${
-                      v < 0 ? "text-negative" : "text-ink-950"
+                      v < 0 ? "text-negative" : "text-fg"
                     }`}
                   >
                     {formatCurrency(v)}
@@ -357,17 +416,17 @@ export function FinanceGrid({
               {planConfig.hasAccountsOverview && pockets.length > 0 ? (
                 <>
                   <tr>
-                    <td colSpan={13} className="bg-ink-50/50 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-ink-400">
-                      Konten
+                    <td colSpan={13} className="bg-surface-alt px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-fg-faint">
+                      {t("grid.accounts")}
                     </td>
                   </tr>
                   {pockets.map((pocket) => (
-                    <tr key={pocket.id} className="border-b border-ink-50 bg-white">
-                      <td className="sticky left-0 bg-white px-4 py-2 text-left text-ink-500">
-                        Konto · {pocket.name}
+                    <tr key={pocket.id} className="border-b border-line bg-surface">
+                      <td className="sticky left-0 bg-surface px-4 py-2 text-left text-fg-faint">
+                        {t("grid.accountPrefix")} · {pocket.name}
                       </td>
                       {(cumulativeByPocket[pocket.id] ?? emptyMonths()).map((v, i) => (
-                        <td key={i} className="px-3 py-2 text-right text-sm tabular-nums text-ink-500">
+                        <td key={i} className="px-3 py-2 text-right text-sm tabular-nums text-fg-faint">
                           {formatCurrency(v)}
                         </td>
                       ))}
@@ -381,12 +440,7 @@ export function FinanceGrid({
       </div>
 
       {pocketsAvailable && pockets.length > 0 ? (
-        <SavingsGoalCalculator
-          year={year}
-          pockets={pockets}
-          pocketValues={pocketValues}
-          remaining={remaining}
-        />
+        <SavingsGoalCalculator year={year} pockets={pockets} pocketValues={pocketValues} remaining={remaining} />
       ) : null}
     </div>
   );
