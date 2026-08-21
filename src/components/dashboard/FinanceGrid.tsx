@@ -15,6 +15,7 @@ import { DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currency";
 import { EditableCell } from "@/components/dashboard/EditableCell";
 import { SavingsGoalCalculator } from "@/components/dashboard/SavingsGoalCalculator";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { useToast } from "@/components/toast/ToastProvider";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
@@ -56,6 +57,7 @@ export function FinanceGrid({
 }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
+  const { toast } = useToast();
   const planConfig = PLANS[plan];
 
   const [income, setIncome] = useState<MonthlyAmounts>(initialIncome);
@@ -135,6 +137,33 @@ export function FinanceGrid({
       body: JSON.stringify({ pocketId, year, month: monthIndex + 1, amount }),
     });
     if (!res.ok) router.refresh();
+  }
+
+  async function copyToAllMonths(kind: "fixed-cost" | "pocket", id: string, monthIndex: number) {
+    const row = (kind === "fixed-cost" ? fixedCostValues[id] : pocketValues[id]) ?? emptyMonths();
+    const value = row[monthIndex];
+    const hasDifferences = row.some((v, i) => i !== monthIndex && v !== value);
+    if (hasDifferences && !window.confirm(t("grid.copyConfirm"))) return;
+
+    const newRow = Array(12).fill(value);
+    if (kind === "fixed-cost") {
+      setFixedCostValues((prev) => ({ ...prev, [id]: newRow }));
+    } else {
+      setPocketValues((prev) => ({ ...prev, [id]: newRow }));
+    }
+
+    const endpoint = kind === "fixed-cost" ? "/api/values/fixed-cost" : "/api/values/pocket";
+    const idField = kind === "fixed-cost" ? "categoryId" : "pocketId";
+    await Promise.all(
+      Array.from({ length: 12 }, (_, i) =>
+        fetch(endpoint, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [idField]: id, year, month: i + 1, amount: value }),
+        }),
+      ),
+    );
+    toast(t("grid.copySuccess"));
   }
 
   async function addCategory() {
@@ -276,7 +305,13 @@ export function FinanceGrid({
                   </td>
                   {(fixedCostValues[category.id] ?? emptyMonths()).map((v, i) => (
                     <td key={i} className="px-1 py-1">
-                      <EditableCell value={v} currency={currency} onCommit={(val) => saveFixedCost(category.id, i, val)} />
+                      <EditableCell
+                        value={v}
+                        currency={currency}
+                        onCommit={(val) => saveFixedCost(category.id, i, val)}
+                        onCopyToYear={() => copyToAllMonths("fixed-cost", category.id, i)}
+                        copyLabel={t("grid.copyToYear")}
+                      />
                     </td>
                   ))}
                 </tr>
@@ -343,7 +378,13 @@ export function FinanceGrid({
                       </td>
                       {(pocketValues[pocket.id] ?? emptyMonths()).map((v, i) => (
                         <td key={i} className="px-1 py-1">
-                          <EditableCell value={v} currency={currency} onCommit={(val) => savePocket(pocket.id, i, val)} />
+                          <EditableCell
+                            value={v}
+                            currency={currency}
+                            onCommit={(val) => savePocket(pocket.id, i, val)}
+                            onCopyToYear={() => copyToAllMonths("pocket", pocket.id, i)}
+                            copyLabel={t("grid.copyToYear")}
+                          />
                         </td>
                       ))}
                     </tr>

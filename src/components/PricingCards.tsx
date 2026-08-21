@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { PLAN_ORDER, PLANS, type PlanId } from "@/lib/plans";
 import { formatCurrency } from "@/lib/calculations";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Props = {
   mode: "public" | "account";
@@ -108,6 +109,7 @@ export function PricingCards({ mode, currentPlan }: Props) {
                     onClick={() => handleSelect(planId)}
                     disabled={loadingPlan !== null}
                   >
+                    {loadingPlan === planId ? <Spinner /> : null}
                     {loadingPlan === planId ? t("pricing.redirecting") : t("pricing.switchTo", { plan: plan.name })}
                   </button>
                 )}

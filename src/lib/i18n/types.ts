@@ -1,9 +1,14 @@
 export type Dictionary = {
   nav: {
+    home: string;
     dashboard: string;
+    savingsPlans: string;
+    tips: string;
     settings: string;
     planSuffix: string;
     signOut: string;
+    noPockets: string;
+    pocketsUpgrade: string;
   };
   marketing: {
     nav: { features: string; pricing: string; login: string; getStarted: string };
@@ -43,6 +48,19 @@ export type Dictionary = {
     loginLink: string;
     signupSuccess: string;
     genericError: string;
+    confirmFailed: string;
+    confirmed: {
+      title: string;
+      subtitle: string;
+      cta: string;
+    };
+    pending: {
+      title: string;
+      subtitle: string;
+      resend: string;
+      resent: string;
+      signOut: string;
+    };
   };
   pricing: {
     plans: {
@@ -87,6 +105,9 @@ export type Dictionary = {
     upgrade: string;
     pocketsLocked: string;
     onboardingTip: string;
+    copyToYear: string;
+    copyConfirm: string;
+    copySuccess: string;
   };
   savingsCalculator: {
     title: string;
@@ -126,6 +147,18 @@ export type Dictionary = {
       deleteError: string;
       cancel: string;
     };
+  };
+  tips: {
+    pageTitle: string;
+    pageSubtitle: string;
+    items: { title: string; description: string }[];
+  };
+  pocketDetail: {
+    back: string;
+    deposits: string;
+    balance: string;
+    deleteConfirm: string;
+    notFound: string;
   };
   onboarding: {
     close: string;

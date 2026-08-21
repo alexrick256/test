@@ -2,10 +2,15 @@ import type { Dictionary } from "@/lib/i18n/types";
 
 const de: Dictionary = {
   nav: {
+    home: "Home",
     dashboard: "Jahresansicht",
+    savingsPlans: "Sparpläne",
+    tips: "Spartipps",
     settings: "Einstellungen",
     planSuffix: "Tarif",
     signOut: "Abmelden",
+    noPockets: "Noch keine Sparpläne",
+    pocketsUpgrade: "Ab Pro verfügbar",
   },
   marketing: {
     nav: { features: "Funktionen", pricing: "Preise", login: "Anmelden", getStarted: "Kostenlos starten" },
@@ -71,6 +76,19 @@ const de: Dictionary = {
     signupSuccess:
       "Fast geschafft! Bitte bestätige deine E-Mail-Adresse über den Link, den wir dir geschickt haben.",
     genericError: "Etwas ist schiefgelaufen.",
+    confirmFailed: "Der Bestätigungslink ist ungültig oder abgelaufen. Fordere unten einen neuen an.",
+    confirmed: {
+      title: "E-Mail bestätigt ✅",
+      subtitle: "Dein Konto ist jetzt aktiv.",
+      cta: "Weiter",
+    },
+    pending: {
+      title: "Bitte bestätige deine E-Mail-Adresse",
+      subtitle: "Wir haben dir einen Bestätigungslink an {{email}} geschickt. Bitte klick darauf, um dein Konto zu aktivieren.",
+      resend: "Link erneut senden",
+      resent: "Neuer Link wurde gesendet.",
+      signOut: "Abmelden",
+    },
   },
   pricing: {
     plans: {
@@ -133,6 +151,9 @@ const de: Dictionary = {
     pocketsLocked: "Sparpockets sind ab dem Pro-Tarif verfügbar.",
     onboardingTip:
       "Tipp: Trag im Januar direkt ein, wie viel du bis Dezember in einem Sparpocket angespart haben möchtest – der Sparziel-Rechner unten zeigt dir sofort, wie viel du pro Monat beiseitelegen musst und ob das mit deinem „Rest zum Ausgeben“ machbar ist.",
+    copyToYear: "Auf alle 12 Monate übertragen",
+    copyConfirm: "In anderen Monaten stehen bereits abweichende Werte. Trotzdem überschreiben?",
+    copySuccess: "Wert für alle 12 Monate übernommen",
   },
   savingsCalculator: {
     title: "Sparziel-Rechner",
@@ -185,6 +206,59 @@ const de: Dictionary = {
       deleteError: "Fehler beim Löschen.",
       cancel: "Abbrechen",
     },
+  },
+  tips: {
+    pageTitle: "Spartipps",
+    pageSubtitle: "Praxisnahe Grundlagen für alle, die gerade erst mit dem Sparen anfangen.",
+    items: [
+      {
+        title: "Die 50/30/20-Regel",
+        description:
+          "Teile dein Netto-Einkommen grob auf: 50% für Fixkosten, 30% für Wünsche, 20% fürs Sparen. Eine einfache Faustregel, um erstmal einen Überblick zu bekommen.",
+      },
+      {
+        title: "Notgroschen aufbauen",
+        description:
+          "Bevor du für größere Ziele sparst, leg dir 2–3 Monatsgehälter als Puffer für Unerwartetes zurück – so musst du bei einer kaputten Waschmaschine keinen Kredit aufnehmen.",
+      },
+      {
+        title: "Daueraufträge automatisieren",
+        description:
+          "Richte einen Dauerauftrag ein, der direkt am Gehaltstag einen festen Betrag aufs Sparkonto überweist. Was du nie auf dem Girokonto siehst, gibst du auch nicht aus.",
+      },
+      {
+        title: "Fixkosten regelmäßig prüfen",
+        description:
+          "Strom, Handy, Versicherungen: Einmal im Jahr vergleichen und wechseln lohnt sich oft mehr als beim täglichen Kaffee zu sparen.",
+      },
+      {
+        title: "Abos durchforsten",
+        description:
+          "Streaming, Fitnessstudio, Apps – schau dir einmal im Quartal an, was du wirklich nutzt, und kündige den Rest.",
+      },
+      {
+        title: "Konkrete Sparziele setzen",
+        description:
+          "\"Ich will sparen\" ist vage. \"1.500€ bis Dezember für den Urlaub\" ist konkret und lässt sich in monatliche Beträge herunterbrechen – genau dafür sind Sparpockets da.",
+      },
+      {
+        title: "Vor großen Anschaffungen vergleichen",
+        description:
+          "Bei Anschaffungen über 100€ eine Nacht drüber schlafen und Preise vergleichen – Spontankäufe sind der häufigste Grund für gesprengte Budgets.",
+      },
+      {
+        title: "Einmal im Monat ein Finanz-Check-in",
+        description:
+          "Nimm dir 15 Minuten im Monat, um deinen Kontostand und dein Restbudget durchzugehen. Regelmäßigkeit schlägt Perfektionismus.",
+      },
+    ],
+  },
+  pocketDetail: {
+    back: "Zurück zur Jahresansicht",
+    deposits: "Einzahlungen",
+    balance: "Kontostand",
+    deleteConfirm: "Sparpocket wirklich löschen? Alle Werte in diesem Jahr gehen verloren.",
+    notFound: "Dieser Sparplan wurde nicht gefunden.",
   },
   onboarding: {
     close: "Schließen",

@@ -7,6 +7,7 @@ import { PLANS, type PlanId } from "@/lib/plans";
 import { formatCurrency } from "@/lib/calculations";
 import { CURRENCIES, currencySymbol, DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currency";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { Spinner } from "@/components/ui/Spinner";
 
 type CostItem = { id: string; name: string; amount: string; preset?: boolean };
 
@@ -382,6 +383,7 @@ export function OnboardingWizard({
               ← {t("onboarding.step3.back")}
             </button>
             <button onClick={finish} className="btn-primary flex-1" disabled={submitting}>
+              {submitting ? <Spinner /> : null}
               {submitting ? t("auth.loading") : `${t("onboarding.step3.finish")} 🎉`}
             </button>
           </div>
