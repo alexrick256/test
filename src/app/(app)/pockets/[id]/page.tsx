@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isValidCurrency, DEFAULT_CURRENCY } from "@/lib/currency";
 import { emptyMonths, type MonthlyAmounts } from "@/lib/calculations";
+import { buildPocketHistory } from "@/lib/pocket-history";
 import { PocketDetail } from "@/components/pockets/PocketDetail";
 import { getServerTranslator } from "@/lib/i18n/server-t";
 
@@ -47,11 +48,20 @@ export default async function PocketDetailPage({
   const requestedYear = Number(searchParams.year);
   const year = years.includes(requestedYear) ? requestedYear : years[years.length - 1];
 
-  const { data: valueRows } = await supabase
-    .from("savings_pocket_values")
-    .select("month, amount")
-    .eq("pocket_id", pocket.id)
-    .eq("year", year);
+  const [{ data: valueRows }, { data: allValueRows }, { data: allocationRows }] = await Promise.all([
+    supabase.from("savings_pocket_values").select("month, amount").eq("pocket_id", pocket.id).eq("year", year),
+    supabase.from("savings_pocket_values").select("year, month, amount").eq("pocket_id", pocket.id),
+    supabase
+      .from("capital_transactions")
+      .select("id, amount, occurred_at")
+      .eq("pocket_id", pocket.id)
+      .eq("type", "allocation"),
+  ]);
+
+  const history = buildPocketHistory(
+    (allValueRows ?? []).map((r) => ({ year: r.year, month: r.month, amount: Number(r.amount) })),
+    (allocationRows ?? []).map((r) => ({ id: r.id, amount: Number(r.amount), occurredAt: r.occurred_at })),
+  );
 
   return (
     <PocketDetail
@@ -61,6 +71,7 @@ export default async function PocketDetailPage({
       years={years}
       currency={currency}
       initialValues={rowsToMonthly(valueRows ?? [])}
+      history={history}
     />
   );
 }

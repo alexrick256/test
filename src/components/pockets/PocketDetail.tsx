@@ -3,8 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import clsx from "clsx";
 import { calculateCumulativeBalance, emptyMonths, formatCurrency, type MonthlyAmounts } from "@/lib/calculations";
 import { type CurrencyCode } from "@/lib/currency";
+import { type PocketHistoryEntry } from "@/lib/pocket-history";
 import { EditableCell } from "@/components/dashboard/EditableCell";
 import { YearSwitcher } from "@/components/dashboard/YearSwitcher";
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -20,12 +22,14 @@ type Props = {
   years: number[];
   currency: CurrencyCode;
   initialValues: MonthlyAmounts;
+  history: PocketHistoryEntry[];
 };
 
-export function PocketDetail({ pocketId, pocketName, year, years, currency, initialValues }: Props) {
+export function PocketDetail({ pocketId, pocketName, year, years, currency, initialValues, history }: Props) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { toast } = useToast();
+  const dateLocale = locale === "de" ? "de-DE" : locale === "es" ? "es-ES" : "en-US";
   const [values, setValues] = useState<MonthlyAmounts>(initialValues);
   const [deleting, setDeleting] = useState(false);
 
@@ -140,6 +144,49 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="card p-6">
+        <h2 className="font-semibold text-fg">{t("pocketDetail.historyTitle")}</h2>
+        {history.length === 0 ? (
+          <p className="mt-2 text-sm text-fg-muted">{t("pocketDetail.historyEmpty")}</p>
+        ) : (
+          <div className="table-scroll-shadow mt-4 max-h-[50vh] overflow-auto rounded-lg border border-line">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-line bg-surface-alt">
+                  <th className="sticky top-0 z-10 bg-surface-alt px-4 py-2.5 text-left text-xs font-medium text-fg-faint">
+                    {t("pocketDetail.historyDateCol")}
+                  </th>
+                  <th className="sticky top-0 z-10 bg-surface-alt px-4 py-2.5 text-left text-xs font-medium text-fg-faint">
+                    {t("pocketDetail.historySourceCol")}
+                  </th>
+                  <th className="sticky top-0 z-10 bg-surface-alt px-4 py-2.5 text-right text-xs font-medium text-fg-faint">
+                    {t("pocketDetail.historyAmountCol")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((entry, i) => (
+                  <tr
+                    key={entry.id}
+                    className={clsx("border-b border-line last:border-b-0", i % 2 === 1 ? "bg-surface-alt/40" : "bg-surface")}
+                  >
+                    <td className="px-4 py-2.5 text-left text-fg-muted">
+                      {entry.source === "monthly"
+                        ? new Date(entry.date).toLocaleDateString(dateLocale, { month: "long", year: "numeric" })
+                        : new Date(entry.date).toLocaleDateString(dateLocale, { day: "2-digit", month: "2-digit", year: "numeric" })}
+                    </td>
+                    <td className="px-4 py-2.5 text-left text-fg-muted">
+                      {entry.source === "monthly" ? t("pocketDetail.sourceMonthly") : t("pocketDetail.sourceCapital")}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-fg">{formatCurrency(entry.amount, currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
