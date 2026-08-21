@@ -75,6 +75,10 @@ export default async function DashboardPage({
   const requestedYear = Number(searchParams.year);
   const year = years.includes(requestedYear) ? requestedYear : years[years.length - 1];
 
+  // Fällige monatliche Kapitalraten nachholen, bevor die Sparpocket-Werte
+  // gelesen werden, damit sie in derselben Anfrage schon berücksichtigt sind.
+  await supabase.rpc("apply_due_recurring_capital_allocations");
+
   const [{ data: categories }, { data: pockets }, { data: incomeRows }] = await Promise.all([
     supabase
       .from("fixed_cost_categories")

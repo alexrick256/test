@@ -1,4 +1,4 @@
-export type PocketHistorySource = "monthly" | "capital";
+export type PocketHistorySource = "monthly" | "capital-onetime" | "capital-recurring";
 
 export type PocketHistoryEntry = {
   id: string;
@@ -8,7 +8,7 @@ export type PocketHistoryEntry = {
 };
 
 type MonthlyRow = { year: number; month: number; amount: number };
-type CapitalAllocation = { id: string; occurredAt: string; amount: number };
+type CapitalAllocation = { id: string; occurredAt: string; amount: number; isRecurring: boolean };
 
 /**
  * Führt die monatliche Sparraten-Tabelle und die Kapital-Zuweisungen eines
@@ -48,7 +48,7 @@ export function buildPocketHistory(
       id: a.id,
       date: a.occurredAt,
       amount: a.amount,
-      source: "capital",
+      source: a.isRecurring ? "capital-recurring" : "capital-onetime",
     });
   }
 
