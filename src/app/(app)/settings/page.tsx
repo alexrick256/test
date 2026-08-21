@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isValidPlan, PLANS } from "@/lib/plans";
+import { isValidCurrency, DEFAULT_CURRENCY } from "@/lib/currency";
 import { ManageList } from "@/components/settings/ManageList";
 import { BillingCard } from "@/components/settings/BillingCard";
+import { CurrencySelector } from "@/components/settings/CurrencySelector";
 import { getServerTranslator } from "@/lib/i18n/server-t";
 
 export default async function SettingsPage() {
@@ -13,7 +15,7 @@ export default async function SettingsPage() {
   if (!user) redirect("/login");
   const { t } = getServerTranslator();
 
-  const [{ data: subscription }, { data: categories }, { data: pockets }] = await Promise.all([
+  const [{ data: subscription }, { data: categories }, { data: pockets }, { data: profile }] = await Promise.all([
     supabase
       .from("subscriptions")
       .select("plan, status, current_period_end, cancel_at_period_end, stripe_customer_id")
@@ -31,10 +33,12 @@ export default async function SettingsPage() {
       .eq("user_id", user.id)
       .eq("archived", false)
       .order("created_at", { ascending: true }),
+    supabase.from("profiles").select("currency").eq("id", user.id).maybeSingle(),
   ]);
 
   const plan = isValidPlan(subscription?.plan) ? subscription.plan : "free";
   const planConfig = PLANS[plan];
+  const currency = isValidCurrency(profile?.currency) ? profile.currency : DEFAULT_CURRENCY;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -50,6 +54,8 @@ export default async function SettingsPage() {
         cancelAtPeriodEnd={subscription?.cancel_at_period_end ?? false}
         hasStripeCustomer={Boolean(subscription?.stripe_customer_id)}
       />
+
+      <CurrencySelector currency={currency} />
 
       <ManageList
         title={t("settings.categories.title")}

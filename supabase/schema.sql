@@ -17,6 +17,7 @@ create table if not exists public.profiles (
   email text,
   full_name text,
   onboarding_completed_at timestamptz,
+  currency text not null default 'EUR' check (currency in ('EUR', 'USD', 'JPY', 'TRY', 'GBP')),
   created_at timestamptz not null default now()
 );
 

@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import clsx from "clsx";
 import { PLANS, type PlanId } from "@/lib/plans";
 import { formatCurrency } from "@/lib/calculations";
+import { CURRENCIES, currencySymbol, DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currency";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 
 type CostItem = { id: string; name: string; amount: string; preset?: boolean };
@@ -20,17 +22,57 @@ function makeId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function OnboardingWizard({ plan }: { plan: PlanId }) {
+function MoneyInput({
+  value,
+  onChange,
+  placeholder,
+  symbol,
+  autoFocus,
+  large,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  symbol: string;
+  autoFocus?: boolean;
+  large?: boolean;
+}) {
+  return (
+    <div className="relative">
+      <input
+        autoFocus={autoFocus}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        inputMode="decimal"
+        className={clsx("input pr-11 text-right", large && "text-lg")}
+      />
+      <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-fg-faint">
+        {symbol}
+      </span>
+    </div>
+  );
+}
+
+export function OnboardingWizard({
+  plan,
+  initialCurrency = DEFAULT_CURRENCY,
+}: {
+  plan: PlanId;
+  initialCurrency?: CurrencyCode;
+}) {
   const { t } = useTranslation();
   const planConfig = PLANS[plan];
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [currency, setCurrency] = useState<CurrencyCode>(initialCurrency);
   const [income, setIncome] = useState("");
   const [items, setItems] = useState<CostItem[]>([]);
   const [savingsAmount, setSavingsAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const symbol = currencySymbol(currency);
   const incomeNumber = Number.parseFloat(income.replace(",", ".")) || 0;
   const suggestedSavings = Math.round(incomeNumber * 0.2);
   const atLimit = items.length >= planConfig.fixedCostLimit;
@@ -42,6 +84,16 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
     }
     return map;
   }, [items]);
+
+  function changeCurrency(next: CurrencyCode) {
+    setCurrency(next);
+    // Direkt speichern, unabhängig davon, ob das Onboarding schon fertig ist.
+    fetch("/api/profile/currency", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currency: next }),
+    }).catch(() => {});
+  }
 
   function togglePreset(key: (typeof PRESET_KEYS)[number]) {
     const id = `preset-${key}`;
@@ -66,20 +118,24 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
-  async function finish(skip = false) {
+  function closeOnboarding() {
+    // Beendet den Wizard, OHNE das Onboarding als abgeschlossen zu markieren.
+    // Beim nächsten Dashboard-Aufruf landet der Nutzer wieder hier.
+    window.location.href = "/";
+  }
+
+  async function finish() {
     setSubmitting(true);
     setError(null);
     try {
-      const payload = skip
-        ? { income: 0, fixedCosts: [], savingsAmount: 0, savingsPocketName: t("onboarding.step3.pocketName") }
-        : {
-            income: incomeNumber,
-            fixedCosts: items
-              .filter((i) => i.name.trim())
-              .map((i) => ({ name: i.name.trim(), amount: Number.parseFloat(i.amount.replace(",", ".")) || 0 })),
-            savingsAmount: Number.parseFloat(savingsAmount.replace(",", ".")) || 0,
-            savingsPocketName: t("onboarding.step3.pocketName"),
-          };
+      const payload = {
+        income: incomeNumber,
+        fixedCosts: items
+          .filter((i) => i.name.trim())
+          .map((i) => ({ name: i.name.trim(), amount: Number.parseFloat(i.amount.replace(",", ".")) || 0 })),
+        savingsAmount: Number.parseFloat(savingsAmount.replace(",", ".")) || 0,
+        savingsPocketName: t("onboarding.step3.pocketName"),
+      };
 
       const res = await fetch("/api/onboarding", {
         method: "POST",
@@ -103,7 +159,7 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
 
   return (
     <div className="card p-8">
-      <div className="mb-8 flex items-center justify-between gap-4">
+      <div className="mb-5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           {[1, 2, 3].map((s) => (
             <div key={s} className="flex items-center gap-2">
@@ -127,12 +183,34 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
         </div>
         <button
           type="button"
-          onClick={() => finish(true)}
+          onClick={closeOnboarding}
           disabled={submitting}
           className="text-xs font-medium text-fg-faint hover:text-fg-muted"
         >
-          {t("onboarding.step3.skip")} ✕
+          {t("onboarding.close")} ✕
         </button>
+      </div>
+
+      <div className="mb-8 flex items-center gap-2">
+        <span className="text-xs font-medium text-fg-faint">{t("onboarding.currency")}</span>
+        <div className="flex gap-1">
+          {CURRENCIES.map((code) => (
+            <button
+              key={code}
+              type="button"
+              onClick={() => changeCurrency(code)}
+              className={clsx(
+                "flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium transition-colors",
+                currency === code
+                  ? "bg-accent-500 text-white"
+                  : "bg-surface-alt text-fg-muted hover:bg-line-strong",
+              )}
+              title={code}
+            >
+              {currencySymbol(code)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {error ? (
@@ -149,14 +227,16 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
 
           <div className="mt-6">
             <label className="label">{t("onboarding.step1.label")}</label>
-            <input
-              autoFocus
-              value={income}
-              onChange={(e) => setIncome(e.target.value)}
-              placeholder={t("onboarding.step1.placeholder")}
-              inputMode="decimal"
-              className="input mt-1.5 text-lg"
-            />
+            <div className="mt-1.5">
+              <MoneyInput
+                autoFocus
+                value={income}
+                onChange={setIncome}
+                placeholder={t("onboarding.step1.placeholder")}
+                symbol={symbol}
+                large
+              />
+            </div>
           </div>
 
           <button
@@ -206,8 +286,11 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
           </button>
 
           {atLimit ? (
-            <p className="mt-3 text-xs text-fg-faint">
-              {t("grid.limitReachedCategories", { limit: planConfig.fixedCostLimit })}
+            <p className="mt-3 rounded-lg bg-accent-50/60 px-4 py-3 text-xs text-fg dark:bg-accent-950/30">
+              🔒 {t("grid.limitReachedCategories", { limit: planConfig.fixedCostLimit })}{" "}
+              <Link href="/pricing" className="font-medium text-accent-700 hover:underline dark:text-accent-400">
+                {t("grid.upgrade")} →
+              </Link>
             </p>
           ) : null}
 
@@ -224,13 +307,14 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
                     className="input flex-1 py-2"
                   />
                 )}
-                <input
-                  value={item.amount}
-                  onChange={(e) => updateItem(item.id, { amount: e.target.value })}
-                  placeholder={t("onboarding.step2.amountPlaceholder")}
-                  inputMode="decimal"
-                  className="input w-28 py-2 text-right"
-                />
+                <div className="w-32 shrink-0">
+                  <MoneyInput
+                    value={item.amount}
+                    onChange={(value) => updateItem(item.id, { amount: value })}
+                    placeholder={t("onboarding.step2.amountPlaceholder")}
+                    symbol={symbol}
+                  />
+                </div>
                 <button
                   onClick={() => removeItem(item.id)}
                   className="rounded-md p-2 text-fg-faint hover:bg-negative/10 hover:text-negative"
@@ -268,7 +352,7 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
             >
               <span className="mt-0.5 shrink-0 text-xl">💡</span>
               <span className="text-sm text-fg">
-                {t("onboarding.step3.tip", { amount: formatCurrency(suggestedSavings) })}{" "}
+                {t("onboarding.step3.tip", { amount: formatCurrency(suggestedSavings, currency) })}{" "}
                 <span className="font-medium text-accent-700 dark:text-accent-400">
                   ✨ {t("onboarding.step3.applySuggestion")}
                 </span>
@@ -278,13 +362,15 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
 
           <div className="mt-5">
             <label className="label">{t("onboarding.step3.label")}</label>
-            <input
-              value={savingsAmount}
-              onChange={(e) => setSavingsAmount(e.target.value)}
-              placeholder={t("onboarding.step3.placeholder")}
-              inputMode="decimal"
-              className="input mt-1.5 text-lg"
-            />
+            <div className="mt-1.5">
+              <MoneyInput
+                value={savingsAmount}
+                onChange={setSavingsAmount}
+                placeholder={t("onboarding.step3.placeholder")}
+                symbol={symbol}
+                large
+              />
+            </div>
           </div>
 
           {planConfig.savingsPocketLimit === 0 ? (
@@ -295,7 +381,7 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
             <button onClick={() => setStep(2)} className="btn-secondary flex-1" disabled={submitting}>
               ← {t("onboarding.step3.back")}
             </button>
-            <button onClick={() => finish(false)} className="btn-primary flex-1" disabled={submitting}>
+            <button onClick={finish} className="btn-primary flex-1" disabled={submitting}>
               {submitting ? t("auth.loading") : `${t("onboarding.step3.finish")} 🎉`}
             </button>
           </div>

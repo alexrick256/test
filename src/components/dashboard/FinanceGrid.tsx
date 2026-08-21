@@ -11,6 +11,7 @@ import {
   type MonthlyAmounts,
 } from "@/lib/calculations";
 import { PLANS, type PlanId } from "@/lib/plans";
+import { DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currency";
 import { EditableCell } from "@/components/dashboard/EditableCell";
 import { SavingsGoalCalculator } from "@/components/dashboard/SavingsGoalCalculator";
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -23,6 +24,7 @@ type Pocket = { id: string; name: string };
 type Props = {
   year: number;
   plan: PlanId;
+  currency?: CurrencyCode;
   categories: Category[];
   pockets: Pocket[];
   initialIncome: MonthlyAmounts;
@@ -45,6 +47,7 @@ function TrashIcon() {
 export function FinanceGrid({
   year,
   plan,
+  currency = DEFAULT_CURRENCY,
   categories,
   pockets,
   initialIncome,
@@ -245,7 +248,7 @@ export function FinanceGrid({
                 </td>
                 {income.map((v, i) => (
                   <td key={i} className="px-1 py-1">
-                    <EditableCell value={v} emphasize onCommit={(val) => saveIncome(i, val)} />
+                    <EditableCell value={v} emphasize currency={currency} onCommit={(val) => saveIncome(i, val)} />
                   </td>
                 ))}
               </tr>
@@ -273,7 +276,7 @@ export function FinanceGrid({
                   </td>
                   {(fixedCostValues[category.id] ?? emptyMonths()).map((v, i) => (
                     <td key={i} className="px-1 py-1">
-                      <EditableCell value={v} onCommit={(val) => saveFixedCost(category.id, i, val)} />
+                      <EditableCell value={v} currency={currency} onCommit={(val) => saveFixedCost(category.id, i, val)} />
                     </td>
                   ))}
                 </tr>
@@ -340,7 +343,7 @@ export function FinanceGrid({
                       </td>
                       {(pocketValues[pocket.id] ?? emptyMonths()).map((v, i) => (
                         <td key={i} className="px-1 py-1">
-                          <EditableCell value={v} onCommit={(val) => savePocket(pocket.id, i, val)} />
+                          <EditableCell value={v} currency={currency} onCommit={(val) => savePocket(pocket.id, i, val)} />
                         </td>
                       ))}
                     </tr>
@@ -407,7 +410,7 @@ export function FinanceGrid({
                       v < 0 ? "text-negative" : "text-fg"
                     }`}
                   >
-                    {formatCurrency(v)}
+                    {formatCurrency(v, currency)}
                   </td>
                 ))}
               </tr>
@@ -427,7 +430,7 @@ export function FinanceGrid({
                       </td>
                       {(cumulativeByPocket[pocket.id] ?? emptyMonths()).map((v, i) => (
                         <td key={i} className="px-3 py-2 text-right text-sm tabular-nums text-fg-faint">
-                          {formatCurrency(v)}
+                          {formatCurrency(v, currency)}
                         </td>
                       ))}
                     </tr>
@@ -440,7 +443,13 @@ export function FinanceGrid({
       </div>
 
       {pocketsAvailable && pockets.length > 0 ? (
-        <SavingsGoalCalculator year={year} pockets={pockets} pocketValues={pocketValues} remaining={remaining} />
+        <SavingsGoalCalculator
+          year={year}
+          currency={currency}
+          pockets={pockets}
+          pocketValues={pocketValues}
+          remaining={remaining}
+        />
       ) : null}
     </div>
   );

@@ -3,16 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { formatCurrency } from "@/lib/calculations";
+import { DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currency";
 
 type Props = {
   value: number;
   onCommit: (value: number) => void;
+  currency?: CurrencyCode;
   negative?: boolean;
   emphasize?: boolean;
   disabled?: boolean;
 };
 
-export function EditableCell({ value, onCommit, negative, emphasize, disabled }: Props) {
+export function EditableCell({ value, onCommit, currency = DEFAULT_CURRENCY, negative, emphasize, disabled }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +68,7 @@ export function EditableCell({ value, onCommit, negative, emphasize, disabled }:
         negative ? "font-semibold text-negative" : emphasize ? "font-semibold text-fg" : "text-fg-muted",
       )}
     >
-      {formatCurrency(value)}
+      {formatCurrency(value, currency)}
     </button>
   );
 }

@@ -161,6 +161,10 @@ const en: Dictionary = {
       description: "Savings goals like vacation, emergency fund, or a new car.",
       locked: "Savings pockets are available from the Pro plan.",
     },
+    currency: {
+      title: "Currency",
+      description: "Which currency should amounts in Leviro be shown in?",
+    },
     manage: {
       empty: "No entries yet.",
       add: "+ Add",
@@ -174,6 +178,8 @@ const en: Dictionary = {
     },
   },
   onboarding: {
+    close: "Close",
+    currency: "Currency",
     step1: {
       title: "What's your monthly income?",
       subtitle: "Your average net income available each month.",

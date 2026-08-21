@@ -161,6 +161,10 @@ const es: Dictionary = {
       description: "Metas de ahorro como vacaciones, fondo de emergencia o un coche nuevo.",
       locked: "Los bolsillos de ahorro están disponibles a partir del plan Pro.",
     },
+    currency: {
+      title: "Moneda",
+      description: "¿En qué moneda quieres ver los importes en Leviro?",
+    },
     manage: {
       empty: "Todavía no hay entradas.",
       add: "+ Añadir",
@@ -174,6 +178,8 @@ const es: Dictionary = {
     },
   },
   onboarding: {
+    close: "Cerrar",
+    currency: "Moneda",
     step1: {
       title: "¿Cuáles son tus ingresos mensuales?",
       subtitle: "Tu ingreso neto medio disponible cada mes.",

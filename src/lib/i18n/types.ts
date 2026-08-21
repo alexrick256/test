@@ -114,6 +114,7 @@ export type Dictionary = {
     };
     categories: { title: string; description: string };
     pockets: { title: string; description: string; locked: string };
+    currency: { title: string; description: string };
     manage: {
       empty: string;
       add: string;
@@ -127,6 +128,8 @@ export type Dictionary = {
     };
   };
   onboarding: {
+    close: string;
+    currency: string;
     step1: {
       title: string;
       subtitle: string;
