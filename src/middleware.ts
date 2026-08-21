@@ -40,8 +40,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  if (isProtected && user && !user.email_confirmed_at) {
+    return NextResponse.redirect(new URL("/auth/pending", request.url));
+  }
+
   if (isAuthPage && user) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(
+      new URL(user.email_confirmed_at ? "/dashboard" : "/auth/pending", request.url),
+    );
   }
 
   return response;

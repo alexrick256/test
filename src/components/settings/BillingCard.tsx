@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PLANS, type PlanId } from "@/lib/plans";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Props = {
   plan: PlanId;
@@ -57,6 +58,7 @@ export function BillingCard({ plan, status, currentPeriodEnd, cancelAtPeriodEnd,
           </Link>
           {hasStripeCustomer ? (
             <button onClick={openPortal} disabled={loading} className="btn-primary">
+              {loading ? <Spinner /> : null}
               {loading ? t("pricing.redirecting") : t("settings.billing.managePlan")}
             </button>
           ) : null}

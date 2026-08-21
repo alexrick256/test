@@ -126,6 +126,21 @@ folgende Annahmen getroffen worden:
   Einnahmen → Fixkosten-Auswahl → Sparziel mit Tipp) werden die Werte für das
   aktuelle Jahr in alle 12 Monate übernommen und bleiben danach frei editierbar.
   Bereits bestehende Nutzer werden durch die Migration übersprungen (siehe oben).
+- **E-Mail-Bestätigung repariert & erzwungen**: Neue `/auth/confirmed`-Erfolgs-
+  und `/auth/pending`-Sperrseite (mit "Link erneut senden"), Middleware
+  blockiert Nutzer ohne bestätigte E-Mail (`user.email_confirmed_at`) vom
+  Dashboard, unabhängig von der Supabase-"Confirm email"-Einstellung.
+- **Linke Navigation**: Ersetzt die alte obere Navbar im eingeloggten Bereich.
+  Home / Jahresansicht / Sparpläne (Accordion mit Link zur neuen
+  Sparplan-Detailseite `/pockets/[id]`) / Spartipps (`/tips`, 8 Tipps) /
+  Einstellungen. Auf Mobile als Menü-Icon mit Drawer eingeklappt.
+- **"Auf ganzes Jahr kopieren"**: Kopier-Icon in jeder Fixkosten-/
+  Sparpocket-Zelle (beim Hovern sichtbar), überträgt den Wert auf alle 12
+  Monate, mit Bestätigungsdialog bei abweichenden Werten und Toast-Feedback.
+- **Hero-Bereich** auf der Landingpage mit Smartphone-Mockup (reine
+  CSS/SVG-Illustration als Platzhalter, `// TODO` in
+  `src/components/marketing/HeroMockup.tsx` markiert eine Stelle für ein
+  echtes Foto).
 
 ## Architektur
 

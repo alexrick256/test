@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Navbar } from "@/components/marketing/Navbar";
 import { Footer } from "@/components/marketing/Footer";
 import { GridPreview } from "@/components/marketing/GridPreview";
+import { HeroMockup } from "@/components/marketing/HeroMockup";
 import { PricingCards } from "@/components/PricingCards";
 import { getServerTranslator } from "@/lib/i18n/server-t";
 
@@ -14,20 +15,23 @@ export default function LandingPage() {
       <Navbar />
 
       <main className="flex-1">
-        <section className="mx-auto max-w-6xl px-6 pb-16 pt-20 text-center md:pt-28">
-          <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-tight text-fg md:text-6xl">
-            {t("marketing.hero.title")}
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-fg-muted">{t("marketing.hero.subtitle")}</p>
-          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/signup" className="btn-accent px-6 py-3 text-base">
-              {t("marketing.hero.ctaPrimary")}
-            </Link>
-            <Link href="/pricing" className="btn-secondary px-6 py-3 text-base">
-              {t("marketing.hero.ctaSecondary")}
-            </Link>
+        <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-20 md:grid-cols-2 md:pt-28">
+          <div className="text-center md:text-left">
+            <h1 className="mx-auto max-w-xl text-4xl font-semibold tracking-tight text-fg md:mx-0 md:text-6xl">
+              {t("marketing.hero.title")}
+            </h1>
+            <p className="mx-auto mt-6 max-w-lg text-lg text-fg-muted md:mx-0">{t("marketing.hero.subtitle")}</p>
+            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row md:justify-start">
+              <Link href="/signup" className="btn-accent px-6 py-3 text-base">
+                {t("marketing.hero.ctaPrimary")}
+              </Link>
+              <Link href="/pricing" className="btn-secondary px-6 py-3 text-base">
+                {t("marketing.hero.ctaSecondary")}
+              </Link>
+            </div>
+            <p className="mt-4 text-sm text-fg-faint">{t("marketing.hero.note")}</p>
           </div>
-          <p className="mt-4 text-sm text-fg-faint">{t("marketing.hero.note")}</p>
+          <HeroMockup />
         </section>
 
         <section className="mx-auto max-w-6xl px-6 pb-24">

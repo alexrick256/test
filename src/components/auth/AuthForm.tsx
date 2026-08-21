@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Mode = "login" | "signup";
 
@@ -16,11 +17,39 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    searchParams.get("error") === "confirm_failed" ? t("auth.confirmFailed") : null,
+  );
   const [info, setInfo] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
 
   const next = searchParams.get("next") ?? (mode === "signup" ? "/onboarding" : "/dashboard");
   const plan = searchParams.get("plan");
+  const showResend = mode === "login" && searchParams.get("error") === "confirm_failed";
+
+  async function handleResend() {
+    if (!email.trim()) {
+      setError(t("auth.email"));
+      return;
+    }
+    setResending(true);
+    setError(null);
+    setInfo(null);
+    const supabase = createClient();
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?flow=signup&next=${encodeURIComponent(next)}`,
+      },
+    });
+    setResending(false);
+    if (resendError) {
+      setError(resendError.message);
+    } else {
+      setInfo(t("auth.pending.resent"));
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,7 +64,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+            emailRedirectTo: `${window.location.origin}/auth/callback?flow=signup&next=${encodeURIComponent(
               plan ? `/onboarding?plan=${plan}` : next,
             )}`,
           },
@@ -86,25 +115,29 @@ export function AuthForm({ mode }: { mode: Mode }) {
         disabled={oauthLoading}
         className="btn-secondary mt-7 w-full"
       >
-        <svg className="h-4 w-4" viewBox="0 0 24 24">
-          <path
-            fill="#4285F4"
-            d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.82z"
-          />
-          <path
-            fill="#34A853"
-            d="M12 24c3.24 0 5.96-1.08 7.95-2.91l-3.88-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.1A12 12 0 0 0 12 24z"
-          />
-          <path
-            fill="#FBBC05"
-            d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28v-3.1H1.27A12 12 0 0 0 0 12c0 1.94.46 3.77 1.27 5.38l4-3.1z"
-          />
-          <path
-            fill="#EA4335"
-            d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.69 1.27 6.62l4 3.1c.95-2.85 3.6-4.97 6.73-4.97z"
-          />
-        </svg>
-        {t("auth.google")}
+        {oauthLoading ? (
+          <Spinner />
+        ) : (
+          <svg className="h-4 w-4" viewBox="0 0 24 24">
+            <path
+              fill="#4285F4"
+              d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.82z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 24c3.24 0 5.96-1.08 7.95-2.91l-3.88-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.1A12 12 0 0 0 12 24z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28v-3.1H1.27A12 12 0 0 0 0 12c0 1.94.46 3.77 1.27 5.38l4-3.1z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.69 1.27 6.62l4 3.1c.95-2.85 3.6-4.97 6.73-4.97z"
+            />
+          </svg>
+        )}
+        {oauthLoading ? t("auth.loading") : t("auth.google")}
       </button>
 
       <div className="my-6 flex items-center gap-3">
@@ -146,10 +179,25 @@ export function AuthForm({ mode }: { mode: Mode }) {
           />
         </div>
 
-        {error ? <p className="text-sm text-negative">{error}</p> : null}
+        {error ? (
+          <div className="rounded-lg bg-negative/10 px-3.5 py-3 text-sm text-negative">
+            <p>{error}</p>
+            {showResend ? (
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending}
+                className="mt-1.5 font-medium underline underline-offset-2 disabled:opacity-60"
+              >
+                {resending ? t("auth.loading") : t("auth.pending.resend")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {info ? <p className="text-sm text-positive">{info}</p> : null}
 
         <button type="submit" disabled={loading} className="btn-primary w-full">
+          {loading ? <Spinner /> : null}
           {loading ? t("auth.loading") : mode === "login" ? t("auth.submitLogin") : t("auth.submitSignup")}
         </button>
       </form>

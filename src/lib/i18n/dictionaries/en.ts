@@ -2,10 +2,15 @@ import type { Dictionary } from "@/lib/i18n/types";
 
 const en: Dictionary = {
   nav: {
+    home: "Home",
     dashboard: "Yearly view",
+    savingsPlans: "Savings plans",
+    tips: "Saving tips",
     settings: "Settings",
     planSuffix: "plan",
     signOut: "Sign out",
+    noPockets: "No savings plans yet",
+    pocketsUpgrade: "Available from Pro",
   },
   marketing: {
     nav: { features: "Features", pricing: "Pricing", login: "Log in", getStarted: "Start for free" },
@@ -70,6 +75,19 @@ const en: Dictionary = {
     loginLink: "Log in",
     signupSuccess: "Almost there! Please confirm your email address using the link we just sent you.",
     genericError: "Something went wrong.",
+    confirmFailed: "That confirmation link is invalid or expired. Request a new one below.",
+    confirmed: {
+      title: "Email confirmed ✅",
+      subtitle: "Your account is now active.",
+      cta: "Continue",
+    },
+    pending: {
+      title: "Please confirm your email address",
+      subtitle: "We sent a confirmation link to {{email}}. Click it to activate your account.",
+      resend: "Resend link",
+      resent: "A new link has been sent.",
+      signOut: "Sign out",
+    },
   },
   pricing: {
     plans: {
@@ -124,6 +142,9 @@ const en: Dictionary = {
     pocketsLocked: "Savings pockets are available from the Pro plan.",
     onboardingTip:
       "Tip: In January, enter how much you'd like to have saved in a pocket by December – the savings calculator below instantly shows how much to set aside each month, and whether that's feasible with your \"left to spend\".",
+    copyToYear: "Copy to all 12 months",
+    copyConfirm: "Other months already have different values. Overwrite them anyway?",
+    copySuccess: "Value applied to all 12 months",
   },
   savingsCalculator: {
     title: "Savings goal calculator",
@@ -176,6 +197,59 @@ const en: Dictionary = {
       deleteError: "Could not delete entry.",
       cancel: "Cancel",
     },
+  },
+  tips: {
+    pageTitle: "Saving tips",
+    pageSubtitle: "Practical basics for anyone just getting started with saving.",
+    items: [
+      {
+        title: "The 50/30/20 rule",
+        description:
+          "Split your net income roughly: 50% for fixed costs, 30% for wants, 20% for savings. A simple rule of thumb to get an initial overview.",
+      },
+      {
+        title: "Build an emergency fund",
+        description:
+          "Before saving for bigger goals, set aside 2–3 months of income as a buffer for the unexpected — so a broken washing machine doesn't mean a loan.",
+      },
+      {
+        title: "Automate a standing order",
+        description:
+          "Set up a standing order that moves a fixed amount to savings right on payday. Money you never see in checking is money you never spend.",
+      },
+      {
+        title: "Review your fixed costs regularly",
+        description:
+          "Electricity, phone, insurance: comparing and switching once a year is often worth more than skipping your daily coffee.",
+      },
+      {
+        title: "Audit your subscriptions",
+        description:
+          "Streaming, gym, apps — once a quarter, check what you actually use and cancel the rest.",
+      },
+      {
+        title: "Set concrete savings goals",
+        description:
+          "\"I want to save\" is vague. \"€1,500 by December for the trip\" is concrete and breaks down into a monthly amount — exactly what savings pockets are for.",
+      },
+      {
+        title: "Sleep on big purchases",
+        description:
+          "For anything over €100, sleep on it and compare prices — impulse buys are the most common reason budgets get blown.",
+      },
+      {
+        title: "A monthly money check-in",
+        description:
+          "Spend 15 minutes a month reviewing your balance and what's left to spend. Consistency beats perfectionism.",
+      },
+    ],
+  },
+  pocketDetail: {
+    back: "Back to yearly view",
+    deposits: "Deposits",
+    balance: "Balance",
+    deleteConfirm: "Really delete this savings plan? All values for this year will be lost.",
+    notFound: "This savings plan could not be found.",
   },
   onboarding: {
     close: "Close",

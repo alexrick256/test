@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { LanguageProvider } from "@/components/i18n/LanguageProvider";
+import { ToastProvider } from "@/components/toast/ToastProvider";
 import { getServerLocale } from "@/lib/i18n/get-locale.server";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -50,7 +51,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen font-sans">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <ThemeProvider>
-          <LanguageProvider initialLocale={locale}>{children}</LanguageProvider>
+          <LanguageProvider initialLocale={locale}>
+            <ToastProvider>{children}</ToastProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

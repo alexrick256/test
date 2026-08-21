@@ -2,10 +2,15 @@ import type { Dictionary } from "@/lib/i18n/types";
 
 const es: Dictionary = {
   nav: {
+    home: "Inicio",
     dashboard: "Vista anual",
+    savingsPlans: "Planes de ahorro",
+    tips: "Consejos de ahorro",
     settings: "Ajustes",
     planSuffix: "plan",
     signOut: "Cerrar sesión",
+    noPockets: "Aún no hay planes de ahorro",
+    pocketsUpgrade: "Disponible desde Pro",
   },
   marketing: {
     nav: { features: "Funciones", pricing: "Precios", login: "Iniciar sesión", getStarted: "Empezar gratis" },
@@ -70,6 +75,19 @@ const es: Dictionary = {
     loginLink: "Iniciar sesión",
     signupSuccess: "¡Ya casi! Confirma tu correo electrónico con el enlace que te acabamos de enviar.",
     genericError: "Algo salió mal.",
+    confirmFailed: "El enlace de confirmación no es válido o ha caducado. Solicita uno nuevo abajo.",
+    confirmed: {
+      title: "Correo confirmado ✅",
+      subtitle: "Tu cuenta ya está activa.",
+      cta: "Continuar",
+    },
+    pending: {
+      title: "Confirma tu dirección de correo electrónico",
+      subtitle: "Te hemos enviado un enlace de confirmación a {{email}}. Haz clic en él para activar tu cuenta.",
+      resend: "Reenviar enlace",
+      resent: "Se ha enviado un nuevo enlace.",
+      signOut: "Cerrar sesión",
+    },
   },
   pricing: {
     plans: {
@@ -124,6 +142,9 @@ const es: Dictionary = {
     pocketsLocked: "Los bolsillos de ahorro están disponibles a partir del plan Pro.",
     onboardingTip:
       "Consejo: indica en enero cuánto quieres tener ahorrado en un bolsillo para diciembre; la calculadora de ahorro de abajo te muestra al instante cuánto debes apartar cada mes y si es viable con tu \"disponible para gastar\".",
+    copyToYear: "Copiar a los 12 meses",
+    copyConfirm: "Otros meses ya tienen valores distintos. ¿Sobrescribirlos igualmente?",
+    copySuccess: "Valor aplicado a los 12 meses",
   },
   savingsCalculator: {
     title: "Calculadora de meta de ahorro",
@@ -176,6 +197,59 @@ const es: Dictionary = {
       deleteError: "No se pudo eliminar la entrada.",
       cancel: "Cancelar",
     },
+  },
+  tips: {
+    pageTitle: "Consejos de ahorro",
+    pageSubtitle: "Bases prácticas para quienes empiezan a ahorrar.",
+    items: [
+      {
+        title: "La regla del 50/30/20",
+        description:
+          "Divide tus ingresos netos aproximadamente: 50% gastos fijos, 30% caprichos, 20% ahorro. Una regla sencilla para tener una primera visión.",
+      },
+      {
+        title: "Crea un fondo de emergencia",
+        description:
+          "Antes de ahorrar para metas grandes, aparta 2–3 sueldos como colchón para imprevistos, así no necesitas un préstamo si se rompe la lavadora.",
+      },
+      {
+        title: "Automatiza una transferencia",
+        description:
+          "Programa una transferencia automática a tu cuenta de ahorro justo el día de cobro. El dinero que nunca ves en la cuenta corriente, nunca lo gastas.",
+      },
+      {
+        title: "Revisa tus gastos fijos con regularidad",
+        description:
+          "Luz, móvil, seguros: comparar y cambiar una vez al año suele valer más la pena que ahorrar en el café diario.",
+      },
+      {
+        title: "Revisa tus suscripciones",
+        description:
+          "Streaming, gimnasio, apps: cada trimestre revisa qué usas realmente y cancela el resto.",
+      },
+      {
+        title: "Fija metas de ahorro concretas",
+        description:
+          "\"Quiero ahorrar\" es vago. \"1.500€ para diciembre para el viaje\" es concreto y se puede dividir en un importe mensual, justo para eso están los bolsillos de ahorro.",
+      },
+      {
+        title: "Duerme sobre las compras grandes",
+        description:
+          "Para compras de más de 100€, espera una noche y compara precios: las compras impulsivas son la causa más común de descuadrar el presupuesto.",
+      },
+      {
+        title: "Un chequeo financiero mensual",
+        description:
+          "Dedica 15 minutos al mes a revisar tu saldo y lo que te queda para gastar. La constancia gana al perfeccionismo.",
+      },
+    ],
+  },
+  pocketDetail: {
+    back: "Volver a la vista anual",
+    deposits: "Ingresos",
+    balance: "Saldo",
+    deleteConfirm: "¿Eliminar de verdad este plan de ahorro? Se perderán todos los valores de este año.",
+    notFound: "No se encontró este plan de ahorro.",
   },
   onboarding: {
     close: "Cerrar",
