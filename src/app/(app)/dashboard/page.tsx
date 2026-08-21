@@ -94,7 +94,7 @@ export default async function DashboardPage({
   const categoryIds = (categories ?? []).map((c) => c.id);
   const pocketIds = (pockets ?? []).map((p) => p.id);
 
-  const [{ data: fixedCostRows }, { data: pocketValueRows }] = await Promise.all([
+  const [{ data: fixedCostRows }, { data: pocketValueRows }, { data: allPocketValueRows }] = await Promise.all([
     categoryIds.length
       ? supabase
           .from("fixed_cost_values")
@@ -109,6 +109,12 @@ export default async function DashboardPage({
           .eq("year", year)
           .in("pocket_id", pocketIds)
       : Promise.resolve({ data: [] as { pocket_id: string; month: number; amount: number }[] }),
+    pocketIds.length
+      ? supabase
+          .from("savings_pocket_values")
+          .select("pocket_id, year, month, amount")
+          .in("pocket_id", pocketIds)
+      : Promise.resolve({ data: [] as { pocket_id: string; year: number; month: number; amount: number }[] }),
   ]);
 
   const fixedCostValues: Record<string, MonthlyAmounts> = {};
@@ -121,6 +127,23 @@ export default async function DashboardPage({
   const pocketValues: Record<string, MonthlyAmounts> = {};
   for (const id of pocketIds) {
     pocketValues[id] = rowsToMonthly((pocketValueRows ?? []).filter((r) => r.pocket_id === id));
+  }
+
+  // Tatsächlicher Kontostand jedes Sparpockets "heute": Summe aller erfassten
+  // Werte bis einschließlich des aktuellen Monats, über alle Jahre hinweg –
+  // Grundlage für den Sparziel-Rechner ("heute bis Zieldatum").
+  const today = new Date();
+  const currentYearNumber = today.getFullYear();
+  const currentMonthNumber = today.getMonth() + 1;
+  const pocketCurrentBalances: Record<string, number> = {};
+  for (const id of pocketIds) {
+    pocketCurrentBalances[id] = (allPocketValueRows ?? [])
+      .filter(
+        (r) =>
+          r.pocket_id === id &&
+          (r.year < currentYearNumber || (r.year === currentYearNumber && r.month <= currentMonthNumber)),
+      )
+      .reduce((sum, r) => sum + Number(r.amount), 0);
   }
 
   return (
@@ -142,6 +165,7 @@ export default async function DashboardPage({
         initialIncome={rowsToMonthly(incomeRows ?? [])}
         initialFixedCostValues={fixedCostValues}
         initialPocketValues={pocketValues}
+        pocketCurrentBalances={pocketCurrentBalances}
       />
     </div>
   );

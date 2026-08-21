@@ -1,62 +1,62 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  calculateCumulativeBalance,
-  emptyMonths,
-  formatCurrency,
-  requiredMonthlySavingToReachGoal,
-  type MonthlyAmounts,
-} from "@/lib/calculations";
+import { formatCurrency, monthsBetween, requiredMonthlySavingToReachGoal } from "@/lib/calculations";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currency";
 
 type Pocket = { id: string; name: string };
 
 type Props = {
-  year: number;
   currency?: CurrencyCode;
   pockets: Pocket[];
-  pocketValues: Record<string, MonthlyAmounts>;
-  remaining: MonthlyAmounts;
+  pocketCurrentBalances: Record<string, number>;
+  /** "Rest zum Ausgeben" im aktuellen Kalendermonat – nur vorhanden, wenn das ausgewählte Jahr das aktuelle Jahr ist. */
+  remainingThisMonth?: number;
 };
 
 export function SavingsGoalCalculator({
-  year,
   currency = DEFAULT_CURRENCY,
   pockets,
-  pocketValues,
-  remaining,
+  pocketCurrentBalances,
+  remainingThisMonth,
 }: Props) {
   const { t, tList } = useTranslation();
   const monthLabels = tList("savingsCalculator.months");
   const now = new Date();
-  const defaultMonthIndex = now.getFullYear() === year ? now.getMonth() : 0;
+  const currentYear = now.getFullYear();
+  const currentMonthIndex = now.getMonth();
 
   const [pocketId, setPocketId] = useState(pockets[0]?.id ?? "");
-  const [fromMonth, setFromMonth] = useState(defaultMonthIndex);
   const [target, setTarget] = useState<string>("");
+  const [targetMonthIndex, setTargetMonthIndex] = useState(currentMonthIndex);
+  const [targetYear, setTargetYear] = useState(currentYear + 1);
 
-  const pocketRow = pocketValues[pocketId] ?? emptyMonths();
-  const cumulative = useMemo(() => calculateCumulativeBalance(pocketRow), [pocketRow]);
-  const balanceBeforeMonth = fromMonth === 0 ? 0 : cumulative[fromMonth - 1];
+  const currentBalance = pocketCurrentBalances[pocketId] ?? 0;
 
   const targetNumber = Number.parseFloat(target.replace(",", "."));
   const hasValidTarget = Number.isFinite(targetNumber) && targetNumber > 0;
 
-  const requiredPerMonth = hasValidTarget
-    ? requiredMonthlySavingToReachGoal(targetNumber, balanceBeforeMonth, fromMonth)
+  const monthsRemaining = monthsBetween(currentYear, currentMonthIndex, targetYear, targetMonthIndex);
+  const targetInFuture = monthsRemaining > 0;
+
+  const requiredPerMonth = hasValidTarget && targetInFuture
+    ? requiredMonthlySavingToReachGoal(targetNumber, currentBalance, monthsRemaining)
     : 0;
 
-  const restInStartMonth = remaining[fromMonth] ?? 0;
-  const feasible = requiredPerMonth <= restInStartMonth;
+  const feasible = remainingThisMonth === undefined ? null : requiredPerMonth <= remainingThisMonth;
+
+  const yearOptions = useMemo(
+    () => Array.from({ length: 21 }, (_, i) => currentYear + i),
+    [currentYear],
+  );
 
   return (
     <div className="card p-6">
       <h2 className="font-semibold text-fg">{t("savingsCalculator.title")}</h2>
       <p className="mt-1 text-sm text-fg-muted">{t("savingsCalculator.subtitle")}</p>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-3">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className="label">{t("savingsCalculator.pocketLabel")}</label>
           <select
@@ -72,7 +72,7 @@ export function SavingsGoalCalculator({
           </select>
         </div>
         <div>
-          <label className="label">{t("savingsCalculator.targetLabel", { year })}</label>
+          <label className="label">{t("savingsCalculator.targetAmountLabel")}</label>
           <input
             value={target}
             onChange={(e) => setTarget(e.target.value)}
@@ -82,10 +82,10 @@ export function SavingsGoalCalculator({
           />
         </div>
         <div>
-          <label className="label">{t("savingsCalculator.fromMonthLabel")}</label>
+          <label className="label">{t("savingsCalculator.targetMonthLabel")}</label>
           <select
-            value={fromMonth}
-            onChange={(e) => setFromMonth(Number(e.target.value))}
+            value={targetMonthIndex}
+            onChange={(e) => setTargetMonthIndex(Number(e.target.value))}
             className="input mt-1.5"
           >
             {monthLabels.map((label, i) => (
@@ -95,23 +95,47 @@ export function SavingsGoalCalculator({
             ))}
           </select>
         </div>
+        <div>
+          <label className="label">{t("savingsCalculator.targetYearLabel")}</label>
+          <select
+            value={targetYear}
+            onChange={(e) => setTargetYear(Number(e.target.value))}
+            className="input mt-1.5"
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {hasValidTarget ? (
+      {hasValidTarget && !targetInFuture ? (
+        <p className="mt-5 rounded-lg bg-negative/10 px-4 py-3 text-sm text-negative">
+          {t("savingsCalculator.futureDateError")}
+        </p>
+      ) : null}
+
+      {hasValidTarget && targetInFuture ? (
         <div
           className={`mt-5 flex flex-col gap-1 rounded-lg px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${
-            feasible ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative"
+            feasible === false ? "bg-negative/10 text-negative" : "bg-positive/10 text-positive"
           }`}
         >
-          <span>{t("savingsCalculator.requiredText", { amount: formatCurrency(requiredPerMonth, currency) })}</span>
           <span>
-            {feasible
-              ? t("savingsCalculator.feasibleText", { month: monthLabels[fromMonth] })
-              : t("savingsCalculator.notFeasibleText", {
-                  month: monthLabels[fromMonth],
-                  amount: formatCurrency(restInStartMonth, currency),
-                })}
+            {t("savingsCalculator.requiredText", {
+              amount: formatCurrency(requiredPerMonth, currency),
+              targetDate: `${monthLabels[targetMonthIndex]} ${targetYear}`,
+            })}
           </span>
+          {feasible !== null ? (
+            <span>
+              {feasible
+                ? t("savingsCalculator.feasibleText")
+                : t("savingsCalculator.notFeasibleText", { amount: formatCurrency(remainingThisMonth ?? 0, currency) })}
+            </span>
+          ) : null}
         </div>
       ) : null}
     </div>

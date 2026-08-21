@@ -16,6 +16,7 @@ import { EditableCell } from "@/components/dashboard/EditableCell";
 import { SavingsGoalCalculator } from "@/components/dashboard/SavingsGoalCalculator";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useToast } from "@/components/toast/ToastProvider";
+import { copyValueToAllMonths } from "@/lib/copy-to-year";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
@@ -31,6 +32,7 @@ type Props = {
   initialIncome: MonthlyAmounts;
   initialFixedCostValues: Record<string, MonthlyAmounts>;
   initialPocketValues: Record<string, MonthlyAmounts>;
+  pocketCurrentBalances: Record<string, number>;
 };
 
 function TrashIcon() {
@@ -54,6 +56,7 @@ export function FinanceGrid({
   initialIncome,
   initialFixedCostValues,
   initialPocketValues,
+  pocketCurrentBalances,
 }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -139,31 +142,28 @@ export function FinanceGrid({
     if (!res.ok) router.refresh();
   }
 
-  async function copyToAllMonths(kind: "fixed-cost" | "pocket", id: string, monthIndex: number) {
-    const row = (kind === "fixed-cost" ? fixedCostValues[id] : pocketValues[id]) ?? emptyMonths();
-    const value = row[monthIndex];
-    const hasDifferences = row.some((v, i) => i !== monthIndex && v !== value);
-    if (hasDifferences && !window.confirm(t("grid.copyConfirm"))) return;
+  async function copyToAllMonths(kind: "income" | "fixed-cost" | "pocket", id: string | null, monthIndex: number) {
+    const row =
+      kind === "income" ? income : kind === "fixed-cost" ? (fixedCostValues[id!] ?? emptyMonths()) : (pocketValues[id!] ?? emptyMonths());
+    const endpoint =
+      kind === "income" ? "/api/values/income" : kind === "fixed-cost" ? "/api/values/fixed-cost" : "/api/values/pocket";
+    const extraFields: Record<string, string> =
+      kind === "income" ? {} : kind === "fixed-cost" ? { categoryId: id! } : { pocketId: id! };
 
-    const newRow = Array(12).fill(value);
-    if (kind === "fixed-cost") {
-      setFixedCostValues((prev) => ({ ...prev, [id]: newRow }));
-    } else {
-      setPocketValues((prev) => ({ ...prev, [id]: newRow }));
-    }
-
-    const endpoint = kind === "fixed-cost" ? "/api/values/fixed-cost" : "/api/values/pocket";
-    const idField = kind === "fixed-cost" ? "categoryId" : "pocketId";
-    await Promise.all(
-      Array.from({ length: 12 }, (_, i) =>
-        fetch(endpoint, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ [idField]: id, year, month: i + 1, amount: value }),
-        }),
-      ),
-    );
-    toast(t("grid.copySuccess"));
+    const success = await copyValueToAllMonths({
+      endpoint,
+      extraFields,
+      year,
+      currentRow: row,
+      monthIndex,
+      confirmMessage: t("grid.copyConfirm"),
+      onOptimisticUpdate: (newRow) => {
+        if (kind === "income") setIncome(newRow);
+        else if (kind === "fixed-cost") setFixedCostValues((prev) => ({ ...prev, [id!]: newRow }));
+        else setPocketValues((prev) => ({ ...prev, [id!]: newRow }));
+      },
+    });
+    if (success) toast(t("grid.copySuccess"));
   }
 
   async function addCategory() {
@@ -277,7 +277,14 @@ export function FinanceGrid({
                 </td>
                 {income.map((v, i) => (
                   <td key={i} className="px-1 py-1">
-                    <EditableCell value={v} emphasize currency={currency} onCommit={(val) => saveIncome(i, val)} />
+                    <EditableCell
+                      value={v}
+                      emphasize
+                      currency={currency}
+                      onCommit={(val) => saveIncome(i, val)}
+                      onCopyToYear={() => copyToAllMonths("income", null, i)}
+                      copyLabel={t("grid.copyToYear")}
+                    />
                   </td>
                 ))}
               </tr>
@@ -485,11 +492,10 @@ export function FinanceGrid({
 
       {pocketsAvailable && pockets.length > 0 ? (
         <SavingsGoalCalculator
-          year={year}
           currency={currency}
           pockets={pockets}
-          pocketValues={pocketValues}
-          remaining={remaining}
+          pocketCurrentBalances={pocketCurrentBalances}
+          remainingThisMonth={year === new Date().getFullYear() ? remaining[new Date().getMonth()] : undefined}
         />
       ) : null}
     </div>

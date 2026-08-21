@@ -50,6 +50,12 @@ export async function middleware(request: NextRequest) {
     );
   }
 
+  if (pathname === "/" && user) {
+    return NextResponse.redirect(
+      new URL(user.email_confirmed_at ? "/dashboard" : "/auth/pending", request.url),
+    );
+  }
+
   return response;
 }
 

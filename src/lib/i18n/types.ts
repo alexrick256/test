@@ -113,12 +113,14 @@ export type Dictionary = {
     title: string;
     subtitle: string;
     pocketLabel: string;
-    targetLabel: string;
+    targetAmountLabel: string;
     targetPlaceholder: string;
-    fromMonthLabel: string;
+    targetMonthLabel: string;
+    targetYearLabel: string;
     requiredText: string;
     feasibleText: string;
     notFeasibleText: string;
+    futureDateError: string;
     months: string[];
   };
   settings: {

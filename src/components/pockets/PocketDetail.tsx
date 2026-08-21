@@ -9,6 +9,7 @@ import { EditableCell } from "@/components/dashboard/EditableCell";
 import { YearSwitcher } from "@/components/dashboard/YearSwitcher";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useToast } from "@/components/toast/ToastProvider";
+import { copyValueToAllMonths } from "@/lib/copy-to-year";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
@@ -46,22 +47,16 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
   }
 
   async function copyToAllMonths(monthIndex: number) {
-    const value = values[monthIndex];
-    const hasDifferences = values.some((v, i) => i !== monthIndex && v !== value);
-    if (hasDifferences && !window.confirm(t("grid.copyConfirm"))) return;
-
-    const newRow = Array(12).fill(value);
-    setValues(newRow);
-    await Promise.all(
-      Array.from({ length: 12 }, (_, i) =>
-        fetch("/api/values/pocket", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pocketId, year, month: i + 1, amount: value }),
-        }),
-      ),
-    );
-    toast(t("grid.copySuccess"));
+    const success = await copyValueToAllMonths({
+      endpoint: "/api/values/pocket",
+      extraFields: { pocketId },
+      year,
+      currentRow: values,
+      monthIndex,
+      confirmMessage: t("grid.copyConfirm"),
+      onOptimisticUpdate: setValues,
+    });
+    if (success) toast(t("grid.copySuccess"));
   }
 
   async function handleDelete() {
