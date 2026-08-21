@@ -14,8 +14,9 @@ export type CapitalTransaction = {
   type: "deposit" | "allocation";
   amount: number;
   occurredAt: string;
-  pocketName: string | null;
+  pocketId: string | null;
   isRecurring?: boolean;
+  reversalOfId?: string | null;
 };
 
 export type RecurringAllocation = {
@@ -31,6 +32,7 @@ type Props = {
   pockets: Pocket[];
   initialBalance: number;
   initialTransactions: CapitalTransaction[];
+  initialHasMoreTransactions: boolean;
   initialRecurringAllocations: RecurringAllocation[];
 };
 
@@ -39,6 +41,7 @@ export function CapitalManager({
   pockets,
   initialBalance,
   initialTransactions,
+  initialHasMoreTransactions,
   initialRecurringAllocations,
 }: Props) {
   const { t, locale, tList } = useTranslation();
@@ -49,7 +52,11 @@ export function CapitalManager({
 
   const [balance, setBalance] = useState(initialBalance);
   const [transactions, setTransactions] = useState(initialTransactions);
+  const [hasMoreTransactions, setHasMoreTransactions] = useState(initialHasMoreTransactions);
+  const [loadMoreLoading, setLoadMoreLoading] = useState(false);
   const [recurring, setRecurring] = useState(initialRecurringAllocations);
+
+  const pocketNameById = useMemo(() => new Map(pockets.map((p) => [p.id, p.name])), [pockets]);
 
   const [depositAmount, setDepositAmount] = useState("");
   const [depositLoading, setDepositLoading] = useState(false);
@@ -69,6 +76,13 @@ export function CapitalManager({
   });
   const [recurringLoadingPocketId, setRecurringLoadingPocketId] = useState<string | null>(null);
   const [recurringError, setRecurringError] = useState<string | null>(null);
+
+  const [reversingId, setReversingId] = useState<string | null>(null);
+  const reversedIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const tx of transactions) if (tx.reversalOfId) set.add(tx.reversalOfId);
+    return set;
+  }, [transactions]);
 
   const recurringByPocketId = useMemo(() => {
     const map = new Map<string, RecurringAllocation>();
@@ -91,11 +105,18 @@ export function CapitalManager({
       return;
     }
     setDepositLoading(true);
-    const res = await fetch("/api/capital", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/capital", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+    } catch {
+      setDepositLoading(false);
+      setDepositError(t("capital.networkError"));
+      return;
+    }
     const data = await res.json().catch(() => null);
     setDepositLoading(false);
     if (!res.ok) {
@@ -104,7 +125,7 @@ export function CapitalManager({
     }
     setBalance((b) => b + amount);
     setTransactions((prev) => [
-      { id: `tmp-${Date.now()}`, type: "deposit", amount, occurredAt: new Date().toISOString(), pocketName: null },
+      { id: `tmp-${Date.now()}`, type: "deposit", amount, occurredAt: new Date().toISOString(), pocketId: null },
       ...prev,
     ]);
     setDepositAmount("");
@@ -123,16 +144,23 @@ export function CapitalManager({
       return;
     }
     setAllocateLoading(true);
-    const res = await fetch("/api/capital/allocate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pocketId: allocatePocketId,
-        amount,
-        year: allocateYear,
-        month: allocateMonthIndex + 1,
-      }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/capital/allocate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pocketId: allocatePocketId,
+          amount,
+          year: allocateYear,
+          month: allocateMonthIndex + 1,
+        }),
+      });
+    } catch {
+      setAllocateLoading(false);
+      setAllocateError(t("capital.networkError"));
+      return;
+    }
     const data = await res.json().catch(() => null);
     setAllocateLoading(false);
     if (!res.ok) {
@@ -142,7 +170,7 @@ export function CapitalManager({
     const pocketName = pockets.find((p) => p.id === allocatePocketId)?.name ?? "";
     setBalance((b) => b - amount);
     setTransactions((prev) => [
-      { id: `tmp-${Date.now()}`, type: "allocation", amount, occurredAt: new Date().toISOString(), pocketName },
+      { id: `tmp-${Date.now()}`, type: "allocation", amount, occurredAt: new Date().toISOString(), pocketId: allocatePocketId },
       ...prev,
     ]);
     setAllocateAmount("");
@@ -158,11 +186,18 @@ export function CapitalManager({
       return;
     }
     setRecurringLoadingPocketId(pocketId);
-    const res = await fetch("/api/capital/recurring", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pocketId, amount, status }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/capital/recurring", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pocketId, amount, status }),
+      });
+    } catch {
+      setRecurringLoadingPocketId(null);
+      setRecurringError(t("capital.networkError"));
+      return;
+    }
     const data = await res.json().catch(() => null);
     setRecurringLoadingPocketId(null);
     if (!res.ok) {
@@ -189,6 +224,56 @@ export function CapitalManager({
     await saveRecurring(pocketId, rule.status === "active" ? "paused" : "active");
   }
 
+  async function loadMoreTransactions() {
+    const oldest = transactions[transactions.length - 1];
+    if (!oldest) return;
+    setLoadMoreLoading(true);
+    let res: Response;
+    try {
+      res = await fetch(`/api/capital/transactions?before=${encodeURIComponent(oldest.occurredAt)}`);
+    } catch {
+      setLoadMoreLoading(false);
+      toast(t("capital.networkError"));
+      return;
+    }
+    const data = await res.json().catch(() => null);
+    setLoadMoreLoading(false);
+    if (!res.ok || !data) {
+      toast(data?.error ?? t("capital.genericError"));
+      return;
+    }
+    setTransactions((prev) => [...prev, ...data.transactions]);
+    setHasMoreTransactions(data.hasMore);
+  }
+
+  async function reverseTransaction(tx: CapitalTransaction) {
+    if (!window.confirm(t("capital.reverseConfirm"))) return;
+    setReversingId(tx.id);
+    let res: Response;
+    try {
+      res = await fetch("/api/capital/reverse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId: tx.id }),
+      });
+    } catch {
+      setReversingId(null);
+      toast(t("capital.networkError"));
+      return;
+    }
+    const data = await res.json().catch(() => null);
+    setReversingId(null);
+    if (!res.ok || !data) {
+      toast(data?.error ?? t("capital.genericError"));
+      return;
+    }
+    if (data.reversal) {
+      setTransactions((prev) => [data.reversal, ...prev]);
+      setBalance((b) => (tx.type === "deposit" ? b - tx.amount : b + tx.amount));
+    }
+    toast(t("capital.reverseSuccess"));
+  }
+
   return (
     <div className="max-w-4xl space-y-6">
       <div>
@@ -199,6 +284,9 @@ export function CapitalManager({
       <div className="card p-6">
         <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">{t("capital.currentBalance")}</p>
         <p className="mt-1 text-3xl font-semibold tabular-nums text-fg">{formatCurrency(balance, currency)}</p>
+        {balance === 0 && transactions.length === 0 ? (
+          <p className="mt-2 text-sm text-fg-muted">{t("capital.emptyStateHint")}</p>
+        ) : null}
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2">
@@ -364,43 +452,74 @@ export function CapitalManager({
                   <th className="sticky top-0 z-10 bg-surface-alt px-4 py-2.5 text-right text-xs font-medium text-fg-faint">
                     {t("capital.historyAmountCol")}
                   </th>
+                  <th className="sticky top-0 z-10 bg-surface-alt px-4 py-2.5 text-right text-xs font-medium text-fg-faint">
+                    <span className="sr-only">{t("capital.reverseButton")}</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((tx, i) => (
-                  <tr
-                    key={tx.id}
-                    className={clsx("border-b border-line last:border-b-0", i % 2 === 1 ? "bg-surface-alt" : "bg-surface")}
-                  >
-                    <td className="px-4 py-2.5 text-left text-fg-muted">
-                      {new Date(tx.occurredAt).toLocaleDateString(dateLocale, {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      })}
-                    </td>
-                    <td className="px-4 py-2.5 text-left text-fg-muted">
-                      {tx.type === "deposit"
-                        ? t("capital.typeDeposit")
-                        : tx.isRecurring
-                          ? t("capital.typeRecurringAllocation", { pocket: tx.pocketName ?? "" })
-                          : t("capital.typeAllocation", { pocket: tx.pocketName ?? "" })}
-                    </td>
-                    <td
+                {transactions.map((tx, i) => {
+                  const baseLabel =
+                    tx.type === "deposit"
+                      ? t("capital.typeDeposit")
+                      : tx.isRecurring
+                        ? t("capital.typeRecurringAllocation", { pocket: pocketNameById.get(tx.pocketId ?? "") ?? "" })
+                        : t("capital.typeAllocation", { pocket: pocketNameById.get(tx.pocketId ?? "") ?? "" });
+                  const isReversed = reversedIds.has(tx.id);
+                  return (
+                    <tr
+                      key={tx.id}
                       className={clsx(
-                        "px-4 py-2.5 text-right tabular-nums font-medium",
-                        tx.type === "deposit" ? "text-positive" : "text-negative",
+                        "border-b border-line last:border-b-0",
+                        i % 2 === 1 ? "bg-surface-alt" : "bg-surface",
+                        isReversed && "opacity-60",
                       )}
                     >
-                      {tx.type === "deposit" ? "+" : "−"}
-                      {formatCurrency(tx.amount, currency)}
-                    </td>
-                  </tr>
-                ))}
+                      <td className="px-4 py-2.5 text-left text-fg-muted">
+                        {new Date(tx.occurredAt).toLocaleDateString(dateLocale, {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="px-4 py-2.5 text-left text-fg-muted">
+                        {tx.reversalOfId ? `${t("capital.reversalPrefix")} ${baseLabel}` : baseLabel}
+                        {isReversed ? (
+                          <span className="ml-2 text-xs text-fg-faint">({t("capital.reversedLabel")})</span>
+                        ) : null}
+                      </td>
+                      <td
+                        className={clsx(
+                          "px-4 py-2.5 text-right tabular-nums font-medium",
+                          tx.type === "deposit" ? "text-positive" : "text-negative",
+                        )}
+                      >
+                        {tx.type === "deposit" ? "+" : "−"}
+                        {formatCurrency(tx.amount, currency)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        {!tx.reversalOfId && !isReversed ? (
+                          <button
+                            onClick={() => reverseTransaction(tx)}
+                            disabled={reversingId === tx.id}
+                            className="text-xs font-medium text-fg-faint hover:text-negative"
+                          >
+                            {t("capital.reverseButton")}
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
+        {hasMoreTransactions ? (
+          <button onClick={loadMoreTransactions} disabled={loadMoreLoading} className="btn-secondary mt-4 w-full text-sm">
+            {t("capital.loadMoreButton")}
+          </button>
+        ) : null}
       </div>
     </div>
   );

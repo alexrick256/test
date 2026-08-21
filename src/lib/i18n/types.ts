@@ -175,6 +175,7 @@ export type Dictionary = {
     title: string;
     subtitle: string;
     currentBalance: string;
+    emptyStateHint: string;
     depositTitle: string;
     depositSubtitle: string;
     depositButton: string;
@@ -192,6 +193,7 @@ export type Dictionary = {
     invalidAmount: string;
     insufficientBalance: string;
     genericError: string;
+    networkError: string;
     recurringTitle: string;
     recurringSubtitle: string;
     recurringStatusActive: string;
@@ -210,6 +212,12 @@ export type Dictionary = {
     typeDeposit: string;
     typeAllocation: string;
     typeRecurringAllocation: string;
+    loadMoreButton: string;
+    reverseButton: string;
+    reverseConfirm: string;
+    reverseSuccess: string;
+    reversedLabel: string;
+    reversalPrefix: string;
   };
   onboarding: {
     close: string;

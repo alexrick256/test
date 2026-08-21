@@ -127,7 +127,7 @@ export function Sidebar({ email, plan, pockets }: Props) {
         <button
           type="button"
           onClick={() => setPocketsOpen((v) => !v)}
-          className={clsx(linkClass(pathname?.startsWith("/pockets") ?? false), "w-full justify-between")}
+          className={clsx(linkClass(pathname?.startsWith("/pockets") ?? false), "mt-2 w-full justify-between border-t border-line pt-3")}
         >
           <span className="flex items-center gap-2.5">
             <PiggyIcon />

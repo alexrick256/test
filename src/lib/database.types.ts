@@ -126,6 +126,7 @@ export interface Database {
           amount: number;
           pocket_id: string | null;
           recurring_allocation_id: string | null;
+          reversal_of_id: string | null;
           occurred_at: string;
           created_at: string;
         },
@@ -136,6 +137,7 @@ export interface Database {
           amount: number;
           pocket_id?: string | null;
           recurring_allocation_id?: string | null;
+          reversal_of_id?: string | null;
           occurred_at?: string;
           created_at?: string;
         }
@@ -173,6 +175,10 @@ export interface Database {
       };
       apply_due_recurring_capital_allocations: {
         Args: Record<string, never>;
+        Returns: undefined;
+      };
+      reverse_capital_transaction: {
+        Args: { p_transaction_id: string };
         Returns: undefined;
       };
     };
