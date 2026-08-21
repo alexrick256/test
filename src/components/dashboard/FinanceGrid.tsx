@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import clsx from "clsx";
 import {
   calculateCumulativeBalance,
   calculateRemaining,
@@ -255,15 +256,15 @@ export function FinanceGrid({
       ) : null}
 
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="table-scroll-shadow max-h-[70vh] overflow-auto">
           <table className="w-full min-w-[880px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-line bg-surface-alt">
-                <th className="sticky left-0 z-10 w-44 bg-surface-alt px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
+                <th className="sticky left-0 top-0 z-20 w-44 bg-surface-alt px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
                   {year}
                 </th>
                 {MONTH_LABELS.map((m) => (
-                  <th key={m} className="min-w-[72px] px-2 py-3 text-right text-xs font-medium text-fg-faint">
+                  <th key={m} className="sticky top-0 z-10 min-w-[72px] bg-surface-alt px-2 py-3 text-right text-xs font-medium text-fg-faint">
                     {m}
                   </th>
                 ))}
@@ -272,11 +273,11 @@ export function FinanceGrid({
             <tbody>
               {/* Einnahmen */}
               <tr className="border-b border-line bg-surface">
-                <td className="sticky left-0 bg-surface px-4 py-2 text-left font-medium text-fg">
+                <td className="sticky left-0 bg-surface px-4 py-3 text-left font-medium text-fg">
                   {t("grid.income")}
                 </td>
                 {income.map((v, i) => (
-                  <td key={i} className="px-1 py-1">
+                  <td key={i} className="px-1 py-1.5">
                     <EditableCell
                       value={v}
                       emphasize
@@ -295,9 +296,20 @@ export function FinanceGrid({
                   {t("grid.fixedCosts")}
                 </td>
               </tr>
-              {categories.map((category) => (
-                <tr key={category.id} className="group border-b border-line bg-surface">
-                  <td className="sticky left-0 bg-surface px-4 py-2 text-left text-fg-muted">
+              {categories.map((category, rowIndex) => (
+                <tr
+                  key={category.id}
+                  className={clsx(
+                    "group border-b border-line",
+                    rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                  )}
+                >
+                  <td
+                    className={clsx(
+                      "sticky left-0 px-4 py-3 text-left text-fg-muted",
+                      rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                    )}
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <span>{category.name}</span>
                       <button
@@ -311,7 +323,7 @@ export function FinanceGrid({
                     </div>
                   </td>
                   {(fixedCostValues[category.id] ?? emptyMonths()).map((v, i) => (
-                    <td key={i} className="px-1 py-1">
+                    <td key={i} className="px-1 py-1.5">
                       <EditableCell
                         value={v}
                         currency={currency}
@@ -368,9 +380,20 @@ export function FinanceGrid({
                       {t("grid.pockets")}
                     </td>
                   </tr>
-                  {pockets.map((pocket) => (
-                    <tr key={pocket.id} className="group border-b border-line bg-surface">
-                      <td className="sticky left-0 bg-surface px-4 py-2 text-left text-fg-muted">
+                  {pockets.map((pocket, rowIndex) => (
+                    <tr
+                      key={pocket.id}
+                      className={clsx(
+                        "group border-b border-line",
+                        rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                      )}
+                    >
+                      <td
+                        className={clsx(
+                          "sticky left-0 px-4 py-3 text-left text-fg-muted",
+                          rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                        )}
+                      >
                         <div className="flex items-center justify-between gap-2">
                           <span>{pocket.name}</span>
                           <button
@@ -384,7 +407,7 @@ export function FinanceGrid({
                         </div>
                       </td>
                       {(pocketValues[pocket.id] ?? emptyMonths()).map((v, i) => (
-                        <td key={i} className="px-1 py-1">
+                        <td key={i} className="px-1 py-1.5">
                           <EditableCell
                             value={v}
                             currency={currency}
@@ -447,14 +470,14 @@ export function FinanceGrid({
               )}
 
               {/* Rest zum Ausgeben */}
-              <tr className="border-t-2 border-line-strong bg-surface-alt">
-                <td className="sticky left-0 bg-surface-alt px-4 py-2.5 text-left font-semibold text-fg">
+              <tr className="border-t-2 border-line-strong bg-accent-50/70 dark:bg-accent-950/30">
+                <td className="sticky left-0 bg-accent-50/70 px-4 py-3 text-left font-semibold text-fg dark:bg-accent-950/30">
                   {t("grid.remaining")}
                 </td>
                 {remaining.map((v, i) => (
                   <td
                     key={i}
-                    className={`px-3 py-2.5 text-right text-sm font-semibold tabular-nums ${
+                    className={`px-3 py-3 text-right text-sm font-semibold tabular-nums ${
                       v < 0 ? "text-negative" : "text-fg"
                     }`}
                   >
@@ -471,13 +494,24 @@ export function FinanceGrid({
                       {t("grid.accounts")}
                     </td>
                   </tr>
-                  {pockets.map((pocket) => (
-                    <tr key={pocket.id} className="border-b border-line bg-surface">
-                      <td className="sticky left-0 bg-surface px-4 py-2 text-left text-fg-faint">
+                  {pockets.map((pocket, rowIndex) => (
+                    <tr
+                      key={pocket.id}
+                      className={clsx(
+                        "border-b border-line",
+                        rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                      )}
+                    >
+                      <td
+                        className={clsx(
+                          "sticky left-0 px-4 py-3 text-left text-fg-faint",
+                          rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                        )}
+                      >
                         {t("grid.accountPrefix")} · {pocket.name}
                       </td>
                       {(cumulativeByPocket[pocket.id] ?? emptyMonths()).map((v, i) => (
-                        <td key={i} className="px-3 py-2 text-right text-sm tabular-nums text-fg-faint">
+                        <td key={i} className="px-3 py-3 text-right text-sm tabular-nums text-fg-faint">
                           {formatCurrency(v, currency)}
                         </td>
                       ))}

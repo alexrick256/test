@@ -96,15 +96,15 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
       </div>
 
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="table-scroll-shadow max-h-[70vh] overflow-auto">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-line bg-surface-alt">
-                <th className="sticky left-0 w-44 bg-surface-alt px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
+                <th className="sticky left-0 top-0 z-20 w-44 bg-surface-alt px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
                   {year}
                 </th>
                 {MONTH_LABELS.map((m) => (
-                  <th key={m} className="min-w-[72px] px-2 py-3 text-right text-xs font-medium text-fg-faint">
+                  <th key={m} className="sticky top-0 z-10 min-w-[72px] bg-surface-alt px-2 py-3 text-right text-xs font-medium text-fg-faint">
                     {m}
                   </th>
                 ))}
@@ -112,11 +112,11 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
             </thead>
             <tbody>
               <tr className="border-b border-line bg-surface">
-                <td className="sticky left-0 bg-surface px-4 py-2 text-left font-medium text-fg">
+                <td className="sticky left-0 bg-surface px-4 py-3 text-left font-medium text-fg">
                   {t("pocketDetail.deposits")}
                 </td>
                 {values.map((v, i) => (
-                  <td key={i} className="px-1 py-1">
+                  <td key={i} className="px-1 py-1.5">
                     <EditableCell
                       value={v}
                       currency={currency}
@@ -127,12 +127,12 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
                   </td>
                 ))}
               </tr>
-              <tr className="bg-surface">
-                <td className="sticky left-0 bg-surface px-4 py-2 text-left text-fg-faint">
+              <tr className="border-t-2 border-line-strong bg-accent-50/70 dark:bg-accent-950/30">
+                <td className="sticky left-0 bg-accent-50/70 px-4 py-3 text-left font-semibold text-fg dark:bg-accent-950/30">
                   {t("pocketDetail.balance")}
                 </td>
                 {cumulative.map((v, i) => (
-                  <td key={i} className="px-3 py-2 text-right text-sm tabular-nums text-fg-faint">
+                  <td key={i} className="px-3 py-3 text-right text-sm font-semibold tabular-nums text-fg">
                     {formatCurrency(v, currency)}
                   </td>
                 ))}

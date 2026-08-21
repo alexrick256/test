@@ -89,4 +89,26 @@
   .label {
     @apply text-sm font-medium text-fg-muted;
   }
+
+  /* Dezente Schatten-Kante an den Rändern horizontal scrollbarer Tabellen –
+     verschwindet automatisch, sobald zum jeweiligen Rand hin ausgescrollt ist. */
+  .table-scroll-shadow {
+    background-image:
+      linear-gradient(to right, var(--color-surface), rgba(0, 0, 0, 0)),
+      linear-gradient(to left, var(--color-surface), rgba(0, 0, 0, 0)),
+      linear-gradient(to right, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0)),
+      linear-gradient(to left, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0));
+    background-position: left center, right center, left center, right center;
+    background-repeat: no-repeat;
+    background-size: 24px 100%, 24px 100%, 10px 100%, 10px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+
+  :root.dark .table-scroll-shadow {
+    background-image:
+      linear-gradient(to right, var(--color-surface), rgba(0, 0, 0, 0)),
+      linear-gradient(to left, var(--color-surface), rgba(0, 0, 0, 0)),
+      linear-gradient(to right, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0)),
+      linear-gradient(to left, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0));
+  }
 }

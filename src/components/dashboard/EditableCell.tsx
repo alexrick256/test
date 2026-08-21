@@ -63,7 +63,7 @@ export function EditableCell({
           }
         }}
         inputMode="decimal"
-        className="w-full rounded-md border border-accent-400 bg-surface px-2 py-1.5 text-right text-sm tabular-nums text-fg outline-none ring-2 ring-accent-100 dark:ring-accent-900/40"
+        className="w-full rounded-md border border-accent-400 bg-surface px-2 py-2 text-right text-sm tabular-nums text-fg outline-none ring-2 ring-accent-100 dark:ring-accent-900/40"
       />
     );
   }
@@ -75,7 +75,7 @@ export function EditableCell({
         disabled={disabled}
         onClick={() => !disabled && setEditing(true)}
         className={clsx(
-          "w-full rounded-md px-2 py-1.5 text-right text-sm tabular-nums transition-colors",
+          "w-full rounded-md px-2 py-2 text-right text-sm tabular-nums transition-colors",
           disabled ? "cursor-default text-fg-faint" : "hover:bg-surface-alt",
           negative ? "font-semibold text-negative" : emphasize ? "font-semibold text-fg" : "text-fg-muted",
         )}
