@@ -125,6 +125,8 @@ export interface Database {
           type: "deposit" | "allocation";
           amount: number;
           pocket_id: string | null;
+          recurring_allocation_id: string | null;
+          reversal_of_id: string | null;
           occurred_at: string;
           created_at: string;
         },
@@ -134,8 +136,34 @@ export interface Database {
           type: "deposit" | "allocation";
           amount: number;
           pocket_id?: string | null;
+          recurring_allocation_id?: string | null;
+          reversal_of_id?: string | null;
           occurred_at?: string;
           created_at?: string;
+        }
+      >;
+      capital_recurring_allocations: Table<
+        {
+          id: string;
+          user_id: string;
+          pocket_id: string;
+          amount: number;
+          status: "active" | "paused";
+          last_applied_year: number | null;
+          last_applied_month: number | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          user_id: string;
+          pocket_id: string;
+          amount: number;
+          status?: "active" | "paused";
+          last_applied_year?: number | null;
+          last_applied_month?: number | null;
+          created_at?: string;
+          updated_at?: string;
         }
       >;
     };
@@ -144,6 +172,14 @@ export interface Database {
       allocate_capital_to_pocket: {
         Args: { p_pocket_id: string; p_amount: number; p_year: number; p_month: number };
         Returns: number;
+      };
+      apply_due_recurring_capital_allocations: {
+        Args: Record<string, never>;
+        Returns: undefined;
+      };
+      reverse_capital_transaction: {
+        Args: { p_transaction_id: string };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;

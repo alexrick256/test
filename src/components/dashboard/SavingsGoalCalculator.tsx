@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatCurrency, monthsBetween, requiredMonthlySavingToReachGoal } from "@/lib/calculations";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currency";
@@ -23,9 +23,26 @@ export function SavingsGoalCalculator({
 }: Props) {
   const { t, tList } = useTranslation();
   const monthLabels = tList("savingsCalculator.months");
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonthIndex = now.getMonth();
+
+  // `new Date()` allein reicht nicht: React rendert nur bei State-/Prop-Änderungen
+  // neu, nicht von selbst mit der Zeit mit. Bleibt der Tab tagelang im
+  // Hintergrund offen, würde die Berechnung sonst mit dem Datum vom letzten
+  // Render weiterrechnen. Bei Rückkehr in den Tab wird "heute" deshalb aktiv
+  // neu gesetzt. Lokale Zeitzone des Browsers (kein UTC-Versatz).
+  const [today, setToday] = useState(() => new Date());
+  useEffect(() => {
+    function refreshToday() {
+      if (document.visibilityState === "visible") setToday(new Date());
+    }
+    document.addEventListener("visibilitychange", refreshToday);
+    window.addEventListener("focus", refreshToday);
+    return () => {
+      document.removeEventListener("visibilitychange", refreshToday);
+      window.removeEventListener("focus", refreshToday);
+    };
+  }, []);
+  const currentYear = today.getFullYear();
+  const currentMonthIndex = today.getMonth();
 
   const [pocketId, setPocketId] = useState(pockets[0]?.id ?? "");
   const [target, setTarget] = useState<string>("");
