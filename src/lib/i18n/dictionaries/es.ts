@@ -75,11 +75,11 @@ const es: Dictionary = {
     plans: {
       free: {
         tagline: "Para tener una primera visión de tu dinero.",
-        features: ["Ingresos y gastos por mes", "Hasta 3 categorías de gastos fijos", "\"Disponible para gastar\" en tiempo real"],
+        features: ["Ingresos y gastos por mes", "Hasta 5 categorías de gastos fijos", "\"Disponible para gastar\" en tiempo real"],
       },
       pro: {
         tagline: "Para quienes quieren ahorrar con un objetivo claro.",
-        features: ["Hasta 5 categorías de gastos fijos", "Hasta 3 bolsillos de ahorro", "Resumen de cuentas con saldos"],
+        features: ["Hasta 10 categorías de gastos fijos", "Hasta 3 bolsillos de ahorro", "Resumen de cuentas con saldos"],
       },
       max: {
         tagline: "Para tener el control total, hasta el último detalle.",

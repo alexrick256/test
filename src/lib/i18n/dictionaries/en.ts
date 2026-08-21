@@ -75,11 +75,11 @@ const en: Dictionary = {
     plans: {
       free: {
         tagline: "For a first overview of your money.",
-        features: ["Income & expenses per month", "Up to 3 fixed-cost categories", "\"Left to spend\" calculated live"],
+        features: ["Income & expenses per month", "Up to 5 fixed-cost categories", "\"Left to spend\" calculated live"],
       },
       pro: {
         tagline: "For anyone who wants to save with a purpose.",
-        features: ["Up to 5 fixed-cost categories", "Up to 3 savings pockets", "Account overview with balances"],
+        features: ["Up to 10 fixed-cost categories", "Up to 3 savings pockets", "Account overview with balances"],
       },
       max: {
         tagline: "For full visibility, down to the last detail.",

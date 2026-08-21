@@ -78,13 +78,13 @@ const de: Dictionary = {
         tagline: "Für den ersten Überblick über dein Geld.",
         features: [
           "Einnahmen & Ausgaben pro Monat",
-          "Bis zu 3 Fixkosten-Kategorien",
+          "Bis zu 5 Fixkosten-Kategorien",
           "„Rest zum Ausgeben“ live berechnet",
         ],
       },
       pro: {
         tagline: "Für alle, die gezielt sparen wollen.",
-        features: ["Bis zu 5 Fixkosten-Kategorien", "Bis zu 3 Sparpockets", "Konten-Übersicht mit Kontoständen"],
+        features: ["Bis zu 10 Fixkosten-Kategorien", "Bis zu 3 Sparpockets", "Konten-Übersicht mit Kontoständen"],
       },
       max: {
         tagline: "Für den vollen Durchblick, jedes Detail.",
