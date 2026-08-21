@@ -86,10 +86,14 @@ export async function POST(request: Request) {
 
   await Promise.all(tasks);
 
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({ onboarding_completed_at: new Date().toISOString() })
-    .eq("id", user.id);
+  // upsert statt update: Falls die profiles-Zeile aus irgendeinem Grund
+  // (z. B. Trigger hat beim Signup nicht gefeuert) noch nicht existiert,
+  // würde ein reines UPDATE lautlos 0 Zeilen betreffen und der Abschluss
+  // ginge verloren, ohne dass ein Fehler auftritt.
+  const { error: profileError } = await supabase.from("profiles").upsert(
+    { id: user.id, email: user.email ?? null, onboarding_completed_at: new Date().toISOString() },
+    { onConflict: "id" },
+  );
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
