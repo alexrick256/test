@@ -116,7 +116,7 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
             </thead>
             <tbody>
               <tr className="border-b border-line bg-surface">
-                <td className="sticky left-0 bg-surface px-4 py-3 text-left font-medium text-fg">
+                <td className="sticky left-0 z-10 bg-surface px-4 py-3 text-left font-medium text-fg">
                   {t("pocketDetail.deposits")}
                 </td>
                 {values.map((v, i) => (
@@ -132,7 +132,7 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
                 ))}
               </tr>
               <tr className="border-t-2 border-line-strong bg-accent-50/70 dark:bg-accent-950/30">
-                <td className="sticky left-0 bg-accent-50/70 px-4 py-3 text-left font-semibold text-fg dark:bg-accent-950/30">
+                <td className="sticky left-0 z-10 bg-accent-50/70 px-4 py-3 text-left font-semibold text-fg dark:bg-accent-950/30">
                   {t("pocketDetail.balance")}
                 </td>
                 {cumulative.map((v, i) => (
@@ -170,7 +170,7 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
                 {history.map((entry, i) => (
                   <tr
                     key={entry.id}
-                    className={clsx("border-b border-line last:border-b-0", i % 2 === 1 ? "bg-surface-alt/40" : "bg-surface")}
+                    className={clsx("border-b border-line last:border-b-0", i % 2 === 1 ? "bg-surface-alt" : "bg-surface")}
                   >
                     <td className="px-4 py-2.5 text-left text-fg-muted">
                       {entry.source === "monthly"

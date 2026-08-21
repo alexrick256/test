@@ -257,7 +257,7 @@ export function FinanceGrid({
 
       <div className="card overflow-hidden">
         <div className="table-scroll-shadow max-h-[70vh] overflow-auto">
-          <table className="w-full min-w-[880px] border-collapse text-sm">
+          <table className="w-full min-w-[880px] border-separate border-spacing-0 text-sm">
             <thead>
               <tr className="border-b border-line bg-surface-alt">
                 <th className="sticky left-0 top-0 z-20 w-44 bg-surface-alt px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
@@ -273,7 +273,7 @@ export function FinanceGrid({
             <tbody>
               {/* Einnahmen */}
               <tr className="border-b border-line bg-surface">
-                <td className="sticky left-0 bg-surface px-4 py-3 text-left font-medium text-fg">
+                <td className="sticky left-0 z-10 bg-surface px-4 py-3 text-left font-medium text-fg">
                   {t("grid.income")}
                 </td>
                 {income.map((v, i) => (
@@ -301,13 +301,13 @@ export function FinanceGrid({
                   key={category.id}
                   className={clsx(
                     "group border-b border-line",
-                    rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                    rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
                   )}
                 >
                   <td
                     className={clsx(
-                      "sticky left-0 px-4 py-3 text-left text-fg-muted",
-                      rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                      "sticky left-0 z-10 px-4 py-3 text-left text-fg-muted",
+                      rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -385,13 +385,13 @@ export function FinanceGrid({
                       key={pocket.id}
                       className={clsx(
                         "group border-b border-line",
-                        rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                        rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
                       )}
                     >
                       <td
                         className={clsx(
-                          "sticky left-0 px-4 py-3 text-left text-fg-muted",
-                          rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                          "sticky left-0 z-10 px-4 py-3 text-left text-fg-muted",
+                          rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
                         )}
                       >
                         <div className="flex items-center justify-between gap-2">
@@ -471,7 +471,7 @@ export function FinanceGrid({
 
               {/* Rest zum Ausgeben */}
               <tr className="border-t-2 border-line-strong bg-accent-50/70 dark:bg-accent-950/30">
-                <td className="sticky left-0 bg-accent-50/70 px-4 py-3 text-left font-semibold text-fg dark:bg-accent-950/30">
+                <td className="sticky left-0 z-10 bg-accent-50/70 px-4 py-3 text-left font-semibold text-fg dark:bg-accent-950/30">
                   {t("grid.remaining")}
                 </td>
                 {remaining.map((v, i) => (
@@ -499,13 +499,13 @@ export function FinanceGrid({
                       key={pocket.id}
                       className={clsx(
                         "border-b border-line",
-                        rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                        rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
                       )}
                     >
                       <td
                         className={clsx(
-                          "sticky left-0 px-4 py-3 text-left text-fg-faint",
-                          rowIndex % 2 === 1 ? "bg-surface-alt/40" : "bg-surface",
+                          "sticky left-0 z-10 px-4 py-3 text-left text-fg-faint",
+                          rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
                         )}
                       >
                         {t("grid.accountPrefix")} · {pocket.name}
