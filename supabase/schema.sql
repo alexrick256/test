@@ -3,8 +3,8 @@
 --
 -- WICHTIG: Die Tarif-Limits hier (fixed_cost_limit / savings_pocket_limit)
 -- müssen mit src/lib/plans.ts übereinstimmen:
---   free: 3 Fixkosten / 0 Sparpockets
---   pro:  5 Fixkosten / 3 Sparpockets
+--   free: 5 Fixkosten / 0 Sparpockets
+--   pro:  10 Fixkosten / 3 Sparpockets
 --   max:  20 Fixkosten / 20 Sparpockets
 
 create extension if not exists "pgcrypto";
@@ -76,10 +76,10 @@ language sql
 immutable
 as $$
   select case p_plan
-    when 'free' then 3
-    when 'pro' then 5
+    when 'free' then 5
+    when 'pro' then 10
     when 'max' then 20
-    else 3
+    else 5
   end;
 $$;
 

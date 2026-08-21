@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { PLANS, type PlanId } from "@/lib/plans";
 import { formatCurrency } from "@/lib/calculations";
@@ -10,13 +9,18 @@ import { useTranslation } from "@/lib/i18n/useTranslation";
 type CostItem = { id: string; name: string; amount: string; preset?: boolean };
 
 const PRESET_KEYS = ["rent", "electricity", "phone", "internet"] as const;
+const PRESET_EMOJI: Record<(typeof PRESET_KEYS)[number], string> = {
+  rent: "🏠",
+  electricity: "⚡",
+  phone: "📱",
+  internet: "🌐",
+};
 
 function makeId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
 export function OnboardingWizard({ plan }: { plan: PlanId }) {
-  const router = useRouter();
   const { t } = useTranslation();
   const planConfig = PLANS[plan];
 
@@ -86,28 +90,49 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
         const data = await res.json().catch(() => null);
         throw new Error(data?.error ?? t("auth.genericError"));
       }
-      router.push("/dashboard");
-      router.refresh();
+      // Harte Navigation statt Router-Cache, damit der frisch gesetzte
+      // onboarding_completed_at-Status garantiert gelesen wird.
+      window.location.href = "/dashboard";
     } catch (err) {
       setError(err instanceof Error ? err.message : t("auth.genericError"));
       setSubmitting(false);
     }
   }
 
+  const stepEmoji = { 1: "💰", 2: "🧾", 3: "🎯" } as const;
+
   return (
     <div className="card p-8">
-      <div className="mb-8">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-faint">
-          {t("onboarding.progress", { current: step, total: 3 })}
-        </p>
-        <div className="flex gap-1.5">
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
           {[1, 2, 3].map((s) => (
-            <div
-              key={s}
-              className={clsx("h-1.5 flex-1 rounded-full", s <= step ? "bg-accent-500" : "bg-surface-alt")}
-            />
+            <div key={s} className="flex items-center gap-2">
+              <div
+                className={clsx(
+                  "flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors",
+                  s < step
+                    ? "bg-accent-500 text-white"
+                    : s === step
+                      ? "bg-accent-500 text-white ring-4 ring-accent-100 dark:ring-accent-900/40"
+                      : "bg-surface-alt text-fg-faint",
+                )}
+              >
+                {s < step ? "✓" : s}
+              </div>
+              {s < 3 ? (
+                <div className={clsx("h-0.5 w-6 rounded-full sm:w-10", s < step ? "bg-accent-500" : "bg-surface-alt")} />
+              ) : null}
+            </div>
           ))}
         </div>
+        <button
+          type="button"
+          onClick={() => finish(true)}
+          disabled={submitting}
+          className="text-xs font-medium text-fg-faint hover:text-fg-muted"
+        >
+          {t("onboarding.step3.skip")} ✕
+        </button>
       </div>
 
       {error ? (
@@ -116,6 +141,9 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
 
       {step === 1 ? (
         <div>
+          <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-2xl dark:bg-accent-950/50">
+            {stepEmoji[1]}
+          </span>
           <h1 className="text-xl font-semibold tracking-tight text-fg">{t("onboarding.step1.title")}</h1>
           <p className="mt-1.5 text-sm text-fg-muted">{t("onboarding.step1.subtitle")}</p>
 
@@ -136,40 +164,46 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
             disabled={!income.trim()}
             className="btn-primary mt-8 w-full"
           >
-            {t("onboarding.step1.next")}
+            {t("onboarding.step1.next")} →
           </button>
         </div>
       ) : null}
 
       {step === 2 ? (
         <div>
+          <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-2xl dark:bg-accent-950/50">
+            {stepEmoji[2]}
+          </span>
           <h1 className="text-xl font-semibold tracking-tight text-fg">{t("onboarding.step2.title")}</h1>
           <p className="mt-1.5 text-sm text-fg-muted">{t("onboarding.step2.subtitle")}</p>
 
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="mt-6 grid grid-cols-2 gap-2.5">
             {PRESET_KEYS.map((key) => (
               <button
                 key={key}
                 onClick={() => togglePreset(key)}
                 disabled={!presetActive[key] && atLimit}
                 className={clsx(
-                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-2.5 rounded-xl border-2 px-4 py-3 text-left text-sm font-medium transition-colors disabled:opacity-40",
                   presetActive[key]
-                    ? "border-accent-500 bg-accent-500 text-white"
+                    ? "border-accent-500 bg-accent-50 text-accent-900 dark:bg-accent-950/40 dark:text-accent-200"
                     : "border-line-strong bg-surface text-fg-muted hover:bg-surface-alt",
                 )}
               >
+                <span className="text-xl">{PRESET_EMOJI[key]}</span>
                 {t(`onboarding.step2.presets.${key}`)}
+                {presetActive[key] ? <span className="ml-auto text-accent-600 dark:text-accent-400">✓</span> : null}
               </button>
             ))}
-            <button
-              onClick={addCustomItem}
-              disabled={atLimit}
-              className="rounded-full border border-dashed border-line-strong px-3.5 py-1.5 text-sm font-medium text-fg-muted hover:bg-surface-alt disabled:opacity-40"
-            >
-              {t("onboarding.step2.addCustom")}
-            </button>
           </div>
+
+          <button
+            onClick={addCustomItem}
+            disabled={atLimit}
+            className="mt-2.5 w-full rounded-xl border-2 border-dashed border-line-strong px-4 py-3 text-sm font-medium text-fg-muted hover:bg-surface-alt disabled:opacity-40"
+          >
+            ➕ {t("onboarding.step2.addCustom")}
+          </button>
 
           {atLimit ? (
             <p className="mt-3 text-xs text-fg-faint">
@@ -210,10 +244,10 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
 
           <div className="mt-8 flex gap-3">
             <button onClick={() => setStep(1)} className="btn-secondary flex-1">
-              {t("onboarding.step2.back")}
+              ← {t("onboarding.step2.back")}
             </button>
             <button onClick={() => setStep(3)} className="btn-primary flex-1">
-              {t("onboarding.step2.next")}
+              {t("onboarding.step2.next")} →
             </button>
           </div>
         </div>
@@ -221,25 +255,22 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
 
       {step === 3 ? (
         <div>
+          <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-2xl dark:bg-accent-950/50">
+            {stepEmoji[3]}
+          </span>
           <h1 className="text-xl font-semibold tracking-tight text-fg">{t("onboarding.step3.title")}</h1>
           <p className="mt-1.5 text-sm text-fg-muted">{t("onboarding.step3.subtitle")}</p>
 
           {incomeNumber > 0 ? (
             <button
               onClick={() => setSavingsAmount(String(suggestedSavings))}
-              className="mt-5 flex w-full items-start gap-3 rounded-lg border border-accent-200 bg-accent-50/60 p-4 text-left transition-colors hover:bg-accent-50 dark:border-accent-800 dark:bg-accent-950/30 dark:hover:bg-accent-950/50"
+              className="mt-5 flex w-full items-start gap-3 rounded-xl border border-accent-200 bg-accent-50/60 p-4 text-left transition-colors hover:bg-accent-50 dark:border-accent-800 dark:bg-accent-950/30 dark:hover:bg-accent-950/50"
             >
-              <svg className="mt-0.5 h-5 w-5 shrink-0 text-accent-600 dark:text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"
-                />
-              </svg>
+              <span className="mt-0.5 shrink-0 text-xl">💡</span>
               <span className="text-sm text-fg">
                 {t("onboarding.step3.tip", { amount: formatCurrency(suggestedSavings) })}{" "}
                 <span className="font-medium text-accent-700 dark:text-accent-400">
-                  {t("onboarding.step3.applySuggestion")}
+                  ✨ {t("onboarding.step3.applySuggestion")}
                 </span>
               </span>
             </button>
@@ -262,19 +293,12 @@ export function OnboardingWizard({ plan }: { plan: PlanId }) {
 
           <div className="mt-8 flex gap-3">
             <button onClick={() => setStep(2)} className="btn-secondary flex-1" disabled={submitting}>
-              {t("onboarding.step3.back")}
+              ← {t("onboarding.step3.back")}
             </button>
             <button onClick={() => finish(false)} className="btn-primary flex-1" disabled={submitting}>
-              {submitting ? t("auth.loading") : t("onboarding.step3.finish")}
+              {submitting ? t("auth.loading") : `${t("onboarding.step3.finish")} 🎉`}
             </button>
           </div>
-          <button
-            onClick={() => finish(true)}
-            disabled={submitting}
-            className="mt-3 w-full text-center text-xs font-medium text-fg-faint hover:text-fg-muted"
-          >
-            {t("onboarding.step3.skip")}
-          </button>
         </div>
       ) : null}
     </div>
