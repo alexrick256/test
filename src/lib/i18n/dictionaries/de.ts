@@ -170,6 +170,10 @@ const de: Dictionary = {
       description: "Sparziele wie Urlaub, Notgroschen oder ein neues Auto.",
       locked: "Sparpockets sind ab dem Pro-Tarif verfügbar.",
     },
+    currency: {
+      title: "Währung",
+      description: "In welcher Währung sollen Beträge in Leviro angezeigt werden?",
+    },
     manage: {
       empty: "Noch keine Einträge.",
       add: "+ Hinzufügen",
@@ -183,6 +187,8 @@ const de: Dictionary = {
     },
   },
   onboarding: {
+    close: "Schließen",
+    currency: "Währung",
     step1: {
       title: "Wie hoch sind deine monatlichen Einnahmen?",
       subtitle: "Dein Netto-Einkommen, das dir im Schnitt pro Monat zur Verfügung steht.",

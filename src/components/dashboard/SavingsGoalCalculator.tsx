@@ -9,17 +9,25 @@ import {
   type MonthlyAmounts,
 } from "@/lib/calculations";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currency";
 
 type Pocket = { id: string; name: string };
 
 type Props = {
   year: number;
+  currency?: CurrencyCode;
   pockets: Pocket[];
   pocketValues: Record<string, MonthlyAmounts>;
   remaining: MonthlyAmounts;
 };
 
-export function SavingsGoalCalculator({ year, pockets, pocketValues, remaining }: Props) {
+export function SavingsGoalCalculator({
+  year,
+  currency = DEFAULT_CURRENCY,
+  pockets,
+  pocketValues,
+  remaining,
+}: Props) {
   const { t, tList } = useTranslation();
   const monthLabels = tList("savingsCalculator.months");
   const now = new Date();
@@ -95,13 +103,13 @@ export function SavingsGoalCalculator({ year, pockets, pocketValues, remaining }
             feasible ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative"
           }`}
         >
-          <span>{t("savingsCalculator.requiredText", { amount: formatCurrency(requiredPerMonth) })}</span>
+          <span>{t("savingsCalculator.requiredText", { amount: formatCurrency(requiredPerMonth, currency) })}</span>
           <span>
             {feasible
               ? t("savingsCalculator.feasibleText", { month: monthLabels[fromMonth] })
               : t("savingsCalculator.notFeasibleText", {
                   month: monthLabels[fromMonth],
-                  amount: formatCurrency(restInStartMonth),
+                  amount: formatCurrency(restInStartMonth, currency),
                 })}
           </span>
         </div>

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isValidPlan } from "@/lib/plans";
+import { isValidCurrency, DEFAULT_CURRENCY } from "@/lib/currency";
 import { emptyMonths, type MonthlyAmounts } from "@/lib/calculations";
 import { FinanceGrid } from "@/components/dashboard/FinanceGrid";
 import { YearSwitcher } from "@/components/dashboard/YearSwitcher";
@@ -28,10 +29,11 @@ export default async function DashboardPage({
 
   const { data: profileRow } = await supabase
     .from("profiles")
-    .select("onboarding_completed_at")
+    .select("onboarding_completed_at, currency")
     .eq("id", user.id)
     .maybeSingle();
   if (!profileRow?.onboarding_completed_at) redirect("/onboarding");
+  const currency = isValidCurrency(profileRow.currency) ? profileRow.currency : DEFAULT_CURRENCY;
 
   const { data: subscriptionRow } = await supabase
     .from("subscriptions")
@@ -121,6 +123,7 @@ export default async function DashboardPage({
       <FinanceGrid
         year={year}
         plan={plan}
+        currency={currency}
         categories={categories ?? []}
         pockets={pockets ?? []}
         initialIncome={rowsToMonthly(incomeRows ?? [])}

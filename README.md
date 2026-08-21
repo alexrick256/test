@@ -15,12 +15,22 @@ und drei Abo-Tarifen (Free, Pro, Max). Mehrsprachig (DE/EN/ES) und mit Dark Mode
 
 ## ⚠️ Update für bereits laufende Projekte
 
-Falls dein Supabase-Projekt bereits mit einer früheren Version läuft, muss
-zusätzlich [`supabase/migrations/0002_onboarding.sql`](./supabase/migrations/0002_onboarding.sql)
-im SQL-Editor ausgeführt werden (fügt das Onboarding-Flag zu `profiles` hinzu
-und markiert bestehende Nutzer automatisch als "bereits onboarded", damit sie
-nicht in den neuen Setup-Wizard geschickt werden). Bei einem **neuen** Projekt
-reicht `schema.sql` allein, die Spalte ist dort bereits enthalten.
+Falls dein Supabase-Projekt bereits mit einer früheren Version läuft, müssen
+alle SQL-Dateien unter [`supabase/migrations/`](./supabase/migrations/) der
+Reihe nach im SQL-Editor ausgeführt werden:
+
+1. `0002_onboarding.sql` – fügt das Onboarding-Flag zu `profiles` hinzu und
+   markiert bestehende Nutzer automatisch als "bereits onboarded". **Ohne
+   diese Migration schlägt das Onboarding mit einem Fehler
+   ("Could not find the 'onboarding_completed_at' column…") fehl und der
+   Nutzer landet in einer Schleife zurück am Anfang des Wizards.**
+2. `0003_raise_fixed_cost_limits.sql` – hebt die Fixkosten-Limits an (Free 5,
+   Pro 10).
+3. `0004_currency_preference.sql` – fügt die persönliche Anzeige-Währung zu
+   `profiles` hinzu.
+
+Bei einem **neuen** Projekt reicht `schema.sql` allein, alle Spalten sind
+dort bereits enthalten.
 
 ## Getting Started
 
