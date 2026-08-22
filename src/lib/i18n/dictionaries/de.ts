@@ -4,6 +4,7 @@ const de: Dictionary = {
   nav: {
     home: "Home",
     dashboard: "Dashboard",
+    fixedCosts: "Fixkosten",
     savingsPlans: "Sparpläne",
     capital: "Kapital",
     tips: "Spartipps",
@@ -155,6 +156,9 @@ const de: Dictionary = {
     copyToYear: "Auf alle 12 Monate übertragen",
     copyConfirm: "In anderen Monaten stehen bereits abweichende Werte. Trotzdem überschreiben?",
     copySuccess: "Wert für alle 12 Monate übernommen",
+    fixedCostsTotalLabel: "Fixkosten gesamt {{year}}",
+    manageFixedCosts: "Fixkosten verwalten",
+    noFixedCosts: "Noch keine Fixkosten hinterlegt.",
   },
   savingsCalculator: {
     title: "Sparziel-Rechner",
@@ -255,6 +259,12 @@ const de: Dictionary = {
           "Nimm dir 15 Minuten im Monat, um deinen Kontostand und dein Restbudget durchzugehen. Regelmäßigkeit schlägt Perfektionismus.",
       },
     ],
+  },
+  fixedCosts: {
+    title: "Fixkosten",
+    subtitle: "Verwalte deine monatlichen Fixkosten-Kategorien.",
+    totalRow: "Gesamt",
+    yearTotal: "Fixkosten gesamt in diesem Jahr: {{amount}}",
   },
   pocketDetail: {
     back: "Zurück zum Dashboard",

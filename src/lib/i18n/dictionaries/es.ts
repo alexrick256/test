@@ -4,6 +4,7 @@ const es: Dictionary = {
   nav: {
     home: "Inicio",
     dashboard: "Dashboard",
+    fixedCosts: "Gastos fijos",
     savingsPlans: "Planes de ahorro",
     capital: "Capital",
     tips: "Consejos de ahorro",
@@ -146,6 +147,9 @@ const es: Dictionary = {
     copyToYear: "Copiar a los 12 meses",
     copyConfirm: "Otros meses ya tienen valores distintos. ¿Sobrescribirlos igualmente?",
     copySuccess: "Valor aplicado a los 12 meses",
+    fixedCostsTotalLabel: "Gastos fijos totales {{year}}",
+    manageFixedCosts: "Gestionar gastos fijos",
+    noFixedCosts: "Aún no hay gastos fijos añadidos.",
   },
   savingsCalculator: {
     title: "Calculadora de meta de ahorro",
@@ -246,6 +250,12 @@ const es: Dictionary = {
           "Dedica 15 minutos al mes a revisar tu saldo y lo que te queda para gastar. La constancia gana al perfeccionismo.",
       },
     ],
+  },
+  fixedCosts: {
+    title: "Gastos fijos",
+    subtitle: "Gestiona tus categorías de gastos fijos mensuales.",
+    totalRow: "Total",
+    yearTotal: "Gastos fijos totales este año: {{amount}}",
   },
   pocketDetail: {
     back: "Volver al dashboard",

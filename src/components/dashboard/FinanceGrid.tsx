@@ -9,6 +9,7 @@ import {
   calculateRemaining,
   emptyMonths,
   formatCurrency,
+  sumRow,
   type MonthlyAmounts,
 } from "@/lib/calculations";
 import { PLANS, type PlanId } from "@/lib/plans";
@@ -87,9 +88,7 @@ export function FinanceGrid({
   const [fixedCostsOpen, setFixedCostsOpen] = useState(true);
   const [pocketsOpen, setPocketsOpen] = useState(true);
   const [accountsOpen, setAccountsOpen] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
   const [newPocketName, setNewPocketName] = useState("");
-  const [addingCategory, setAddingCategory] = useState(false);
   const [addingPocket, setAddingPocket] = useState(false);
   const [gridError, setGridError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -114,7 +113,14 @@ export function FinanceGrid({
     return map;
   }, [pockets, pocketValues]);
 
-  const atCategoryLimit = categories.length >= planConfig.fixedCostLimit;
+  const fixedCostsTotalByMonth = useMemo(() => {
+    const totals = emptyMonths();
+    for (const row of fixedCostRows) {
+      for (let i = 0; i < 12; i++) totals[i] += row[i] ?? 0;
+    }
+    return totals;
+  }, [fixedCostRows]);
+
   const atPocketLimit = pockets.length >= planConfig.savingsPocketLimit;
   const pocketsAvailable = planConfig.savingsPocketLimit > 0;
 
@@ -128,20 +134,6 @@ export function FinanceGrid({
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ year, month: monthIndex + 1, amount }),
-    });
-    if (!res.ok) router.refresh();
-  }
-
-  async function saveFixedCost(categoryId: string, monthIndex: number, amount: number) {
-    setFixedCostValues((prev) => {
-      const row = [...(prev[categoryId] ?? emptyMonths())];
-      row[monthIndex] = amount;
-      return { ...prev, [categoryId]: row };
-    });
-    const res = await fetch("/api/values/fixed-cost", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ categoryId, year, month: monthIndex + 1, amount }),
     });
     if (!res.ok) router.refresh();
   }
@@ -160,13 +152,10 @@ export function FinanceGrid({
     if (!res.ok) router.refresh();
   }
 
-  async function copyToAllMonths(kind: "income" | "fixed-cost" | "pocket", id: string | null, monthIndex: number) {
-    const row =
-      kind === "income" ? income : kind === "fixed-cost" ? (fixedCostValues[id!] ?? emptyMonths()) : (pocketValues[id!] ?? emptyMonths());
-    const endpoint =
-      kind === "income" ? "/api/values/income" : kind === "fixed-cost" ? "/api/values/fixed-cost" : "/api/values/pocket";
-    const extraFields: Record<string, string> =
-      kind === "income" ? {} : kind === "fixed-cost" ? { categoryId: id! } : { pocketId: id! };
+  async function copyToAllMonths(kind: "income" | "pocket", id: string | null, monthIndex: number) {
+    const row = kind === "income" ? income : (pocketValues[id!] ?? emptyMonths());
+    const endpoint = kind === "income" ? "/api/values/income" : "/api/values/pocket";
+    const extraFields: Record<string, string> = kind === "income" ? {} : { pocketId: id! };
 
     const success = await copyValueToAllMonths({
       endpoint,
@@ -177,30 +166,10 @@ export function FinanceGrid({
       confirmMessage: t("grid.copyConfirm"),
       onOptimisticUpdate: (newRow) => {
         if (kind === "income") setIncome(newRow);
-        else if (kind === "fixed-cost") setFixedCostValues((prev) => ({ ...prev, [id!]: newRow }));
         else setPocketValues((prev) => ({ ...prev, [id!]: newRow }));
       },
     });
     if (success) toast(t("grid.copySuccess"));
-  }
-
-  async function addCategory() {
-    const name = newCategoryName.trim();
-    if (!name) return;
-    setGridError(null);
-    const res = await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setGridError(data.error ?? t("settings.manage.addError"));
-      return;
-    }
-    setNewCategoryName("");
-    setAddingCategory(false);
-    router.refresh();
   }
 
   async function addPocket() {
@@ -219,20 +188,6 @@ export function FinanceGrid({
     }
     setNewPocketName("");
     setAddingPocket(false);
-    router.refresh();
-  }
-
-  async function deleteCategory(id: string) {
-    if (!window.confirm(t("grid.deleteConfirm"))) return;
-    setGridError(null);
-    setDeletingId(id);
-    const res = await fetch(`/api/categories/${id}`, { method: "DELETE" });
-    setDeletingId(null);
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setGridError(data?.error ?? t("settings.manage.deleteError"));
-      return;
-    }
     router.refresh();
   }
 
@@ -271,6 +226,20 @@ export function FinanceGrid({
       {gridError ? (
         <p className="rounded-lg bg-negative/10 px-4 py-3 text-sm text-negative">{gridError}</p>
       ) : null}
+
+      <div className="card flex flex-wrap items-center justify-between gap-3 border-accent-200 bg-accent-50/60 px-5 py-4 dark:border-accent-800 dark:bg-accent-950/30">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-fg-faint">
+            {t("grid.fixedCostsTotalLabel", { year })}
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-fg">
+            {formatCurrency(sumRow(fixedCostsTotalByMonth), currency)}
+          </p>
+        </div>
+        <Link href="/fixed-costs" className="btn-secondary text-sm">
+          {t("grid.manageFixedCosts")}
+        </Link>
+      </div>
 
       <div className="card overflow-hidden">
         <div className="table-scroll-shadow max-h-[70vh] overflow-auto">
@@ -323,80 +292,48 @@ export function FinanceGrid({
               {fixedCostsOpen ? (
                 <>
                   {categories.map((category, rowIndex) => (
-                <tr
-                  key={category.id}
-                  className={clsx(
-                    "group border-b border-line",
-                    rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
-                  )}
-                >
-                  <td
-                    className={clsx(
-                      "sticky left-0 z-10 px-4 py-3 text-left text-fg-muted",
-                      rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span>{category.name}</span>
-                      <button
-                        onClick={() => deleteCategory(category.id)}
-                        disabled={deletingId === category.id}
-                        className="shrink-0 rounded p-1 text-fg-faint opacity-0 transition-opacity hover:bg-negative/10 hover:text-negative group-hover:opacity-100"
-                        aria-label={t("grid.delete")}
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  </td>
-                  {(fixedCostValues[category.id] ?? emptyMonths()).map((v, i) => (
-                    <td key={i} className="px-1 py-1.5">
-                      <EditableCell
-                        value={v}
-                        currency={currency}
-                        onCommit={(val) => saveFixedCost(category.id, i, val)}
-                        onCopyToYear={() => copyToAllMonths("fixed-cost", category.id, i)}
-                        copyLabel={t("grid.copyToYear")}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-              <tr className="border-b border-line">
-                <td colSpan={13} className="px-4 py-2">
-                  {addingCategory ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        autoFocus
-                        value={newCategoryName}
-                        onChange={(e) => setNewCategoryName(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && addCategory()}
-                        placeholder={t("grid.categoryNamePlaceholder")}
-                        className="input max-w-[240px] py-1.5"
-                      />
-                      <button onClick={addCategory} className="btn-primary py-1.5 text-xs">
-                        {t("grid.add")}
-                      </button>
-                      <button onClick={() => setAddingCategory(false)} className="btn-ghost py-1.5 text-xs">
-                        {t("grid.cancel")}
-                      </button>
-                    </div>
-                  ) : atCategoryLimit ? (
-                    <p className="text-xs text-fg-faint">
-                      {t("grid.limitReachedCategories", { limit: planConfig.fixedCostLimit })}{" "}
-                      <Link href="/pricing" className="font-medium text-accent-600 hover:underline dark:text-accent-400">
-                        {t("grid.upgrade")}
-                      </Link>
-                    </p>
-                  ) : (
-                    <button
-                      onClick={() => setAddingCategory(true)}
-                      className="text-xs font-medium text-fg-muted hover:text-fg"
+                    <tr
+                      key={category.id}
+                      className={clsx("border-b border-line", rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface")}
                     >
-                      {t("grid.addCategory")}
-                    </button>
+                      <td
+                        className={clsx(
+                          "sticky left-0 z-10 px-4 py-3 text-left text-fg-muted",
+                          rowIndex % 2 === 1 ? "bg-surface-alt" : "bg-surface",
+                        )}
+                      >
+                        {category.name}
+                      </td>
+                      {(fixedCostValues[category.id] ?? emptyMonths()).map((v, i) => (
+                        <td key={i} className="px-3 py-3 text-right text-sm tabular-nums text-fg-muted">
+                          {formatCurrency(v, currency)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  {categories.length === 0 ? (
+                    <tr className="border-b border-line">
+                      <td colSpan={13} className="px-4 py-3">
+                        <p className="text-xs text-fg-faint">
+                          {t("grid.noFixedCosts")}{" "}
+                          <Link href="/fixed-costs" className="font-medium text-accent-600 hover:underline dark:text-accent-400">
+                            {t("grid.manageFixedCosts")}
+                          </Link>
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr className="border-b border-line bg-surface-alt/60">
+                      <td className="sticky left-0 z-10 bg-surface-alt/60 px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
+                        {t("fixedCosts.totalRow")}
+                      </td>
+                      {fixedCostsTotalByMonth.map((v, i) => (
+                        <td key={i} className="px-3 py-2.5 text-right text-xs font-medium tabular-nums text-fg-faint">
+                          {formatCurrency(v, currency)}
+                        </td>
+                      ))}
+                    </tr>
                   )}
-                </td>
-              </tr>
                 </>
               ) : null}
 

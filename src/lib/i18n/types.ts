@@ -2,6 +2,7 @@ export type Dictionary = {
   nav: {
     home: string;
     dashboard: string;
+    fixedCosts: string;
     savingsPlans: string;
     capital: string;
     tips: string;
@@ -109,6 +110,9 @@ export type Dictionary = {
     copyToYear: string;
     copyConfirm: string;
     copySuccess: string;
+    fixedCostsTotalLabel: string;
+    manageFixedCosts: string;
+    noFixedCosts: string;
   };
   savingsCalculator: {
     title: string;
@@ -155,6 +159,12 @@ export type Dictionary = {
     pageTitle: string;
     pageSubtitle: string;
     items: { title: string; description: string }[];
+  };
+  fixedCosts: {
+    title: string;
+    subtitle: string;
+    totalRow: string;
+    yearTotal: string;
   };
   pocketDetail: {
     back: string;

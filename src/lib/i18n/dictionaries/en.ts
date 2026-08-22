@@ -4,6 +4,7 @@ const en: Dictionary = {
   nav: {
     home: "Home",
     dashboard: "Dashboard",
+    fixedCosts: "Fixed costs",
     savingsPlans: "Savings plans",
     capital: "Capital",
     tips: "Saving tips",
@@ -146,6 +147,9 @@ const en: Dictionary = {
     copyToYear: "Copy to all 12 months",
     copyConfirm: "Other months already have different values. Overwrite them anyway?",
     copySuccess: "Value applied to all 12 months",
+    fixedCostsTotalLabel: "Total fixed costs {{year}}",
+    manageFixedCosts: "Manage fixed costs",
+    noFixedCosts: "No fixed costs added yet.",
   },
   savingsCalculator: {
     title: "Savings goal calculator",
@@ -246,6 +250,12 @@ const en: Dictionary = {
           "Spend 15 minutes a month reviewing your balance and what's left to spend. Consistency beats perfectionism.",
       },
     ],
+  },
+  fixedCosts: {
+    title: "Fixed costs",
+    subtitle: "Manage your monthly fixed-cost categories.",
+    totalRow: "Total",
+    yearTotal: "Total fixed costs this year: {{amount}}",
   },
   pocketDetail: {
     back: "Back to dashboard",

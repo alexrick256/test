@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export function YearSwitcher({ years, selectedYear }: { years: number[]; selectedYear: number }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const basePath = pathname || "/dashboard";
   const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,7 +23,7 @@ export function YearSwitcher({ years, selectedYear }: { years: number[]; selecte
         body: JSON.stringify({ year: nextYear }),
       });
       if (res.ok) {
-        router.push(`/dashboard?year=${nextYear}`);
+        router.push(`${basePath}?year=${nextYear}`);
         router.refresh();
       }
     } finally {
@@ -35,7 +37,7 @@ export function YearSwitcher({ years, selectedYear }: { years: number[]; selecte
       {years.map((year) => (
         <button
           key={year}
-          onClick={() => router.push(`/dashboard?year=${year}`)}
+          onClick={() => router.push(`${basePath}?year=${year}`)}
           className={clsx(
             "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
             year === selectedYear ? "bg-ink-950 text-white" : "text-fg-muted hover:bg-surface-alt",
