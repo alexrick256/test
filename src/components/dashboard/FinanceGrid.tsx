@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
@@ -20,13 +20,7 @@ import { ViewModeSelector } from "@/components/table/ViewModeSelector";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useToast } from "@/components/toast/ToastProvider";
 import { copyValueToAllMonths } from "@/lib/copy-to-year";
-import {
-  defaultMonthIndex,
-  getVisibleMonthIndices,
-  loadViewMode,
-  saveViewMode,
-  type TableViewMode,
-} from "@/lib/table-view-mode";
+import { useTableViewMode } from "@/lib/useTableViewMode";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
@@ -90,51 +84,8 @@ export function FinanceGrid({
   const planConfig = PLANS[plan];
   const monthLabels = tList("savingsCalculator.months");
 
-  const [viewMode, setViewModeState] = useState<TableViewMode>("year");
-  const [monthIndex, setMonthIndex] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      const pending = window.localStorage.getItem("leviro-grid-pending-month");
-      if (pending !== null) {
-        window.localStorage.removeItem("leviro-grid-pending-month");
-        return Number(pending);
-      }
-    }
-    return defaultMonthIndex(year);
-  });
-
-  useEffect(() => {
-    setViewModeState(loadViewMode());
-  }, []);
-
-  function setViewMode(mode: TableViewMode) {
-    setViewModeState(mode);
-    saveViewMode(mode);
-  }
-
-  const visibleMonthIndices = useMemo(
-    () => getVisibleMonthIndices(viewMode, monthIndex),
-    [viewMode, monthIndex],
-  );
-
-  function stepMonth(direction: -1 | 1) {
-    const next = monthIndex + direction;
-    if (next < 0 || next > 11) {
-      const targetYear = year + direction;
-      if (!years.includes(targetYear)) return;
-      window.localStorage.setItem("leviro-grid-pending-month", String(direction === -1 ? 11 : 0));
-      router.push(`/dashboard?year=${targetYear}`);
-      return;
-    }
-    setMonthIndex(next);
-  }
-
-  const canStepPrev = monthIndex > 0 || years.includes(year - 1);
-  const canStepNext = monthIndex < 11 || years.includes(year + 1);
-
-  const monthLabel =
-    viewMode === "3month"
-      ? `${monthLabels[visibleMonthIndices[0]]} – ${monthLabels[visibleMonthIndices[visibleMonthIndices.length - 1]]} ${year}`
-      : `${monthLabels[monthIndex]} ${year}`;
+  const { viewMode, setViewMode, visibleMonthIndices, stepMonth, canStepPrev, canStepNext, monthLabel } =
+    useTableViewMode({ year, years, monthLabels });
 
   const [income, setIncome] = useState<MonthlyAmounts>(initialIncome);
   const [fixedCostValues, setFixedCostValues] =

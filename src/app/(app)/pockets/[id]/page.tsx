@@ -70,6 +70,7 @@ export default async function PocketDetailPage({
 
   return (
     <PocketDetail
+      key={year}
       pocketId={pocket.id}
       pocketName={pocket.name}
       year={year}
