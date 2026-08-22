@@ -123,7 +123,7 @@ export function Sidebar({ email, plan, pockets }: Props) {
       </Link>
 
       <nav className="mt-6 flex flex-1 flex-col gap-0.5 overflow-y-auto">
-        <Link href="/" className={linkClass(false)} onClick={() => setMobileOpen(false)}>
+        <Link href="/home" className={linkClass(pathname === "/home")} onClick={() => setMobileOpen(false)}>
           <HomeIcon />
           {t("nav.home")}
         </Link>

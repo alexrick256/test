@@ -82,6 +82,20 @@ export type Dictionary = {
     pageTitle: string;
     pageSubtitle: string;
   };
+  home: {
+    title: string;
+    subtitle: string;
+    dashboardTitle: string;
+    dashboardDesc: string;
+    fixedCostsTitle: string;
+    fixedCostsDesc: string;
+    pocketsTitle: string;
+    pocketsDesc: string;
+    capitalTitle: string;
+    capitalDesc: string;
+    tipsTitle: string;
+    tipsDesc: string;
+  };
   dashboard: {
     title: string;
     subtitle: string;
