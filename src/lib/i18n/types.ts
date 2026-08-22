@@ -2,6 +2,7 @@ export type Dictionary = {
   nav: {
     home: string;
     dashboard: string;
+    fixedCosts: string;
     savingsPlans: string;
     capital: string;
     tips: string;
@@ -81,6 +82,20 @@ export type Dictionary = {
     pageTitle: string;
     pageSubtitle: string;
   };
+  home: {
+    title: string;
+    subtitle: string;
+    dashboardTitle: string;
+    dashboardDesc: string;
+    fixedCostsTitle: string;
+    fixedCostsDesc: string;
+    pocketsTitle: string;
+    pocketsDesc: string;
+    capitalTitle: string;
+    capitalDesc: string;
+    tipsTitle: string;
+    tipsDesc: string;
+  };
   dashboard: {
     title: string;
     subtitle: string;
@@ -109,6 +124,14 @@ export type Dictionary = {
     copyToYear: string;
     copyConfirm: string;
     copySuccess: string;
+    fixedCostsTotalLabel: string;
+    manageFixedCosts: string;
+    noFixedCosts: string;
+    viewModeMonth: string;
+    viewMode3Month: string;
+    viewModeYear: string;
+    prevMonth: string;
+    nextMonth: string;
   };
   savingsCalculator: {
     title: string;
@@ -156,6 +179,12 @@ export type Dictionary = {
     pageSubtitle: string;
     items: { title: string; description: string }[];
   };
+  fixedCosts: {
+    title: string;
+    subtitle: string;
+    totalRow: string;
+    yearTotal: string;
+  };
   pocketDetail: {
     back: string;
     deposits: string;
@@ -163,6 +192,8 @@ export type Dictionary = {
     deleteConfirm: string;
     notFound: string;
     historyTitle: string;
+    historyShow: string;
+    historyHide: string;
     historyEmpty: string;
     historyDateCol: string;
     historySourceCol: string;
@@ -194,16 +225,6 @@ export type Dictionary = {
     insufficientBalance: string;
     genericError: string;
     networkError: string;
-    recurringTitle: string;
-    recurringSubtitle: string;
-    recurringStatusActive: string;
-    recurringStatusPaused: string;
-    recurringSetButton: string;
-    recurringUpdateButton: string;
-    recurringPauseButton: string;
-    recurringResumeButton: string;
-    recurringSaved: string;
-    recurringPaused: string;
     historyTitle: string;
     historyEmpty: string;
     historyDateCol: string;
@@ -218,6 +239,13 @@ export type Dictionary = {
     reverseSuccess: string;
     reversedLabel: string;
     reversalPrefix: string;
+    editButton: string;
+    deleteButton: string;
+    saveButton: string;
+    cancelButton: string;
+    depositEditSuccess: string;
+    depositDeleteConfirm: string;
+    depositDeleteSuccess: string;
   };
   onboarding: {
     close: string;

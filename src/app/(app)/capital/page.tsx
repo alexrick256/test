@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isValidCurrency, DEFAULT_CURRENCY } from "@/lib/currency";
-import { CapitalManager, type CapitalTransaction, type RecurringAllocation } from "@/components/capital/CapitalManager";
+import { CapitalManager, type CapitalTransaction } from "@/components/capital/CapitalManager";
 
 const HISTORY_PAGE_SIZE = 50;
 
@@ -12,36 +12,27 @@ export default async function CapitalPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Fällige monatliche Kapitalraten nachholen, bevor Bestand/Historie gelesen werden.
-  await supabase.rpc("apply_due_recurring_capital_allocations");
-
-  const [{ data: pockets }, { data: profile }, { data: transactionRows }, { data: balanceRows }, { data: recurringRows }] =
-    await Promise.all([
-      supabase
-        .from("savings_pockets")
-        .select("id, name")
-        .eq("user_id", user.id)
-        .eq("archived", false)
-        .order("created_at", { ascending: true }),
-      supabase.from("profiles").select("currency").eq("id", user.id).maybeSingle(),
-      // +1, um zu erkennen, ob es mehr als eine Seite Historie gibt.
-      supabase
-        .from("capital_transactions")
-        .select("id, type, amount, pocket_id, recurring_allocation_id, reversal_of_id, occurred_at")
-        .eq("user_id", user.id)
-        .order("occurred_at", { ascending: false })
-        .limit(HISTORY_PAGE_SIZE + 1),
-      // Unabhängig von der Historien-Seite: kompletter Bestand über alle Bewegungen.
-      supabase.from("capital_transactions").select("type, amount").eq("user_id", user.id),
-      supabase
-        .from("capital_recurring_allocations")
-        .select("id, pocket_id, amount, status")
-        .eq("user_id", user.id),
-    ]);
+  const [{ data: pockets }, { data: profile }, { data: transactionRows }, { data: balanceRows }] = await Promise.all([
+    supabase
+      .from("savings_pockets")
+      .select("id, name")
+      .eq("user_id", user.id)
+      .eq("archived", false)
+      .order("created_at", { ascending: true }),
+    supabase.from("profiles").select("currency").eq("id", user.id).maybeSingle(),
+    // +1, um zu erkennen, ob es mehr als eine Seite Historie gibt.
+    supabase
+      .from("capital_transactions")
+      .select("id, type, amount, pocket_id, recurring_allocation_id, reversal_of_id, occurred_at")
+      .eq("user_id", user.id)
+      .order("occurred_at", { ascending: false })
+      .limit(HISTORY_PAGE_SIZE + 1),
+    // Unabhängig von der Historien-Seite: kompletter Bestand über alle Bewegungen.
+    supabase.from("capital_transactions").select("type, amount").eq("user_id", user.id),
+  ]);
 
   const currency = isValidCurrency(profile?.currency) ? profile.currency : DEFAULT_CURRENCY;
   const pocketList = pockets ?? [];
-  const pocketNameById = new Map(pocketList.map((p) => [p.id, p.name]));
 
   const allRows = transactionRows ?? [];
   const hasMoreTransactions = allRows.length > HISTORY_PAGE_SIZE;
@@ -60,14 +51,6 @@ export default async function CapitalPage() {
     0,
   );
 
-  const recurringAllocations: RecurringAllocation[] = (recurringRows ?? []).map((r) => ({
-    id: r.id,
-    pocketId: r.pocket_id,
-    pocketName: pocketNameById.get(r.pocket_id) ?? "",
-    amount: Number(r.amount),
-    status: r.status,
-  }));
-
   return (
     <CapitalManager
       currency={currency}
@@ -75,7 +58,6 @@ export default async function CapitalPage() {
       initialBalance={balance}
       initialTransactions={transactions}
       initialHasMoreTransactions={hasMoreTransactions}
-      initialRecurringAllocations={recurringAllocations}
     />
   );
 }

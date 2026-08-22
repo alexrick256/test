@@ -19,21 +19,12 @@ export type CapitalTransaction = {
   reversalOfId?: string | null;
 };
 
-export type RecurringAllocation = {
-  id: string;
-  pocketId: string;
-  pocketName: string;
-  amount: number;
-  status: "active" | "paused";
-};
-
 type Props = {
   currency?: CurrencyCode;
   pockets: Pocket[];
   initialBalance: number;
   initialTransactions: CapitalTransaction[];
   initialHasMoreTransactions: boolean;
-  initialRecurringAllocations: RecurringAllocation[];
 };
 
 export function CapitalManager({
@@ -42,7 +33,6 @@ export function CapitalManager({
   initialBalance,
   initialTransactions,
   initialHasMoreTransactions,
-  initialRecurringAllocations,
 }: Props) {
   const { t, locale, tList } = useTranslation();
   const { toast } = useToast();
@@ -54,7 +44,6 @@ export function CapitalManager({
   const [transactions, setTransactions] = useState(initialTransactions);
   const [hasMoreTransactions, setHasMoreTransactions] = useState(initialHasMoreTransactions);
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
-  const [recurring, setRecurring] = useState(initialRecurringAllocations);
 
   const pocketNameById = useMemo(() => new Map(pockets.map((p) => [p.id, p.name])), [pockets]);
 
@@ -69,14 +58,6 @@ export function CapitalManager({
   const [allocateLoading, setAllocateLoading] = useState(false);
   const [allocateError, setAllocateError] = useState<string | null>(null);
 
-  const [recurringDrafts, setRecurringDrafts] = useState<Record<string, string>>(() => {
-    const drafts: Record<string, string> = {};
-    for (const rule of initialRecurringAllocations) drafts[rule.pocketId] = String(rule.amount);
-    return drafts;
-  });
-  const [recurringLoadingPocketId, setRecurringLoadingPocketId] = useState<string | null>(null);
-  const [recurringError, setRecurringError] = useState<string | null>(null);
-
   const [reversingId, setReversingId] = useState<string | null>(null);
   const reversedIds = useMemo(() => {
     const set = new Set<string>();
@@ -84,11 +65,11 @@ export function CapitalManager({
     return set;
   }, [transactions]);
 
-  const recurringByPocketId = useMemo(() => {
-    const map = new Map<string, RecurringAllocation>();
-    for (const rule of recurring) map.set(rule.pocketId, rule);
-    return map;
-  }, [recurring]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const allocateYearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
 
@@ -177,53 +158,6 @@ export function CapitalManager({
     toast(t("capital.allocateSuccess", { pocket: pocketName }));
   }
 
-  async function saveRecurring(pocketId: string, status: "active" | "paused") {
-    setRecurringError(null);
-    const raw = recurringDrafts[pocketId] ?? "";
-    const amount = parseAmount(raw);
-    if (amount === null) {
-      setRecurringError(t("capital.invalidAmount"));
-      return;
-    }
-    setRecurringLoadingPocketId(pocketId);
-    let res: Response;
-    try {
-      res = await fetch("/api/capital/recurring", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pocketId, amount, status }),
-      });
-    } catch {
-      setRecurringLoadingPocketId(null);
-      setRecurringError(t("capital.networkError"));
-      return;
-    }
-    const data = await res.json().catch(() => null);
-    setRecurringLoadingPocketId(null);
-    if (!res.ok) {
-      setRecurringError(data?.error ?? t("capital.genericError"));
-      return;
-    }
-    const pocketName = pockets.find((p) => p.id === pocketId)?.name ?? "";
-    setRecurring((prev) => {
-      const existing = prev.find((r) => r.pocketId === pocketId);
-      if (existing) return prev.map((r) => (r.pocketId === pocketId ? { ...r, amount, status } : r));
-      return [...prev, { id: `tmp-${Date.now()}`, pocketId, pocketName, amount, status }];
-    });
-    toast(status === "active" ? t("capital.recurringSaved") : t("capital.recurringPaused"));
-    // Bei Aktivierung wird die fällige Rate serverseitig sofort verbucht – der
-    // Kapitalbestand hier lokal grob nachführen, exakter Stand beim nächsten Laden.
-    if (status === "active") {
-      setBalance((b) => Math.max(0, b - amount));
-    }
-  }
-
-  async function toggleRecurring(pocketId: string) {
-    const rule = recurringByPocketId.get(pocketId);
-    if (!rule) return;
-    await saveRecurring(pocketId, rule.status === "active" ? "paused" : "active");
-  }
-
   async function loadMoreTransactions() {
     const oldest = transactions[transactions.length - 1];
     if (!oldest) return;
@@ -272,6 +206,75 @@ export function CapitalManager({
       setBalance((b) => (tx.type === "deposit" ? b - tx.amount : b + tx.amount));
     }
     toast(t("capital.reverseSuccess"));
+  }
+
+  function startEditDeposit(tx: CapitalTransaction) {
+    setEditError(null);
+    setEditingId(tx.id);
+    setEditDraft(String(tx.amount));
+  }
+
+  function cancelEditDeposit() {
+    setEditingId(null);
+    setEditError(null);
+  }
+
+  async function saveEditDeposit(tx: CapitalTransaction) {
+    setEditError(null);
+    const amount = parseAmount(editDraft);
+    if (amount === null) {
+      setEditError(t("capital.invalidAmount"));
+      return;
+    }
+    setEditLoading(true);
+    let res: Response;
+    try {
+      res = await fetch("/api/capital/deposit", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId: tx.id, amount }),
+      });
+    } catch {
+      setEditLoading(false);
+      setEditError(t("capital.networkError"));
+      return;
+    }
+    const data = await res.json().catch(() => null);
+    setEditLoading(false);
+    if (!res.ok) {
+      setEditError(data?.error ?? t("capital.genericError"));
+      return;
+    }
+    setTransactions((prev) => prev.map((t2) => (t2.id === tx.id ? { ...t2, amount } : t2)));
+    setBalance((b) => b - tx.amount + amount);
+    setEditingId(null);
+    toast(t("capital.depositEditSuccess"));
+  }
+
+  async function deleteDeposit(tx: CapitalTransaction) {
+    if (!window.confirm(t("capital.depositDeleteConfirm"))) return;
+    setDeletingId(tx.id);
+    let res: Response;
+    try {
+      res = await fetch("/api/capital/deposit", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId: tx.id }),
+      });
+    } catch {
+      setDeletingId(null);
+      toast(t("capital.networkError"));
+      return;
+    }
+    const data = await res.json().catch(() => null);
+    setDeletingId(null);
+    if (!res.ok) {
+      toast(data?.error ?? t("capital.genericError"));
+      return;
+    }
+    setTransactions((prev) => prev.filter((t2) => t2.id !== tx.id));
+    setBalance((b) => b - tx.amount);
+    toast(t("capital.depositDeleteSuccess"));
   }
 
   return (
@@ -383,56 +386,6 @@ export function CapitalManager({
         </div>
       </div>
 
-      <div className="card p-6">
-        <h2 className="font-semibold text-fg">{t("capital.recurringTitle")}</h2>
-        <p className="mt-1 text-sm text-fg-muted">{t("capital.recurringSubtitle")}</p>
-        {pockets.length === 0 ? (
-          <p className="mt-4 text-sm text-fg-faint">{t("capital.noPockets")}</p>
-        ) : (
-          <div className="mt-4 space-y-2.5">
-            {pockets.map((pocket) => {
-              const rule = recurringByPocketId.get(pocket.id);
-              const isPaused = rule?.status === "paused";
-              return (
-                <div key={pocket.id} className="flex flex-wrap items-end gap-2 rounded-lg border border-line px-3 py-2.5">
-                  <div className="min-w-[120px] flex-1">
-                    <p className="text-sm font-medium text-fg">{pocket.name}</p>
-                    {rule ? (
-                      <p className="text-xs text-fg-faint">
-                        {isPaused ? t("capital.recurringStatusPaused") : t("capital.recurringStatusActive")}
-                      </p>
-                    ) : null}
-                  </div>
-                  <input
-                    value={recurringDrafts[pocket.id] ?? ""}
-                    onChange={(e) => setRecurringDrafts((prev) => ({ ...prev, [pocket.id]: e.target.value }))}
-                    placeholder={t("capital.amountPlaceholder")}
-                    inputMode="decimal"
-                    className="input w-28 py-1.5"
-                  />
-                  <button
-                    onClick={() => saveRecurring(pocket.id, "active")}
-                    disabled={recurringLoadingPocketId === pocket.id}
-                    className="btn-secondary py-1.5 text-xs"
-                  >
-                    {rule ? t("capital.recurringUpdateButton") : t("capital.recurringSetButton")}
-                  </button>
-                  {rule ? (
-                    <button
-                      onClick={() => toggleRecurring(pocket.id)}
-                      disabled={recurringLoadingPocketId === pocket.id}
-                      className="btn-ghost py-1.5 text-xs"
-                    >
-                      {isPaused ? t("capital.recurringResumeButton") : t("capital.recurringPauseButton")}
-                    </button>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {recurringError ? <p className="mt-2 text-sm text-negative">{recurringError}</p> : null}
-      </div>
 
       <div className="card p-6">
         <h2 className="font-semibold text-fg">{t("capital.historyTitle")}</h2>
@@ -466,6 +419,9 @@ export function CapitalManager({
                         ? t("capital.typeRecurringAllocation", { pocket: pocketNameById.get(tx.pocketId ?? "") ?? "" })
                         : t("capital.typeAllocation", { pocket: pocketNameById.get(tx.pocketId ?? "") ?? "" });
                   const isReversed = reversedIds.has(tx.id);
+                  const isEditableDeposit = tx.type === "deposit" && !tx.reversalOfId && !isReversed;
+                  const isReversableAllocation = tx.type === "allocation" && !tx.reversalOfId && !isReversed;
+                  const isEditing = editingId === tx.id;
                   return (
                     <tr
                       key={tx.id}
@@ -494,11 +450,54 @@ export function CapitalManager({
                           tx.type === "deposit" ? "text-positive" : "text-negative",
                         )}
                       >
-                        {tx.type === "deposit" ? "+" : "−"}
-                        {formatCurrency(tx.amount, currency)}
+                        {isEditing ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <input
+                              autoFocus
+                              value={editDraft}
+                              onChange={(e) => setEditDraft(e.target.value)}
+                              inputMode="decimal"
+                              className="input w-24 py-1 text-right text-sm"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            {tx.type === "deposit" ? "+" : "−"}
+                            {formatCurrency(tx.amount, currency)}
+                          </>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-right">
-                        {!tx.reversalOfId && !isReversed ? (
+                        {isEditing ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => saveEditDeposit(tx)}
+                              disabled={editLoading}
+                              className="text-xs font-medium text-accent-600 hover:underline dark:text-accent-400"
+                            >
+                              {t("capital.saveButton")}
+                            </button>
+                            <button onClick={cancelEditDeposit} className="text-xs font-medium text-fg-faint hover:text-fg">
+                              {t("capital.cancelButton")}
+                            </button>
+                          </div>
+                        ) : isEditableDeposit ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => startEditDeposit(tx)}
+                              className="text-xs font-medium text-fg-faint hover:text-fg"
+                            >
+                              {t("capital.editButton")}
+                            </button>
+                            <button
+                              onClick={() => deleteDeposit(tx)}
+                              disabled={deletingId === tx.id}
+                              className="text-xs font-medium text-fg-faint hover:text-negative"
+                            >
+                              {t("capital.deleteButton")}
+                            </button>
+                          </div>
+                        ) : isReversableAllocation ? (
                           <button
                             onClick={() => reverseTransaction(tx)}
                             disabled={reversingId === tx.id}
@@ -515,6 +514,7 @@ export function CapitalManager({
             </table>
           </div>
         )}
+        {editError ? <p className="mt-2 text-sm text-negative">{editError}</p> : null}
         {hasMoreTransactions ? (
           <button onClick={loadMoreTransactions} disabled={loadMoreLoading} className="btn-secondary mt-4 w-full text-sm">
             {t("capital.loadMoreButton")}

@@ -9,11 +9,27 @@ import { type CurrencyCode } from "@/lib/currency";
 import { type PocketHistoryEntry } from "@/lib/pocket-history";
 import { EditableCell } from "@/components/dashboard/EditableCell";
 import { YearSwitcher } from "@/components/dashboard/YearSwitcher";
+import { ViewModeSelector } from "@/components/table/ViewModeSelector";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useToast } from "@/components/toast/ToastProvider";
 import { copyValueToAllMonths } from "@/lib/copy-to-year";
+import { useTableViewMode } from "@/lib/useTableViewMode";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={clsx("h-3.5 w-3.5 shrink-0 transition-transform", open && "rotate-180")}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2.5}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+    </svg>
+  );
+}
 
 type Props = {
   pocketId: string;
@@ -27,11 +43,15 @@ type Props = {
 
 export function PocketDetail({ pocketId, pocketName, year, years, currency, initialValues, history }: Props) {
   const router = useRouter();
-  const { t, locale } = useTranslation();
+  const { t, tList, locale } = useTranslation();
   const { toast } = useToast();
   const dateLocale = locale === "de" ? "de-DE" : locale === "es" ? "es-ES" : "en-US";
+  const monthLabels = tList("savingsCalculator.months");
+  const { viewMode, setViewMode, visibleMonthIndices, stepMonth, canStepPrev, canStepNext, monthLabel } =
+    useTableViewMode({ year, years, monthLabels });
   const [values, setValues] = useState<MonthlyAmounts>(initialValues);
   const [deleting, setDeleting] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const cumulative = useMemo(() => calculateCumulativeBalance(values), [values]);
   const currentBalance = cumulative[cumulative.length - 1];
@@ -99,17 +119,33 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
         </div>
       </div>
 
+      <ViewModeSelector
+        mode={viewMode}
+        onModeChange={setViewMode}
+        monthLabel={monthLabel}
+        onStepMonth={stepMonth}
+        canStepPrev={canStepPrev}
+        canStepNext={canStepNext}
+        labels={{
+          month: t("grid.viewModeMonth"),
+          threeMonth: t("grid.viewMode3Month"),
+          year: t("grid.viewModeYear"),
+          prevMonth: t("grid.prevMonth"),
+          nextMonth: t("grid.nextMonth"),
+        }}
+      />
+
       <div className="card overflow-hidden">
         <div className="table-scroll-shadow max-h-[70vh] overflow-auto">
-          <table className="w-full min-w-[720px] border-collapse text-sm">
+          <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
             <thead>
               <tr className="border-b border-line bg-surface-alt">
                 <th className="sticky left-0 top-0 z-20 w-44 bg-surface-alt px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
                   {year}
                 </th>
-                {MONTH_LABELS.map((m) => (
-                  <th key={m} className="sticky top-0 z-10 min-w-[72px] bg-surface-alt px-2 py-3 text-right text-xs font-medium text-fg-faint">
-                    {m}
+                {visibleMonthIndices.map((i) => (
+                  <th key={i} className="sticky top-0 z-10 min-w-[72px] bg-surface-alt px-2 py-3 text-right text-xs font-medium text-fg-faint">
+                    {MONTH_LABELS[i]}
                   </th>
                 ))}
               </tr>
@@ -119,10 +155,10 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
                 <td className="sticky left-0 z-10 bg-surface px-4 py-3 text-left font-medium text-fg">
                   {t("pocketDetail.deposits")}
                 </td>
-                {values.map((v, i) => (
+                {visibleMonthIndices.map((i) => (
                   <td key={i} className="px-1 py-1.5">
                     <EditableCell
-                      value={v}
+                      value={values[i]}
                       currency={currency}
                       onCommit={(val) => saveValue(i, val)}
                       onCopyToYear={() => copyToAllMonths(i)}
@@ -135,9 +171,9 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
                 <td className="sticky left-0 z-10 bg-accent-50/70 px-4 py-3 text-left font-semibold text-fg dark:bg-accent-950/30">
                   {t("pocketDetail.balance")}
                 </td>
-                {cumulative.map((v, i) => (
+                {visibleMonthIndices.map((i) => (
                   <td key={i} className="px-3 py-3 text-right text-sm font-semibold tabular-nums text-fg">
-                    {formatCurrency(v, currency)}
+                    {formatCurrency(cumulative[i], currency)}
                   </td>
                 ))}
               </tr>
@@ -147,10 +183,23 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
       </div>
 
       <div className="card p-6">
-        <h2 className="font-semibold text-fg">{t("pocketDetail.historyTitle")}</h2>
-        {history.length === 0 ? (
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-semibold text-fg">
+            {t("pocketDetail.historyTitle")} {history.length > 0 ? `(${history.length})` : null}
+          </h2>
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((v) => !v)}
+            className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-accent-600 hover:underline dark:text-accent-400"
+          >
+            {historyOpen ? t("pocketDetail.historyHide") : t("pocketDetail.historyShow")}
+            <ChevronIcon open={historyOpen} />
+          </button>
+        </div>
+        {historyOpen && history.length === 0 ? (
           <p className="mt-2 text-sm text-fg-muted">{t("pocketDetail.historyEmpty")}</p>
-        ) : (
+        ) : null}
+        {historyOpen && history.length > 0 ? (
           <div className="table-scroll-shadow mt-4 max-h-[50vh] overflow-auto rounded-lg border border-line">
             <table className="w-full border-collapse text-sm">
               <thead>
@@ -190,7 +239,7 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
               </tbody>
             </table>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
