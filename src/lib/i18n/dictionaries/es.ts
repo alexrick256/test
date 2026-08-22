@@ -3,7 +3,7 @@ import type { Dictionary } from "@/lib/i18n/types";
 const es: Dictionary = {
   nav: {
     home: "Inicio",
-    dashboard: "Vista anual",
+    dashboard: "Dashboard",
     savingsPlans: "Planes de ahorro",
     capital: "Capital",
     tips: "Consejos de ahorro",
@@ -118,7 +118,7 @@ const es: Dictionary = {
     pageSubtitle: "Cancela cuando quieras. Sube o baja de plan cuando quieras desde el portal de cliente.",
   },
   dashboard: {
-    title: "Vista anual",
+    title: "Dashboard",
     subtitle: "Haz clic en una celda para editar ingresos, gastos fijos o bolsillos de ahorro.",
     addYear: "Añadir el próximo año",
   },
@@ -248,7 +248,7 @@ const es: Dictionary = {
     ],
   },
   pocketDetail: {
-    back: "Volver a la vista anual",
+    back: "Volver al dashboard",
     deposits: "Ingresos",
     balance: "Saldo",
     deleteConfirm: "¿Eliminar de verdad este plan de ahorro? Se perderán todos los valores de este año.",
@@ -285,16 +285,6 @@ const es: Dictionary = {
     insufficientBalance: "No hay suficiente capital disponible.",
     genericError: "Algo salió mal. Inténtalo de nuevo.",
     networkError: "No se pudo conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.",
-    recurringTitle: "Tasa mensual",
-    recurringSubtitle: "Define un importe recurrente por bolsillo de ahorro que se transfiere automáticamente desde tu capital cada mes.",
-    recurringStatusActive: "Activa",
-    recurringStatusPaused: "Pausada",
-    recurringSetButton: "Definir tasa",
-    recurringUpdateButton: "Actualizar",
-    recurringPauseButton: "Pausar",
-    recurringResumeButton: "Reanudar",
-    recurringSaved: "Tasa mensual guardada",
-    recurringPaused: "Tasa mensual pausada",
     historyTitle: "Historial de capital",
     historyEmpty: "Todavía no hay movimientos de capital registrados.",
     historyDateCol: "Fecha",

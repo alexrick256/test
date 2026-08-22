@@ -42,9 +42,6 @@ export default async function PocketDetailPage({
     );
   }
 
-  // Fällige monatliche Kapitalraten nachholen, bevor Werte/Historie gelesen werden.
-  await supabase.rpc("apply_due_recurring_capital_allocations");
-
   const currency = isValidCurrency(profile?.currency) ? profile.currency : DEFAULT_CURRENCY;
   const currentCalendarYear = new Date().getFullYear();
   const years = yearRows && yearRows.length > 0 ? yearRows.map((r) => r.year) : [currentCalendarYear];

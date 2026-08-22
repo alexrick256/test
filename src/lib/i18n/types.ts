@@ -194,16 +194,6 @@ export type Dictionary = {
     insufficientBalance: string;
     genericError: string;
     networkError: string;
-    recurringTitle: string;
-    recurringSubtitle: string;
-    recurringStatusActive: string;
-    recurringStatusPaused: string;
-    recurringSetButton: string;
-    recurringUpdateButton: string;
-    recurringPauseButton: string;
-    recurringResumeButton: string;
-    recurringSaved: string;
-    recurringPaused: string;
     historyTitle: string;
     historyEmpty: string;
     historyDateCol: string;

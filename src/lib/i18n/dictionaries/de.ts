@@ -3,7 +3,7 @@ import type { Dictionary } from "@/lib/i18n/types";
 const de: Dictionary = {
   nav: {
     home: "Home",
-    dashboard: "Jahresansicht",
+    dashboard: "Dashboard",
     savingsPlans: "Sparpläne",
     capital: "Kapital",
     tips: "Spartipps",
@@ -127,7 +127,7 @@ const de: Dictionary = {
     pageSubtitle: "Monatlich kündbar. Up- und Downgrade jederzeit über das Kundenportal.",
   },
   dashboard: {
-    title: "Jahresansicht",
+    title: "Dashboard",
     subtitle: "Klicke auf eine Zelle, um Einnahmen, Fixkosten oder Sparpockets zu bearbeiten.",
     addYear: "Nächstes Jahr hinzufügen",
   },
@@ -257,7 +257,7 @@ const de: Dictionary = {
     ],
   },
   pocketDetail: {
-    back: "Zurück zur Jahresansicht",
+    back: "Zurück zum Dashboard",
     deposits: "Einzahlungen",
     balance: "Kontostand",
     deleteConfirm: "Sparpocket wirklich löschen? Alle Werte in diesem Jahr gehen verloren.",
@@ -294,16 +294,6 @@ const de: Dictionary = {
     insufficientBalance: "Nicht genug Kapital vorhanden.",
     genericError: "Etwas ist schiefgelaufen. Bitte versuch es erneut.",
     networkError: "Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung und versuch es erneut.",
-    recurringTitle: "Monatliche Rate",
-    recurringSubtitle: "Lege pro Sparpocket einen wiederkehrenden Betrag fest, der automatisch monatlich aus deinem Kapital überwiesen wird.",
-    recurringStatusActive: "Aktiv",
-    recurringStatusPaused: "Pausiert",
-    recurringSetButton: "Rate festlegen",
-    recurringUpdateButton: "Aktualisieren",
-    recurringPauseButton: "Pausieren",
-    recurringResumeButton: "Fortsetzen",
-    recurringSaved: "Monatliche Rate gespeichert",
-    recurringPaused: "Monatliche Rate pausiert",
     historyTitle: "Kapital-Historie",
     historyEmpty: "Noch keine Kapitalbewegungen erfasst.",
     historyDateCol: "Datum",

@@ -3,7 +3,7 @@ import type { Dictionary } from "@/lib/i18n/types";
 const en: Dictionary = {
   nav: {
     home: "Home",
-    dashboard: "Yearly view",
+    dashboard: "Dashboard",
     savingsPlans: "Savings plans",
     capital: "Capital",
     tips: "Saving tips",
@@ -118,7 +118,7 @@ const en: Dictionary = {
     pageSubtitle: "Cancel anytime. Upgrade or downgrade whenever you like via the customer portal.",
   },
   dashboard: {
-    title: "Yearly view",
+    title: "Dashboard",
     subtitle: "Click a cell to edit income, fixed costs, or savings pockets.",
     addYear: "Add next year",
   },
@@ -248,7 +248,7 @@ const en: Dictionary = {
     ],
   },
   pocketDetail: {
-    back: "Back to yearly view",
+    back: "Back to dashboard",
     deposits: "Deposits",
     balance: "Balance",
     deleteConfirm: "Really delete this savings plan? All values for this year will be lost.",
@@ -285,16 +285,6 @@ const en: Dictionary = {
     insufficientBalance: "Not enough capital available.",
     genericError: "Something went wrong. Please try again.",
     networkError: "Couldn't reach the server. Please check your connection and try again.",
-    recurringTitle: "Monthly rate",
-    recurringSubtitle: "Set a recurring amount per savings pocket that's automatically transferred from your capital every month.",
-    recurringStatusActive: "Active",
-    recurringStatusPaused: "Paused",
-    recurringSetButton: "Set rate",
-    recurringUpdateButton: "Update",
-    recurringPauseButton: "Pause",
-    recurringResumeButton: "Resume",
-    recurringSaved: "Monthly rate saved",
-    recurringPaused: "Monthly rate paused",
     historyTitle: "Capital history",
     historyEmpty: "No capital movements recorded yet.",
     historyDateCol: "Date",
