@@ -178,6 +178,8 @@ export type Dictionary = {
     deleteConfirm: string;
     notFound: string;
     historyTitle: string;
+    historyShow: string;
+    historyHide: string;
     historyEmpty: string;
     historyDateCol: string;
     historySourceCol: string;

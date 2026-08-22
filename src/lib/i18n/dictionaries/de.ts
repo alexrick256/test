@@ -278,6 +278,8 @@ const de: Dictionary = {
     deleteConfirm: "Sparpocket wirklich löschen? Alle Werte in diesem Jahr gehen verloren.",
     notFound: "Dieser Sparplan wurde nicht gefunden.",
     historyTitle: "Einzahlungshistorie",
+    historyShow: "Einzahlungshistorie anzeigen",
+    historyHide: "Einzahlungshistorie ausblenden",
     historyEmpty: "Noch keine Einzahlungen erfasst.",
     historyDateCol: "Datum",
     historySourceCol: "Quelle",

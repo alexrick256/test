@@ -17,6 +17,20 @@ import { useTableViewMode } from "@/lib/useTableViewMode";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={clsx("h-3.5 w-3.5 shrink-0 transition-transform", open && "rotate-180")}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2.5}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+    </svg>
+  );
+}
+
 type Props = {
   pocketId: string;
   pocketName: string;
@@ -37,6 +51,7 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
     useTableViewMode({ year, years, monthLabels });
   const [values, setValues] = useState<MonthlyAmounts>(initialValues);
   const [deleting, setDeleting] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const cumulative = useMemo(() => calculateCumulativeBalance(values), [values]);
   const currentBalance = cumulative[cumulative.length - 1];
@@ -168,10 +183,23 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
       </div>
 
       <div className="card p-6">
-        <h2 className="font-semibold text-fg">{t("pocketDetail.historyTitle")}</h2>
-        {history.length === 0 ? (
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-semibold text-fg">
+            {t("pocketDetail.historyTitle")} {history.length > 0 ? `(${history.length})` : null}
+          </h2>
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((v) => !v)}
+            className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-accent-600 hover:underline dark:text-accent-400"
+          >
+            {historyOpen ? t("pocketDetail.historyHide") : t("pocketDetail.historyShow")}
+            <ChevronIcon open={historyOpen} />
+          </button>
+        </div>
+        {historyOpen && history.length === 0 ? (
           <p className="mt-2 text-sm text-fg-muted">{t("pocketDetail.historyEmpty")}</p>
-        ) : (
+        ) : null}
+        {historyOpen && history.length > 0 ? (
           <div className="table-scroll-shadow mt-4 max-h-[50vh] overflow-auto rounded-lg border border-line">
             <table className="w-full border-collapse text-sm">
               <thead>
@@ -211,7 +239,7 @@ export function PocketDetail({ pocketId, pocketName, year, years, currency, init
               </tbody>
             </table>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

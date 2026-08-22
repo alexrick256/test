@@ -269,6 +269,8 @@ const en: Dictionary = {
     deleteConfirm: "Really delete this savings plan? All values for this year will be lost.",
     notFound: "This savings plan could not be found.",
     historyTitle: "Deposit history",
+    historyShow: "Show deposit history",
+    historyHide: "Hide deposit history",
     historyEmpty: "No deposits recorded yet.",
     historyDateCol: "Date",
     historySourceCol: "Source",

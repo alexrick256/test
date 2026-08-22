@@ -269,6 +269,8 @@ const es: Dictionary = {
     deleteConfirm: "¿Eliminar de verdad este plan de ahorro? Se perderán todos los valores de este año.",
     notFound: "No se encontró este plan de ahorro.",
     historyTitle: "Historial de ingresos",
+    historyShow: "Mostrar historial de ingresos",
+    historyHide: "Ocultar historial de ingresos",
     historyEmpty: "Todavía no hay ingresos registrados.",
     historyDateCol: "Fecha",
     historySourceCol: "Origen",
