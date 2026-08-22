@@ -65,6 +65,12 @@ export function CapitalManager({
     return set;
   }, [transactions]);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const allocateYearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
 
   function parseAmount(raw: string): number | null {
@@ -200,6 +206,75 @@ export function CapitalManager({
       setBalance((b) => (tx.type === "deposit" ? b - tx.amount : b + tx.amount));
     }
     toast(t("capital.reverseSuccess"));
+  }
+
+  function startEditDeposit(tx: CapitalTransaction) {
+    setEditError(null);
+    setEditingId(tx.id);
+    setEditDraft(String(tx.amount));
+  }
+
+  function cancelEditDeposit() {
+    setEditingId(null);
+    setEditError(null);
+  }
+
+  async function saveEditDeposit(tx: CapitalTransaction) {
+    setEditError(null);
+    const amount = parseAmount(editDraft);
+    if (amount === null) {
+      setEditError(t("capital.invalidAmount"));
+      return;
+    }
+    setEditLoading(true);
+    let res: Response;
+    try {
+      res = await fetch("/api/capital/deposit", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId: tx.id, amount }),
+      });
+    } catch {
+      setEditLoading(false);
+      setEditError(t("capital.networkError"));
+      return;
+    }
+    const data = await res.json().catch(() => null);
+    setEditLoading(false);
+    if (!res.ok) {
+      setEditError(data?.error ?? t("capital.genericError"));
+      return;
+    }
+    setTransactions((prev) => prev.map((t2) => (t2.id === tx.id ? { ...t2, amount } : t2)));
+    setBalance((b) => b - tx.amount + amount);
+    setEditingId(null);
+    toast(t("capital.depositEditSuccess"));
+  }
+
+  async function deleteDeposit(tx: CapitalTransaction) {
+    if (!window.confirm(t("capital.depositDeleteConfirm"))) return;
+    setDeletingId(tx.id);
+    let res: Response;
+    try {
+      res = await fetch("/api/capital/deposit", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId: tx.id }),
+      });
+    } catch {
+      setDeletingId(null);
+      toast(t("capital.networkError"));
+      return;
+    }
+    const data = await res.json().catch(() => null);
+    setDeletingId(null);
+    if (!res.ok) {
+      toast(data?.error ?? t("capital.genericError"));
+      return;
+    }
+    setTransactions((prev) => prev.filter((t2) => t2.id !== tx.id));
+    setBalance((b) => b - tx.amount);
+    toast(t("capital.depositDeleteSuccess"));
   }
 
   return (
@@ -344,6 +419,9 @@ export function CapitalManager({
                         ? t("capital.typeRecurringAllocation", { pocket: pocketNameById.get(tx.pocketId ?? "") ?? "" })
                         : t("capital.typeAllocation", { pocket: pocketNameById.get(tx.pocketId ?? "") ?? "" });
                   const isReversed = reversedIds.has(tx.id);
+                  const isEditableDeposit = tx.type === "deposit" && !tx.reversalOfId && !isReversed;
+                  const isReversableAllocation = tx.type === "allocation" && !tx.reversalOfId && !isReversed;
+                  const isEditing = editingId === tx.id;
                   return (
                     <tr
                       key={tx.id}
@@ -372,11 +450,54 @@ export function CapitalManager({
                           tx.type === "deposit" ? "text-positive" : "text-negative",
                         )}
                       >
-                        {tx.type === "deposit" ? "+" : "−"}
-                        {formatCurrency(tx.amount, currency)}
+                        {isEditing ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <input
+                              autoFocus
+                              value={editDraft}
+                              onChange={(e) => setEditDraft(e.target.value)}
+                              inputMode="decimal"
+                              className="input w-24 py-1 text-right text-sm"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            {tx.type === "deposit" ? "+" : "−"}
+                            {formatCurrency(tx.amount, currency)}
+                          </>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-right">
-                        {!tx.reversalOfId && !isReversed ? (
+                        {isEditing ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => saveEditDeposit(tx)}
+                              disabled={editLoading}
+                              className="text-xs font-medium text-accent-600 hover:underline dark:text-accent-400"
+                            >
+                              {t("capital.saveButton")}
+                            </button>
+                            <button onClick={cancelEditDeposit} className="text-xs font-medium text-fg-faint hover:text-fg">
+                              {t("capital.cancelButton")}
+                            </button>
+                          </div>
+                        ) : isEditableDeposit ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => startEditDeposit(tx)}
+                              className="text-xs font-medium text-fg-faint hover:text-fg"
+                            >
+                              {t("capital.editButton")}
+                            </button>
+                            <button
+                              onClick={() => deleteDeposit(tx)}
+                              disabled={deletingId === tx.id}
+                              className="text-xs font-medium text-fg-faint hover:text-negative"
+                            >
+                              {t("capital.deleteButton")}
+                            </button>
+                          </div>
+                        ) : isReversableAllocation ? (
                           <button
                             onClick={() => reverseTransaction(tx)}
                             disabled={reversingId === tx.id}
@@ -393,6 +514,7 @@ export function CapitalManager({
             </table>
           </div>
         )}
+        {editError ? <p className="mt-2 text-sm text-negative">{editError}</p> : null}
         {hasMoreTransactions ? (
           <button onClick={loadMoreTransactions} disabled={loadMoreLoading} className="btn-secondary mt-4 w-full text-sm">
             {t("capital.loadMoreButton")}

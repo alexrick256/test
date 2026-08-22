@@ -208,6 +208,13 @@ export type Dictionary = {
     reverseSuccess: string;
     reversedLabel: string;
     reversalPrefix: string;
+    editButton: string;
+    deleteButton: string;
+    saveButton: string;
+    cancelButton: string;
+    depositEditSuccess: string;
+    depositDeleteConfirm: string;
+    depositDeleteSuccess: string;
   };
   onboarding: {
     close: string;

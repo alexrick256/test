@@ -299,6 +299,13 @@ const es: Dictionary = {
     reverseSuccess: "Movimiento anulado",
     reversedLabel: "anulado",
     reversalPrefix: "Anulación:",
+    editButton: "Editar",
+    deleteButton: "Eliminar",
+    saveButton: "Guardar",
+    cancelButton: "Cancelar",
+    depositEditSuccess: "Ingreso actualizado",
+    depositDeleteConfirm: "¿Eliminar de verdad este ingreso?",
+    depositDeleteSuccess: "Ingreso eliminado",
   },
   onboarding: {
     close: "Cerrar",

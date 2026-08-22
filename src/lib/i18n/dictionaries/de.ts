@@ -308,6 +308,13 @@ const de: Dictionary = {
     reverseSuccess: "Buchung storniert",
     reversedLabel: "storniert",
     reversalPrefix: "Storno:",
+    editButton: "Bearbeiten",
+    deleteButton: "Löschen",
+    saveButton: "Speichern",
+    cancelButton: "Abbrechen",
+    depositEditSuccess: "Einzahlung aktualisiert",
+    depositDeleteConfirm: "Diese Einzahlung wirklich löschen?",
+    depositDeleteSuccess: "Einzahlung gelöscht",
   },
   onboarding: {
     close: "Schließen",

@@ -181,6 +181,14 @@ export interface Database {
         Args: { p_transaction_id: string };
         Returns: undefined;
       };
+      edit_capital_deposit: {
+        Args: { p_transaction_id: string; p_new_amount: number };
+        Returns: undefined;
+      };
+      delete_capital_deposit: {
+        Args: { p_transaction_id: string };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

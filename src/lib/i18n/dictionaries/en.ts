@@ -299,6 +299,13 @@ const en: Dictionary = {
     reverseSuccess: "Entry reversed",
     reversedLabel: "reversed",
     reversalPrefix: "Reversal:",
+    editButton: "Edit",
+    deleteButton: "Delete",
+    saveButton: "Save",
+    cancelButton: "Cancel",
+    depositEditSuccess: "Deposit updated",
+    depositDeleteConfirm: "Really delete this deposit?",
+    depositDeleteSuccess: "Deposit deleted",
   },
   onboarding: {
     close: "Close",
