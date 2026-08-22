@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
@@ -16,9 +16,17 @@ import { PLANS, type PlanId } from "@/lib/plans";
 import { DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/currency";
 import { EditableCell } from "@/components/dashboard/EditableCell";
 import { SavingsGoalCalculator } from "@/components/dashboard/SavingsGoalCalculator";
+import { ViewModeSelector } from "@/components/table/ViewModeSelector";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useToast } from "@/components/toast/ToastProvider";
 import { copyValueToAllMonths } from "@/lib/copy-to-year";
+import {
+  defaultMonthIndex,
+  getVisibleMonthIndices,
+  loadViewMode,
+  saveViewMode,
+  type TableViewMode,
+} from "@/lib/table-view-mode";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
@@ -27,6 +35,7 @@ type Pocket = { id: string; name: string };
 
 type Props = {
   year: number;
+  years: number[];
   plan: PlanId;
   currency?: CurrencyCode;
   categories: Category[];
@@ -65,6 +74,7 @@ function TrashIcon() {
 
 export function FinanceGrid({
   year,
+  years,
   plan,
   currency = DEFAULT_CURRENCY,
   categories,
@@ -75,9 +85,56 @@ export function FinanceGrid({
   pocketCurrentBalances,
 }: Props) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, tList } = useTranslation();
   const { toast } = useToast();
   const planConfig = PLANS[plan];
+  const monthLabels = tList("savingsCalculator.months");
+
+  const [viewMode, setViewModeState] = useState<TableViewMode>("year");
+  const [monthIndex, setMonthIndex] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const pending = window.localStorage.getItem("leviro-grid-pending-month");
+      if (pending !== null) {
+        window.localStorage.removeItem("leviro-grid-pending-month");
+        return Number(pending);
+      }
+    }
+    return defaultMonthIndex(year);
+  });
+
+  useEffect(() => {
+    setViewModeState(loadViewMode());
+  }, []);
+
+  function setViewMode(mode: TableViewMode) {
+    setViewModeState(mode);
+    saveViewMode(mode);
+  }
+
+  const visibleMonthIndices = useMemo(
+    () => getVisibleMonthIndices(viewMode, monthIndex),
+    [viewMode, monthIndex],
+  );
+
+  function stepMonth(direction: -1 | 1) {
+    const next = monthIndex + direction;
+    if (next < 0 || next > 11) {
+      const targetYear = year + direction;
+      if (!years.includes(targetYear)) return;
+      window.localStorage.setItem("leviro-grid-pending-month", String(direction === -1 ? 11 : 0));
+      router.push(`/dashboard?year=${targetYear}`);
+      return;
+    }
+    setMonthIndex(next);
+  }
+
+  const canStepPrev = monthIndex > 0 || years.includes(year - 1);
+  const canStepNext = monthIndex < 11 || years.includes(year + 1);
+
+  const monthLabel =
+    viewMode === "3month"
+      ? `${monthLabels[visibleMonthIndices[0]]} – ${monthLabels[visibleMonthIndices[visibleMonthIndices.length - 1]]} ${year}`
+      : `${monthLabels[monthIndex]} ${year}`;
 
   const [income, setIncome] = useState<MonthlyAmounts>(initialIncome);
   const [fixedCostValues, setFixedCostValues] =
@@ -241,6 +298,22 @@ export function FinanceGrid({
         </Link>
       </div>
 
+      <ViewModeSelector
+        mode={viewMode}
+        onModeChange={setViewMode}
+        monthLabel={monthLabel}
+        onStepMonth={stepMonth}
+        canStepPrev={canStepPrev}
+        canStepNext={canStepNext}
+        labels={{
+          month: t("grid.viewModeMonth"),
+          threeMonth: t("grid.viewMode3Month"),
+          year: t("grid.viewModeYear"),
+          prevMonth: t("grid.prevMonth"),
+          nextMonth: t("grid.nextMonth"),
+        }}
+      />
+
       <div className="card overflow-hidden">
         <div className="table-scroll-shadow max-h-[70vh] overflow-auto">
           <table className="w-full min-w-[880px] border-separate border-spacing-0 text-sm">
@@ -249,9 +322,9 @@ export function FinanceGrid({
                 <th className="sticky left-0 top-0 z-20 w-44 bg-surface-alt px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
                   {year}
                 </th>
-                {MONTH_LABELS.map((m) => (
-                  <th key={m} className="sticky top-0 z-10 min-w-[72px] bg-surface-alt px-2 py-3 text-right text-xs font-medium text-fg-faint">
-                    {m}
+                {visibleMonthIndices.map((i) => (
+                  <th key={i} className="sticky top-0 z-10 min-w-[72px] bg-surface-alt px-2 py-3 text-right text-xs font-medium text-fg-faint">
+                    {MONTH_LABELS[i]}
                   </th>
                 ))}
               </tr>
@@ -262,10 +335,10 @@ export function FinanceGrid({
                 <td className="sticky left-0 z-10 bg-surface px-4 py-3 text-left font-medium text-fg">
                   {t("grid.income")}
                 </td>
-                {income.map((v, i) => (
+                {visibleMonthIndices.map((i) => (
                   <td key={i} className="px-1 py-1.5">
                     <EditableCell
-                      value={v}
+                      value={income[i]}
                       emphasize
                       currency={currency}
                       onCommit={(val) => saveIncome(i, val)}
@@ -278,7 +351,7 @@ export function FinanceGrid({
 
               {/* Fixkosten */}
               <tr>
-                <td colSpan={13} className="bg-surface-alt p-0">
+                <td colSpan={visibleMonthIndices.length + 1} className="bg-surface-alt p-0">
                   <button
                     type="button"
                     onClick={() => setFixedCostsOpen((v) => !v)}
@@ -304,16 +377,16 @@ export function FinanceGrid({
                       >
                         {category.name}
                       </td>
-                      {(fixedCostValues[category.id] ?? emptyMonths()).map((v, i) => (
+                      {visibleMonthIndices.map((i) => (
                         <td key={i} className="px-3 py-3 text-right text-sm tabular-nums text-fg-muted">
-                          {formatCurrency(v, currency)}
+                          {formatCurrency((fixedCostValues[category.id] ?? emptyMonths())[i], currency)}
                         </td>
                       ))}
                     </tr>
                   ))}
                   {categories.length === 0 ? (
                     <tr className="border-b border-line">
-                      <td colSpan={13} className="px-4 py-3">
+                      <td colSpan={visibleMonthIndices.length + 1} className="px-4 py-3">
                         <p className="text-xs text-fg-faint">
                           {t("grid.noFixedCosts")}{" "}
                           <Link href="/fixed-costs" className="font-medium text-accent-600 hover:underline dark:text-accent-400">
@@ -327,9 +400,9 @@ export function FinanceGrid({
                       <td className="sticky left-0 z-10 bg-surface-alt/60 px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-fg-faint">
                         {t("fixedCosts.totalRow")}
                       </td>
-                      {fixedCostsTotalByMonth.map((v, i) => (
+                      {visibleMonthIndices.map((i) => (
                         <td key={i} className="px-3 py-2.5 text-right text-xs font-medium tabular-nums text-fg-faint">
-                          {formatCurrency(v, currency)}
+                          {formatCurrency(fixedCostsTotalByMonth[i], currency)}
                         </td>
                       ))}
                     </tr>
@@ -341,7 +414,7 @@ export function FinanceGrid({
               {pocketsAvailable ? (
                 <>
                   <tr>
-                    <td colSpan={13} className="bg-surface-alt p-0">
+                    <td colSpan={visibleMonthIndices.length + 1} className="bg-surface-alt p-0">
                       <button
                         type="button"
                         onClick={() => setPocketsOpen((v) => !v)}
@@ -380,10 +453,10 @@ export function FinanceGrid({
                           </button>
                         </div>
                       </td>
-                      {(pocketValues[pocket.id] ?? emptyMonths()).map((v, i) => (
+                      {visibleMonthIndices.map((i) => (
                         <td key={i} className="px-1 py-1.5">
                           <EditableCell
-                            value={v}
+                            value={(pocketValues[pocket.id] ?? emptyMonths())[i]}
                             currency={currency}
                             onCommit={(val) => savePocket(pocket.id, i, val)}
                             onCopyToYear={() => copyToAllMonths("pocket", pocket.id, i)}
@@ -394,7 +467,7 @@ export function FinanceGrid({
                     </tr>
                   ))}
                   <tr className="border-b border-line">
-                    <td colSpan={13} className="px-4 py-2">
+                    <td colSpan={visibleMonthIndices.length + 1} className="px-4 py-2">
                       {addingPocket ? (
                         <div className="flex items-center gap-2">
                           <input
@@ -434,7 +507,7 @@ export function FinanceGrid({
                 </>
               ) : (
                 <tr>
-                  <td colSpan={13} className="px-4 py-3">
+                  <td colSpan={visibleMonthIndices.length + 1} className="px-4 py-3">
                     <p className="text-xs text-fg-faint">
                       {t("grid.pocketsLocked")}{" "}
                       <Link href="/pricing" className="font-medium text-accent-600 hover:underline dark:text-accent-400">
@@ -450,14 +523,14 @@ export function FinanceGrid({
                 <td className="sticky left-0 z-10 bg-accent-50/70 px-4 py-3 text-left font-semibold text-fg dark:bg-accent-950/30">
                   {t("grid.remaining")}
                 </td>
-                {remaining.map((v, i) => (
+                {visibleMonthIndices.map((i) => (
                   <td
                     key={i}
                     className={`px-3 py-3 text-right text-sm font-semibold tabular-nums ${
-                      v < 0 ? "text-negative" : "text-fg"
+                      remaining[i] < 0 ? "text-negative" : "text-fg"
                     }`}
                   >
-                    {formatCurrency(v, currency)}
+                    {formatCurrency(remaining[i], currency)}
                   </td>
                 ))}
               </tr>
@@ -466,7 +539,7 @@ export function FinanceGrid({
               {planConfig.hasAccountsOverview && pockets.length > 0 ? (
                 <>
                   <tr>
-                    <td colSpan={13} className="bg-surface-alt p-0">
+                    <td colSpan={visibleMonthIndices.length + 1} className="bg-surface-alt p-0">
                       <button
                         type="button"
                         onClick={() => setAccountsOpen((v) => !v)}
@@ -494,9 +567,9 @@ export function FinanceGrid({
                           >
                             {t("grid.accountPrefix")} · {pocket.name}
                           </td>
-                          {(cumulativeByPocket[pocket.id] ?? emptyMonths()).map((v, i) => (
+                          {visibleMonthIndices.map((i) => (
                             <td key={i} className="px-3 py-3 text-right text-sm tabular-nums text-fg-faint">
-                              {formatCurrency(v, currency)}
+                              {formatCurrency((cumulativeByPocket[pocket.id] ?? emptyMonths())[i], currency)}
                             </td>
                           ))}
                         </tr>

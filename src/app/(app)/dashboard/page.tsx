@@ -157,7 +157,9 @@ export default async function DashboardPage({
       </div>
 
       <FinanceGrid
+        key={year}
         year={year}
+        years={years}
         plan={plan}
         currency={currency}
         categories={categories ?? []}

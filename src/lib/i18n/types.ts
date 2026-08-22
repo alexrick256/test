@@ -113,6 +113,11 @@ export type Dictionary = {
     fixedCostsTotalLabel: string;
     manageFixedCosts: string;
     noFixedCosts: string;
+    viewModeMonth: string;
+    viewMode3Month: string;
+    viewModeYear: string;
+    prevMonth: string;
+    nextMonth: string;
   };
   savingsCalculator: {
     title: string;

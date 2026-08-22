@@ -150,6 +150,11 @@ const en: Dictionary = {
     fixedCostsTotalLabel: "Total fixed costs {{year}}",
     manageFixedCosts: "Manage fixed costs",
     noFixedCosts: "No fixed costs added yet.",
+    viewModeMonth: "Month",
+    viewMode3Month: "3 months",
+    viewModeYear: "Year",
+    prevMonth: "Previous month",
+    nextMonth: "Next month",
   },
   savingsCalculator: {
     title: "Savings goal calculator",

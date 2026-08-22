@@ -50,6 +50,7 @@ export default async function FixedCostsPage({ searchParams }: { searchParams: {
 
   return (
     <FixedCostsManager
+      key={year}
       year={year}
       years={years}
       plan={plan}

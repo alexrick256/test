@@ -150,6 +150,11 @@ const es: Dictionary = {
     fixedCostsTotalLabel: "Gastos fijos totales {{year}}",
     manageFixedCosts: "Gestionar gastos fijos",
     noFixedCosts: "Aún no hay gastos fijos añadidos.",
+    viewModeMonth: "Mes",
+    viewMode3Month: "3 meses",
+    viewModeYear: "Año",
+    prevMonth: "Mes anterior",
+    nextMonth: "Mes siguiente",
   },
   savingsCalculator: {
     title: "Calculadora de meta de ahorro",

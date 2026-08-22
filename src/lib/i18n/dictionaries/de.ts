@@ -159,6 +159,11 @@ const de: Dictionary = {
     fixedCostsTotalLabel: "Fixkosten gesamt {{year}}",
     manageFixedCosts: "Fixkosten verwalten",
     noFixedCosts: "Noch keine Fixkosten hinterlegt.",
+    viewModeMonth: "Monat",
+    viewMode3Month: "3 Monate",
+    viewModeYear: "Jahr",
+    prevMonth: "Vorheriger Monat",
+    nextMonth: "Nächster Monat",
   },
   savingsCalculator: {
     title: "Sparziel-Rechner",
