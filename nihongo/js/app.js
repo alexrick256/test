@@ -839,7 +839,7 @@ function viewSettings() {
     <div class="card"><h3>Sicherung</h3><p class="small muted">Dein Fortschritt liegt nur auf diesem Gerät. Kopiere die Sicherung, um sie auf einem anderen Gerät einzufügen.</p>
     <textarea id="bk" class="txt" rows="3" placeholder="Sicherung hier einfügen …" style="font-size:.8rem"></textarea>
     <div class="row wrap" style="margin-top:8px"><button class="btn sm" data-a="bk-export">Sicherung erstellen</button><button class="btn sm" data-a="bk-import">Einfügen &amp; laden</button></div></div>
-    <button class="btn block" data-a="reset" style="color:var(--accent)">Fortschritt zurücksetzen</button><div style="height:8px"></div>`;
+    <button class="btn block" data-a="reset" style="color:var(--accent)">Fortschritt zurücksetzen &amp; neu starten</button><div style="height:8px"></div>`;
 }
 
 /* ---------- Aktionen (Event-Delegation) ---------- */
@@ -891,7 +891,7 @@ const A = {
     if (k === 'level') { kanjiLvl = langLvl = null; }
     save(); applyTheme();
   },
-  reset: t => { if (!t.dataset.sure) { t.dataset.sure = 1; t.textContent = 'Wirklich löschen? Nochmal tippen.'; return; } { const nm = S.name; S = structuredClone(DEFAULTS); S.name = nm; S.onboarded = true; save(); toast('Zurückgesetzt – neu starten ist auch Lernen 🌱'); location.hash = '#/home'; route(); } },
+  reset: t => { if (!t.dataset.sure) { t.dataset.sure = 1; t.textContent = 'Wirklich löschen? Nochmal tippen.'; return; } { const nm = S.name; Object.assign(onbData, { script: true, lang: true, focus: 'hira', goals: ['alltag'], lvl: 'new', goalMin: 10, name: nm }); S = structuredClone(DEFAULTS); S.name = nm; save(); applyTheme(); toast('Zurückgesetzt – neu starten ist auch Lernen 🌱'); location.hash = '#/onboarding'; route(); } },
 };
 document.addEventListener('click', e => { const t = e.target.closest('[data-a]'); if (!t || t.tagName === 'SELECT' || t.type === 'checkbox') return; A[t.dataset.a]?.(t, e); });
 document.addEventListener('change', e => { const t = e.target.closest('[data-a="set"]'); if (t) A.set(t); });
