@@ -345,7 +345,7 @@ export const METHOD = [
 ];
 
 // Sprach-Themen (unabhängig von der Schrift lernbar): [Japanisch, Romaji, Deutsch, Emoji]
-export const TOPICS = [
+const BASE_TOPICS = [
   { id: 't1', title: 'Begrüßen & Danken', emoji: '👋', items: [['こんにちは', 'konnichiwa', 'Hallo', '👋'], ['おはよう', 'ohayou', 'Guten Morgen', '🌅'], ['こんばんは', 'konbanwa', 'Guten Abend', '🌆'], ['さようなら', 'sayounara', 'Tschüss', '🖐️'], ['ありがとう', 'arigatou', 'Danke', '🙏'], ['すみません', 'sumimasen', 'Entschuldigung', '🙇'], ['はい', 'hai', 'Ja', '✅'], ['いいえ', 'iie', 'Nein', '❌']] },
   { id: 't2', title: 'Sich vorstellen', emoji: '🙋', items: [['わたし', 'watashi', 'ich', '🙋'], ['なまえ', 'namae', 'Name', '🏷️'], ['はじめまして', 'hajimemashite', 'Freut mich (Erstes Treffen)', '🤝'], ['よろしく', 'yoroshiku', 'Auf gute Zusammenarbeit', '😊'], ['です', 'desu', 'bin / ist', '🟰'], ['にほん', 'Nihon', 'Japan', '🇯🇵'], ['ドイツ', 'Doitsu', 'Deutschland', '🇩🇪'], ['ともだち', 'tomodachi', 'Freund / Freundin', '🧑‍🤝‍🧑']] },
   { id: 't3', title: 'Essen & Trinken', emoji: '🍚', items: [['ごはん', 'gohan', 'Reis / Essen', '🍚'], ['みず', 'mizu', 'Wasser', '💧'], ['おちゃ', 'ocha', 'Tee', '🍵'], ['さかな', 'sakana', 'Fisch', '🐟'], ['にく', 'niku', 'Fleisch', '🥩'], ['やさい', 'yasai', 'Gemüse', '🥦'], ['おいしい', 'oishii', 'lecker', '😋'], ['いただきます', 'itadakimasu', 'Guten Appetit', '🍽️']] },
@@ -354,3 +354,318 @@ export const TOPICS = [
   { id: 't6', title: 'Unterwegs & Zuhause', emoji: '🚉', items: [['いえ', 'ie', 'Haus', '🏠'], ['がっこう', 'gakkou', 'Schule', '🏫'], ['えき', 'eki', 'Bahnhof', '🚉'], ['みせ', 'mise', 'Laden', '🏪'], ['くるま', 'kuruma', 'Auto', '🚗'], ['でんしゃ', 'densha', 'Zug', '🚆'], ['ほん', 'hon', 'Buch', '📖'], ['かさ', 'kasa', 'Regenschirm', '☂️']] },
   { id: 't7', title: 'Natur & Wetter', emoji: '🌤️', items: [['あめ', 'ame', 'Regen', '🌧️'], ['ゆき', 'yuki', 'Schnee', '❄️'], ['かぜ', 'kaze', 'Wind', '💨'], ['やま', 'yama', 'Berg', '⛰️'], ['うみ', 'umi', 'Meer', '🌊'], ['そら', 'sora', 'Himmel', '🌤️'], ['つき', 'tsuki', 'Mond', '🌙'], ['はな', 'hana', 'Blume', '🌷']] },
 ];
+
+/* ---------- Niveaus N5–N1, Themen, Geschichten, Kanji ---------- */
+export const LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'];
+export const LEVEL_INFO = { N5: 'Einstieg', N4: 'Grundlagen', N3: 'Mittelstufe', N2: 'Obere Mittelstufe', N1: 'Fortgeschritten' };
+export const GOALS = [
+  { id: 'alltag', t: 'Alltag', e: '🏡' }, { id: 'reisen', t: 'Reisen', e: '✈️' }, { id: 'anime', t: 'Anime & Manga', e: '🎌' },
+  { id: 'arbeit', t: 'Arbeit & Business', e: '💼' }, { id: 'kultur', t: 'Kultur & Literatur', e: '🎎' }, { id: 'jlpt', t: 'JLPT-Prüfung', e: '🎓' },
+];
+const META = { t1: ['N5', 'alltag'], t2: ['N5', 'alltag'], t3: ['N5', 'alltag'], t4: ['N5', 'alltag'], t5: ['N5', 'alltag'], t6: ['N5', 'reisen'], t7: ['N5', 'alltag'] };
+const items = src => src.trim().split('\n').map(l => l.split('|'));
+const MORE_TOPICS = [
+  ['t8', 'N5', 'reisen', 'Reisen: Grundlagen', '🧳', 'きっぷ|kippu|Fahrkarte|🎫\nくうこう|kuukou|Flughafen|✈️\nトイレ|toire|Toilette|🚻\nみぎ|migi|rechts|➡️\nひだり|hidari|links|⬅️\nいくら|ikura|Wie viel kostet das?|💴\nちず|chizu|Landkarte|🗺️\nたすけて|tasukete|Hilfe!|🆘'],
+  ['t9', 'N5', 'anime', 'Anime-Ausrufe', '🎌', 'すごい|sugoi|Wahnsinn / krass|🤩\nかわいい|kawaii|süß|🥰\nがんばって|ganbatte|Gib dein Bestes!|💪\nだいじょうぶ|daijoubu|Alles in Ordnung|👌\nほんとう|hontou|wirklich|🧐\nまって|matte|Warte!|✋\nやった|yatta|Geschafft!|🎉\nせんぱい|senpai|Älterer Kollege / Senior|🎓'],
+  ['t10', 'N5', 'alltag', 'Einkaufen', '🛒', 'これ|kore|dies hier|👉\nそれ|sore|das (bei dir)|🫴\nください|kudasai|bitte geben|🙏\nたかい|takai|teuer / hoch|💸\nやすい|yasui|billig|🏷️\nおかね|okane|Geld|💰\nえん|en|Yen|💴\nかいます|kaimasu|kaufen|🛍️'],
+  ['t11', 'N5', 'alltag', 'Zeit & Tage', '📅', 'きょう|kyou|heute|📅\nあした|ashita|morgen|🌅\nきのう|kinou|gestern|⏪\nいま|ima|jetzt|⏰\nまいにち|mainichi|jeden Tag|🔁\nあさ|asa|Morgen|🌄\nひる|hiru|Mittag|☀️\nよる|yoru|Nacht|🌙'],
+  ['t12', 'N4', 'alltag', 'Tagesablauf', '⏰', 'べんきょう|benkyou|Lernen|📚\nしごと|shigoto|Arbeit|💼\nかいもの|kaimono|Einkaufen|🛍️\nりょうり|ryouri|Kochen|🍳\nせんたく|sentaku|Wäsche waschen|🧺\nそうじ|souji|Putzen|🧹\nねる|neru|schlafen|🛌\nおきる|okiru|aufstehen|⏰'],
+  ['t13', 'N4', 'reisen', 'Unterwegs in Japan', '🚇', 'よやく|yoyaku|Reservierung|📝\nりょこう|ryokou|Reise|🧳\nちかてつ|chikatetsu|U-Bahn|🚇\nのりかえ|norikae|Umsteigen|🔄\nおみやげ|omiyage|Souvenir|🎁\nみち|michi|Weg / Straße|🛣️\nまよう|mayou|sich verlaufen|😵\nちゅうもん|chuumon|Bestellung|🍽️'],
+  ['t14', 'N4', 'alltag', 'Gefühle & Meinung', '💭', 'かなしい|kanashii|traurig|😢\nたのしい|tanoshii|unterhaltsam / schön|😄\nこわい|kowai|gruselig|😨\nひさしぶり|hisashiburi|Lange nicht gesehen|🤗\nしんぱい|shinpai|Sorge|😟\nおもう|omou|denken / meinen|💭\nすき|suki|mögen|❤️\nきらい|kirai|nicht mögen|💔'],
+  ['t15', 'N4', 'anime', 'Fantasy & Abenteuer', '⚔️', 'ひみつ|himitsu|Geheimnis|🤫\nまほう|mahou|Magie|🪄\nゆうしゃ|yuusha|Held|⚔️\nまおう|maou|Dämonenkönig|👹\nちから|chikara|Kraft|💥\nゆめ|yume|Traum|💭\nやくそく|yakusoku|Versprechen|🤙\nぜったい|zettai|auf jeden Fall|💯'],
+  ['t16', 'N3', 'arbeit', 'Im Büro', '🏢', '会社|kaisha|Firma|🏢\n会議|kaigi|Besprechung|🗣️\n仕事|shigoto|Arbeit|💼\n残業|zangyou|Überstunden|🌙\n給料|kyuuryou|Gehalt|💵\n出張|shucchou|Dienstreise|🧳\n締め切り|shimekiri|Frist|⏳\n上司|joushi|Vorgesetzte/r|👔'],
+  ['t17', 'N3', 'kultur', 'Gesellschaft & Nachrichten', '📰', '経済|keizai|Wirtschaft|📈\n政治|seiji|Politik|🏛️\n環境|kankyou|Umwelt|🌍\n文化|bunka|Kultur|🎎\n社会|shakai|Gesellschaft|👥\n事故|jiko|Unfall|🚧\n地震|jishin|Erdbeben|🌋\n天気予報|tenki yohou|Wetterbericht|🌦️'],
+  ['t18', 'N3', 'reisen', 'Sehenswürdigkeiten', '⛩️', '観光|kankou|Sightseeing|📸\n神社|jinja|Schrein|⛩️\nお寺|otera|Tempel|🛕\n温泉|onsen|heiße Quelle|♨️\n祭り|matsuri|Fest|🎆\n宿泊|shukuhaku|Übernachtung|🏨\n案内|annai|Führung / Auskunft|ℹ️\n伝統|dentou|Tradition|🏯'],
+  ['t19', 'N2', 'arbeit', 'Business-Japanisch', '🤝', '取引|torihiki|Geschäft|🤝\n契約|keiyaku|Vertrag|📄\n担当|tantou|zuständig|🎯\n検討|kentou|Prüfung / Erwägung|🔍\n報告|houkoku|Bericht|📋\n相談|soudan|Beratung|💬\n提案|teian|Vorschlag|💡\n責任|sekinin|Verantwortung|⚖️'],
+  ['t20', 'N2', 'kultur', 'Meinung & Gesellschaft', '🗣️', '意見|iken|Meinung|🗣️\n影響|eikyou|Einfluss|🌊\n課題|kadai|Aufgabe / Problem|🧩\n状況|joukyou|Lage|📊\n傾向|keikou|Tendenz|📈\n関係|kankei|Beziehung|🔗\n批判|hihan|Kritik|🧐\n結果|kekka|Ergebnis|🏁'],
+  ['t21', 'N2', 'anime', 'Held & Schicksal', '🌟', '運命|unmei|Schicksal|🌠\n覚悟|kakugo|Entschlossenheit|🔥\n秘密|himitsu|Geheimnis|🤐\n戦い|tatakai|Kampf|⚔️\n勇気|yuuki|Mut|🦁\n絆|kizuna|Band / Verbundenheit|🪢\n犠牲|gisei|Opfer|🕯️\n希望|kibou|Hoffnung|🌈'],
+  ['t22', 'N1', 'kultur', 'Abstraktes Denken', '🧠', '概念|gainen|Konzept|🧠\n抽象|chuushou|abstrakt|🌫️\n矛盾|mujun|Widerspruch|♾️\n妥協|dakyou|Kompromiss|🤝\n趣旨|shushi|Sinn / Zweck|🎯\n把握|haaku|erfassen|🔭\n顕著|kencho|auffällig|📌\n脆弱|zeijaku|zerbrechlich|🥚'],
+  ['t23', 'N1', 'arbeit', 'Politik & Recht', '⚖️', '憲法|kenpou|Verfassung|📜\n裁判|saiban|Prozess|⚖️\n規制|kisei|Regulierung|🚦\n施策|shisaku|Maßnahme|🛠️\n審議|shingi|Beratung (Gremium)|🏛️\n条約|jouyaku|Staatsvertrag|🖋️\n摩擦|masatsu|Reibung|🔥\n懸念|kenen|Bedenken|😟'],
+  ['t24', 'N1', 'kultur', 'Redewendungen (四字熟語)', '🈴', '一期一会|ichigo ichie|einmalige Begegnung|🍵\n以心伝心|ishin denshin|Verständigung ohne Worte|💞\n七転八起|nanakorobi yaoki|Hinfallen und Aufstehen|🔁\n十人十色|juunin toiro|Jeder ist anders|🎨\n臨機応変|rinki ouhen|flexibel reagieren|🌀\n自業自得|jigou jitoku|selbst schuld|🪞\n温故知新|onko chishin|Aus Altem Neues lernen|📚\n初志貫徹|shoshi kantetsu|Vorsatz durchziehen|🏹'],
+];
+export const TOPICS = [
+  ...BASE_TOPICS.map(t => ({ ...t, lvl: META[t.id][0], tag: META[t.id][1] })),
+  ...MORE_TOPICS.map(([id, lvl, tag, title, emoji, src]) => ({ id, lvl, tag, title, emoji, items: items(src) })),
+];
+
+const W = (jp, ro, de) => [jp, ro, de];
+STORIES.forEach(s => (s.lvl = 'N5'));
+STORIES.push(
+  { id: 's6', lvl: 'N4', title: 'Reise nach Kyoto', emoji: '🚅', scene: 'Eine Reise wird geplant.', lines: [
+    { who: 'N', end: '。', de: 'Nächste Woche reise ich nach Kyoto.', words: [W('来週', 'raishuu', 'nächste Woche'), W('京都', 'Kyouto', 'Kyoto'), W('へ', 'e', '(nach)'), W('旅行', 'ryokou', 'Reise'), W('に', 'ni', '(zum Zweck)'), W('行きます', 'ikimasu', 'gehen')] },
+    { who: 'N', end: '。', de: 'Das Hotel habe ich schon reserviert.', words: [W('ホテル', 'hoteru', 'Hotel'), W('は', 'wa', '(Themen-Partikel)'), W('もう', 'mou', 'schon'), W('予約', 'yoyaku', 'Reservierung'), W('しました', 'shimashita', 'habe gemacht')] },
+    { who: 'N', end: '。', de: 'Mit dem Zug dauert es zwei Stunden.', words: [W('電車', 'densha', 'Zug'), W('で', 'de', '(mit)'), W('二時間', 'nijikan', 'zwei Stunden'), W('かかります', 'kakarimasu', 'dauert')] },
+    { who: 'N', end: '。', de: 'Ich möchte Tempel und Schreine sehen.', words: [W('お寺', 'otera', 'Tempel'), W('と', 'to', '(und)'), W('神社', 'jinja', 'Schrein'), W('を', 'o', '(Objekt-Partikel)'), W('見たい', 'mitai', 'sehen wollen'), W('です', 'desu', 'ist')] },
+    { who: 'N', end: '！', de: 'Ich freue mich!', words: [W('楽しみ', 'tanoshimi', 'Vorfreude'), W('です', 'desu', 'ist')] },
+  ] },
+  { id: 's7', lvl: 'N3', title: 'Im Büro', emoji: '🏢', scene: 'Ein kurzes Gespräch mit dem Chef.', lines: [
+    { who: 'A', end: '。', de: 'Entschuldigung.', words: [W('すみません', 'sumimasen', 'Entschuldigung')] },
+    { who: 'A', end: '？', de: 'Ab wann ist die Besprechung?', words: [W('会議', 'kaigi', 'Besprechung'), W('は', 'wa', '(Themen-Partikel)'), W('何時', 'nanji', 'wie spät'), W('から', 'kara', '(ab)'), W('ですか', 'desu ka', 'ist es?')] },
+    { who: 'B', end: '。', de: 'Ab drei Uhr.', words: [W('三時', 'sanji', 'drei Uhr'), W('から', 'kara', '(ab)'), W('です', 'desu', 'ist')] },
+    { who: 'B', end: '。', de: 'Bitte bereiten Sie die Unterlagen vor.', words: [W('資料', 'shiryou', 'Unterlagen'), W('を', 'o', '(Objekt-Partikel)'), W('準備', 'junbi', 'Vorbereitung'), W('しておいて', 'shite oite', 'vorab tun'), W('ください', 'kudasai', 'bitte')] },
+    { who: 'A', end: '？', de: 'Verstanden. Wann ist die Frist?', words: [W('わかりました', 'wakarimashita', 'verstanden'), W('締め切り', 'shimekiri', 'Frist'), W('は', 'wa', '(Themen-Partikel)'), W('いつ', 'itsu', 'wann'), W('ですか', 'desu ka', 'ist es?')] },
+    { who: 'B', end: '。', de: 'Bis Freitag, bitte.', words: [W('金曜日', 'kinyoubi', 'Freitag'), W('まで', 'made', '(bis)'), W('に', 'ni', '(spätestens)'), W('お願いします', 'onegaishimasu', 'bitte')] },
+  ] },
+  { id: 's8', lvl: 'N2', title: 'Eine schwere Entscheidung', emoji: '🤔', scene: 'Soll er den neuen Job annehmen?', lines: [
+    { who: 'N', end: '。', de: 'Er schwankt noch, ob er die neue Arbeit übernehmen soll.', words: [W('彼', 'kare', 'er'), W('は', 'wa', '(Themen-Partikel)'), W('新しい', 'atarashii', 'neu'), W('仕事', 'shigoto', 'Arbeit'), W('を', 'o', '(Objekt-Partikel)'), W('引き受ける', 'hikiukeru', 'übernehmen'), W('かどうか', 'ka dou ka', 'ob oder nicht'), W('まだ', 'mada', 'noch'), W('迷っている', 'mayotte iru', 'schwankt')] },
+    { who: 'N', end: '。', de: 'Das Gehalt steigt, aber auch die Verantwortung wird größer.', words: [W('給料', 'kyuuryou', 'Gehalt'), W('は', 'wa', '(Themen-Partikel)'), W('上がる', 'agaru', 'steigen'), W('が', 'ga', 'aber'), W('責任', 'sekinin', 'Verantwortung'), W('も', 'mo', 'auch'), W('重くなる', 'omoku naru', 'wird schwerer')] },
+    { who: 'N', end: '。', de: 'Nach Rücksprache mit der Familie beschloss er, es zu wagen.', words: [W('家族', 'kazoku', 'Familie'), W('に', 'ni', '(bei)'), W('相談', 'soudan', 'Beratung'), W('した', 'shita', 'tat'), W('結果', 'kekka', 'Ergebnis'), W('挑戦', 'chousen', 'Herausforderung'), W('して', 'shite', 'tun'), W('みる', 'miru', 'ausprobieren'), W('ことにした', 'koto ni shita', 'beschloss')] },
+    { who: 'N', end: '。', de: 'Wenn man zögert, bleibt nur, Mut zu fassen und einen Schritt zu gehen.', words: [W('迷った', 'mayotta', 'gezögert'), W('とき', 'toki', 'wenn'), W('は', 'wa', '(Themen-Partikel)'), W('勇気', 'yuuki', 'Mut'), W('を', 'o', '(Objekt-Partikel)'), W('出して', 'dashite', 'aufbringen'), W('一歩', 'ippo', 'ein Schritt'), W('進む', 'susumu', 'vorangehen'), W('しかない', 'shika nai', 'bleibt nur')] },
+  ] },
+  { id: 's9', lvl: 'N1', title: 'Gedanken zur Sprache', emoji: '🧠', scene: 'Ein kurzer Essay.', lines: [
+    { who: 'N', end: '。', de: 'Sprache ist nicht bloß ein Mittel der Übermittlung, sie formt das Denken selbst.', words: [W('言語', 'gengo', 'Sprache'), W('は', 'wa', '(Themen-Partikel)'), W('単なる', 'tannaru', 'bloß'), W('伝達', 'dentatsu', 'Übermittlung'), W('の', 'no', '(von)'), W('手段', 'shudan', 'Mittel'), W('ではなく', 'de wa naku', 'nicht … sondern'), W('思考', 'shikou', 'Denken'), W('そのもの', 'sono mono', 'selbst'), W('を', 'o', '(Objekt-Partikel)'), W('形作る', 'katachizukuru', 'formen')] },
+    { who: 'N', end: '。', de: 'Eine neue Sprache zu erlernen erweitert auch die Sicht auf die Welt.', words: [W('新たな', 'arata na', 'neu'), W('言語', 'gengo', 'Sprache'), W('を', 'o', '(Objekt-Partikel)'), W('習得', 'shuutoku', 'Aneignung'), W('する', 'suru', 'tun'), W('こと', 'koto', '(Nominalisierung)'), W('は', 'wa', '(Themen-Partikel)'), W('世界', 'sekai', 'Welt'), W('の', 'no', '(von)'), W('見方', 'mikata', 'Sichtweise'), W('を', 'o', '(Objekt-Partikel)'), W('広げる', 'hirogeru', 'erweitern'), W('営み', 'itonami', 'Tätigkeit'), W('でもある', 'de mo aru', 'ist auch')] },
+    { who: 'N', end: '。', de: 'Wesentlich ist, ohne Hast und mit Freude dranzubleiben.', words: [W('焦らず', 'aserazu', 'ohne Hast'), W('楽しみながら', 'tanoshimi nagara', 'mit Freude'), W('続ける', 'tsuzukeru', 'fortsetzen'), W('こと', 'koto', '(Nominalisierung)'), W('こそ', 'koso', 'gerade'), W('が', 'ga', '(Subjekt-Partikel)'), W('肝要', 'kanyou', 'wesentlich'), W('だ', 'da', 'ist')] },
+  ] },
+);
+
+// Kanji: Zeichen|Lesung|Bedeutung|Beispielwort|Romaji|Beispiel-Bedeutung
+const KANJI_SRC = {
+  N5: `一|ichi · hito(tsu)|eins|一人|hitori|eine Person
+二|ni · futa(tsu)|zwei|二月|nigatsu|Februar
+三|san · mit(tsu)|drei|三時|sanji|drei Uhr
+四|shi/yon · yot(tsu)|vier|四月|shigatsu|April
+五|go · itsu(tsu)|fünf|五日|itsuka|der Fünfte
+六|roku · mut(tsu)|sechs|六月|rokugatsu|Juni
+七|shichi/nana|sieben|七時|shichiji|sieben Uhr
+八|hachi · yat(tsu)|acht|八百屋|yaoya|Gemüsehändler
+九|kyuu/ku · kokono(tsu)|neun|九月|kugatsu|September
+十|juu · too|zehn|十分|juppun|zehn Minuten
+百|hyaku|hundert|三百円|sanbyaku en|300 Yen
+千|sen · chi|tausend|千円|sen en|1000 Yen
+万|man|zehntausend|一万円|ichiman en|10.000 Yen
+円|en|Yen / Kreis|百円|hyaku en|100 Yen
+日|nichi · hi|Tag / Sonne|日曜日|nichiyoubi|Sonntag
+月|getsu · tsuki|Mond / Monat|月曜日|getsuyoubi|Montag
+火|ka · hi|Feuer|火曜日|kayoubi|Dienstag
+水|sui · mizu|Wasser|水曜日|suiyoubi|Mittwoch
+木|moku · ki|Baum / Holz|木曜日|mokuyoubi|Donnerstag
+金|kin · kane|Gold / Geld|金曜日|kinyoubi|Freitag
+土|do · tsuchi|Erde|土曜日|doyoubi|Samstag
+年|nen · toshi|Jahr|今年|kotoshi|dieses Jahr
+今|kon · ima|jetzt|今日|kyou|heute
+時|ji · toki|Zeit / Uhr|時間|jikan|Zeit
+分|fun/bun · wa(karu)|Minute / verstehen|分かる|wakaru|verstehen
+半|han|halb|半分|hanbun|Hälfte
+人|jin/nin · hito|Mensch|日本人|nihonjin|Japaner/in
+男|dan · otoko|Mann|男の子|otoko no ko|Junge
+女|jo · onna|Frau|女の子|onna no ko|Mädchen
+子|shi · ko|Kind|子ども|kodomo|Kind
+父|fu · chichi|Vater|お父さん|otousan|Vater (höflich)
+母|bo · haha|Mutter|お母さん|okaasan|Mutter (höflich)
+友|yuu · tomo|Freund|友達|tomodachi|Freund/in
+先|sen · saki|vorher / voraus|先生|sensei|Lehrer/in
+生|sei · i(kiru)|Leben / geboren|学生|gakusei|Student/in
+学|gaku · mana(bu)|lernen|大学|daigaku|Universität
+校|kou|Schule|学校|gakkou|Schule
+大|dai · oo(kii)|groß|大きい|ookii|groß
+小|shou · chii(sai)|klein|小さい|chiisai|klein
+中|chuu · naka|Mitte / in|中国|chuugoku|China
+上|jou · ue|oben|上手|jouzu|geschickt
+下|ka · shita|unten|下手|heta|ungeschickt
+左|sa · hidari|links|左手|hidarite|linke Hand
+右|u · migi|rechts|右側|migigawa|rechte Seite
+山|san · yama|Berg|富士山|fujisan|Berg Fuji
+川|sen · kawa|Fluss|小川|ogawa|Bach
+田|den · ta|Reisfeld|田んぼ|tanbo|Reisfeld
+雨|u · ame|Regen|大雨|ooame|Starkregen
+天|ten · ama|Himmel|天気|tenki|Wetter
+気|ki|Geist / Luft|元気|genki|gesund / munter
+空|kuu · sora|Himmel / leer|空港|kuukou|Flughafen
+花|ka · hana|Blume|花火|hanabi|Feuerwerk
+犬|ken · inu|Hund|子犬|koinu|Welpe
+食|shoku · ta(beru)|essen|食べ物|tabemono|Essen
+飲|in · no(mu)|trinken|飲み物|nomimono|Getränk
+見|ken · mi(ru)|sehen|見る|miru|sehen
+聞|bun · ki(ku)|hören / fragen|新聞|shinbun|Zeitung
+話|wa · hana(su)|sprechen|電話|denwa|Telefon
+読|doku · yo(mu)|lesen|読む|yomu|lesen
+書|sho · ka(ku)|schreiben|書く|kaku|schreiben
+行|kou · i(ku)|gehen|行く|iku|gehen
+来|rai · ku(ru)|kommen|来年|rainen|nächstes Jahr
+出|shutsu · de(ru)|hinausgehen|出口|deguchi|Ausgang
+入|nyuu · hai(ru)|eintreten|入口|iriguchi|Eingang
+立|ritsu · ta(tsu)|stehen|立つ|tatsu|aufstehen
+休|kyuu · yasu(mu)|ausruhen|休み|yasumi|Pause / Urlaub
+買|bai · ka(u)|kaufen|買い物|kaimono|Einkaufen
+高|kou · taka(i)|hoch / teuer|高い|takai|hoch / teuer
+安|an · yasu(i)|billig / ruhig|安い|yasui|billig
+新|shin · atara(shii)|neu|新しい|atarashii|neu
+古|ko · furu(i)|alt (Dinge)|古い|furui|alt
+長|chou · naga(i)|lang|長い|nagai|lang
+白|haku · shiro(i)|weiß|白い|shiroi|weiß
+北|hoku · kita|Norden|北海道|hokkaidou|Hokkaido
+南|nan · minami|Süden|南口|minamiguchi|Südausgang
+東|tou · higashi|Osten|東京|toukyou|Tokio
+西|sei · nishi|Westen|西口|nishiguchi|Westausgang
+外|gai · soto|außen|外国|gaikoku|Ausland
+国|koku · kuni|Land|外国人|gaikokujin|Ausländer/in
+車|sha · kuruma|Auto|電車|densha|Zug
+電|den|Elektrizität|電気|denki|Strom / Licht
+名|mei · na|Name|名前|namae|Name
+本|hon · moto|Buch / Ursprung|日本|nihon|Japan
+何|nan · nani|was|何時|nanji|wie spät
+毎|mai|jeder|毎日|mainichi|jeden Tag
+後|go · ato|nach / hinten|午後|gogo|Nachmittag
+前|zen · mae|vor / vorher|午前|gozen|Vormittag
+間|kan · aida|Zwischenraum|時間|jikan|Zeit
+午|go|Mittag|午前|gozen|Vormittag
+語|go · kata(ru)|Sprache|日本語|nihongo|Japanisch
+目|moku · me|Auge|目薬|megusuri|Augentropfen
+耳|ji · mimi|Ohr|耳鼻科|jibika|HNO-Abteilung
+口|kou · kuchi|Mund|出口|deguchi|Ausgang
+手|shu · te|Hand|握手|akushu|Handschlag
+足|soku · ashi|Fuß / Bein|足音|ashioto|Schritte
+力|ryoku · chikara|Kraft|電力|denryoku|Strom (Energie)
+会|kai · a(u)|treffen|会社|kaisha|Firma
+道|dou · michi|Weg|歩道|hodou|Gehweg`,
+  N4: `魚|gyo · sakana|Fisch|焼き魚|yakizakana|gegrillter Fisch
+肉|niku|Fleisch|牛肉|gyuuniku|Rindfleisch
+茶|cha|Tee|お茶|ocha|Tee
+飯|han · meshi|Reis / Mahlzeit|ご飯|gohan|Reis / Essen
+店|ten · mise|Laden|店員|tenin|Verkäufer/in
+町|chou · machi|Stadt / Viertel|下町|shitamachi|Altstadtviertel
+市|shi · ichi|Stadt / Markt|市場|ichiba|Markt
+村|son · mura|Dorf|村人|murabito|Dorfbewohner
+海|kai · umi|Meer|海外|kaigai|Übersee
+駅|eki|Bahnhof|駅前|ekimae|Bahnhofsvorplatz
+自|ji · mizuka(ra)|selbst|自分|jibun|selbst
+動|dou · ugo(ku)|sich bewegen|動物|doubutsu|Tier
+物|butsu · mono|Ding|荷物|nimotsu|Gepäck
+事|ji · koto|Sache|食事|shokuji|Mahlzeit
+思|shi · omo(u)|denken|思う|omou|denken
+知|chi · shi(ru)|wissen|知る|shiru|wissen
+考|kou · kanga(eru)|nachdenken|考える|kangaeru|nachdenken
+教|kyou · oshi(eru)|lehren|教室|kyoushitsu|Klassenzimmer
+習|shuu · nara(u)|üben / lernen|習う|narau|lernen
+勉|ben|Fleiß|勉強|benkyou|Lernen
+強|kyou · tsuyo(i)|stark|強い|tsuyoi|stark
+働|dou · hatara(ku)|arbeiten|働く|hataraku|arbeiten
+歩|ho · aru(ku)|zu Fuß gehen|歩く|aruku|zu Fuß gehen
+走|sou · hashi(ru)|rennen|走る|hashiru|rennen
+泳|ei · oyo(gu)|schwimmen|泳ぐ|oyogu|schwimmen
+歌|ka · uta|singen / Lied|歌手|kashu|Sänger/in
+言|gen · i(u)|sagen|言う|iu|sagen
+作|saku · tsuku(ru)|machen|作る|tsukuru|machen
+使|shi · tsuka(u)|benutzen|使う|tsukau|benutzen
+持|ji · mo(tsu)|halten / haben|持つ|motsu|halten
+待|tai · ma(tsu)|warten|待つ|matsu|warten
+開|kai · a(keru)|öffnen|開ける|akeru|öffnen
+閉|hei · shi(meru)|schließen|閉める|shimeru|schließen
+始|shi · haji(maru)|anfangen|始まる|hajimaru|anfangen
+終|shuu · o(waru)|enden|終わる|owaru|enden
+朝|chou · asa|Morgen|朝ご飯|asagohan|Frühstück
+昼|chuu · hiru|Mittag|昼ご飯|hirugohan|Mittagessen
+夜|ya · yoru|Nacht|今夜|konya|heute Nacht
+夏|ka · natsu|Sommer|夏休み|natsuyasumi|Sommerferien
+冬|tou · fuyu|Winter|冬休み|fuyuyasumi|Winterferien
+春|shun · haru|Frühling|春休み|haruyasumi|Frühlingsferien
+秋|shuu · aki|Herbst|秋風|akikaze|Herbstwind
+赤|seki · aka(i)|rot|赤い|akai|rot
+青|sei · ao(i)|blau / grün|青い|aoi|blau
+黒|koku · kuro(i)|schwarz|黒い|kuroi|schwarz
+色|shoku · iro|Farbe|茶色|chairo|Braun
+重|juu · omo(i)|schwer|重い|omoi|schwer
+軽|kei · karu(i)|leicht|軽い|karui|leicht
+明|mei · aka(rui)|hell|明るい|akarui|hell
+暗|an · kura(i)|dunkel|暗い|kurai|dunkel`,
+  N3: `社|sha|Gesellschaft / Firma|社会|shakai|Gesellschaft
+員|in|Mitglied|会社員|kaishain|Angestellte/r
+議|gi|Beratung|会議|kaigi|Besprechung
+験|ken|Prüfung|試験|shiken|Prüfung
+試|shi · tame(su)|versuchen|試合|shiai|Wettkampf
+選|sen · era(bu)|wählen|選ぶ|erabu|wählen
+決|ketsu · ki(meru)|entscheiden|決める|kimeru|entscheiden
+変|hen · ka(waru)|sich ändern|変わる|kawaru|sich ändern
+続|zoku · tsuzu(ku)|andauern|続く|tsuzuku|andauern
+伝|den · tsuta(eru)|mitteilen|伝える|tsutaeru|mitteilen
+送|sou · oku(ru)|senden|送る|okuru|senden
+届|todo(ku)|ankommen|届く|todoku|ankommen
+借|shaku · ka(riru)|leihen|借りる|kariru|ausleihen
+貸|tai · ka(su)|verleihen|貸す|kasu|verleihen
+返|hen · kae(su)|zurückgeben|返す|kaesu|zurückgeben
+忘|bou · wasu(reru)|vergessen|忘れる|wasureru|vergessen
+覚|kaku · obo(eru)|sich merken|覚える|oboeru|sich merken
+調|chou · shira(beru)|untersuchen|調べる|shiraberu|nachschlagen
+相|sou · ai|gegenseitig|相談|soudan|Beratung
+談|dan|Gespräch|談話|danwa|Gespräch
+親|shin · oya|Eltern / vertraut|親切|shinsetsu|freundlich
+切|setsu · ki(ru)|schneiden|大切|taisetsu|wichtig
+便|ben · bin|bequem / Post|便利|benri|praktisch
+利|ri|Nutzen|利用|riyou|Nutzung
+旅|ryo · tabi|Reise|旅行|ryokou|Reise
+館|kan|Gebäude|図書館|toshokan|Bibliothek
+泊|haku · to(maru)|übernachten|泊まる|tomaru|übernachten
+予|yo|im Voraus|予約|yoyaku|Reservierung
+約|yaku|Versprechen|約束|yakusoku|Versprechen
+束|soku · taba|Bündel|花束|hanataba|Blumenstrauß
+運|un · hako(bu)|befördern / Glück|運動|undou|Sport / Bewegung
+経|kei · he(ru)|vergehen / Verlauf|経験|keiken|Erfahrung`,
+  N2: `影|ei · kage|Schatten|影響|eikyou|Einfluss
+響|kyou · hibi(ku)|hallen|響く|hibiku|widerhallen
+政|sei|Politik|政治|seiji|Politik
+治|ji · nao(ru)|regieren / heilen|治る|naoru|gesund werden
+済|sai · su(mu)|erledigt|経済|keizai|Wirtschaft
+環|kan|Ring / Umgebung|環境|kankyou|Umwelt
+境|kyou · sakai|Grenze|国境|kokkyou|Landesgrenze
+状|jou|Zustand|状況|joukyou|Lage
+況|kyou|Lage|景況|keikyou|Konjunktur
+関|kan · seki|Beziehung|関係|kankei|Beziehung
+係|kei · kakari|zuständig|係|kakari|Zuständige/r
+責|seki · se(meru)|Verantwortung|責任|sekinin|Verantwortung
+任|nin · maka(seru)|Aufgabe|任せる|makaseru|anvertrauen
+提|tei|vorlegen|提案|teian|Vorschlag
+案|an|Plan|案内|annai|Führung / Auskunft
+検|ken|prüfen|検討|kentou|Erwägung
+討|tou|diskutieren|討論|touron|Debatte
+批|hi|kritisieren|批判|hihan|Kritik
+判|han · ban|urteilen|判断|handan|Urteil
+断|dan · kotowa(ru)|ablehnen|断る|kotowaru|ablehnen
+傾|kei · katamu(ku)|sich neigen|傾向|keikou|Tendenz
+向|kou · mu(ku)|zugewandt|向かう|mukau|sich begeben
+結|ketsu · musu(bu)|verbinden|結果|kekka|Ergebnis
+果|ka · ha(te)|Frucht / Ergebnis|果物|kudamono|Obst
+勇|yuu · isa(mashii)|mutig|勇気|yuuki|Mut
+希|ki|Hoffnung|希望|kibou|Hoffnung
+望|bou · nozo(mu)|wünschen|望む|nozomu|wünschen
+命|mei · inochi|Leben / Schicksal|運命|unmei|Schicksal
+戦|sen · tataka(u)|kämpfen|戦争|sensou|Krieg`,
+  N1: `概|gai|Überblick|概念|gainen|Konzept
+念|nen|Gedanke|残念|zannen|schade
+抽|chuu|herausziehen|抽象|chuushou|abstrakt
+象|shou · zou|Gestalt / Elefant|印象|inshou|Eindruck
+矛|mu · hoko|Lanze|矛盾|mujun|Widerspruch
+盾|jun · tate|Schild|後ろ盾|ushirodate|Rückhalt
+妥|da|angemessen|妥協|dakyou|Kompromiss
+協|kyou|zusammenarbeiten|協力|kyouryoku|Zusammenarbeit
+把|ha|greifen|把握|haaku|erfassen
+握|aku · nigi(ru)|greifen|握手|akushu|Handschlag
+顕|ken|offenbar|顕著|kencho|auffällig
+著|cho · arawa(su)|verfassen / auffällig|著者|chosha|Autor/in
+脆|zei · moro(i)|zerbrechlich|脆い|moroi|zerbrechlich
+弱|jaku · yowa(i)|schwach|脆弱|zeijaku|fragil
+憲|ken|Verfassung|憲法|kenpou|Verfassung
+法|hou|Gesetz|法律|houritsu|Gesetz
+裁|sai · sabaku|richten|裁判|saiban|Prozess
+規|ki|Regel|規則|kisoku|Regel
+制|sei|System / kontrollieren|制度|seido|System
+施|shi · hodoko(su)|durchführen|施設|shisetsu|Einrichtung
+審|shin|prüfen|審査|shinsa|Prüfung
+摩|ma|reiben|摩擦|masatsu|Reibung
+懸|ken · ka(keru)|aufhängen|懸念|kenen|Bedenken
+絆|han · kizuna|Band / Bindung|絆|kizuna|Band`,
+};
+export const KANJI = [];
+export const KGROUPS = [];
+LEVELS.forEach(lv => {
+  const list = KANJI_SRC[lv].split('\n').map(l => {
+    const [k, r, de, w, wr, wd] = l.split('|');
+    return { k, r, de, lvl: lv, ex: { w, r: wr, d: wd } };
+  });
+  list.forEach(k => KANJI.push(k));
+  for (let i = 0; i < list.length; i += 5) {
+    const n = i / 5 + 1; const items = list.slice(i, i + 5);
+    KGROUPS.push({ id: `j${lv}-${n}`, lvl: lv, n, items });
+  }
+});
+export const KANJI_MAP = Object.fromEntries(KANJI.map(k => [k.k, k]));

@@ -1,19 +1,15 @@
 # Mochi Nihongo 🍡
 
-Moderne, klare Lern-App für Japanisch (Hiragana & Katakana) nach Stephen Krashens Natural Approach.
-Reines HTML/CSS/JS – kein Build nötig, installierbar als PWA, Fortschritt nur lokal (localStorage).
+Japanisch spielerisch erwerben (nach Stephen Krashens Natural Approach). Reines HTML/CSS/JS, kein Build, installierbar als PWA, Fortschritt nur lokal.
 
 ## Starten
 ```
 cd nihongo && python3 -m http.server 8000   # dann http://localhost:8000
 ```
 
-## Aufbau
-- `js/data.js` – Kana mit Merkbildern, Wörter, Geschichten, Methodentexte
-- `js/illus.js` – SVG-Illustrationen (Maskottchen „Mochi“)
-- `js/app.js` – Router, Onboarding, Lektionen, Quiz, Wiederholung (Leitner), Geschichten
-
-## Methode
-Input-Hypothese (i+1: Wörter/Geschichten nach Kenntnisstand), affektiver Filter (keine Timer/Leben/Strafen),
-Monitor (Tipps freiwillig), natürliche Reihenfolge (leicht → schwer), stille Phase (erst Hören/Lesen).
-Ergänzend: Merkbilder (Dual Coding) und Spaced Repetition. Details in der App unter „Methode“.
+## Inhalte (alles in `js/data.js` erweiterbar)
+- **Schrift:** Hiragana & Katakana (mit Merkbildern) und 233 Kanji von N5 bis N1 (Sätze à 5, mit Beispielwort)
+- **Sprache:** 24 Themen (Alltag, Reisen, Anime, Arbeit, Kultur …) und 9 Geschichten, verteilt auf N5–N1
+- **Dashboard:** Tagesziel in Minuten (aktive Lernzeit), Fortschrittsringe je JLPT-Stufe, Tagesaufgaben, Wochenverlauf
+- Schrift und Sprache sind getrennte Lernwege; Ziele (Alltag, Reisen, Anime …) und Niveau steuern die Empfehlungen
+- Hinweis: kuratierte Auswahl, kein vollständiger JLPT-Wortschatz (N1 bräuchte >2.000 Kanji)
