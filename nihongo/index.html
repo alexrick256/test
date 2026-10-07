@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mochi Nihongo</title>
+<meta name="description" content="Japanisch spielerisch erwerben – Hiragana und Katakana nach Stephen Krashen.">
+<meta name="theme-color" content="#E8533F">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <main id="view" tabindex="-1"></main>
+  <nav id="tabs" aria-label="Hauptnavigation">
+    <a href="#/home" data-tab="home"><span>🏡</span>Heute</a>
+    <a href="#/kana" data-tab="kana"><span>あ</span>Kana</a>
+    <a href="#/read" data-tab="read"><span>📖</span>Lesen</a>
+    <a href="#/method" data-tab="method"><span>🌱</span>Methode</a>
+  </nav>
+</div>
+<dialog id="sheet" aria-label="Details"></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
