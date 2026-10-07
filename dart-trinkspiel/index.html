@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14110f">
+<title>Dart Drinks</title>
+<style>
+:root{--bg:#14110f;--card:#211c18;--card2:#2c2520;--fg:#f4ece4;--mut:#a89a8c;--acc:#ffb020;--ok:#3ecf74;--bad:#ff5c4d;--line:#3a312a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+main{max-width:560px;margin:0 auto;padding:16px 16px 40px}
+h1{font-size:28px;margin:8px 0 0;letter-spacing:.5px}
+h1 span{color:var(--acc)}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mut);margin:24px 0 8px}
+p.sub{color:var(--mut);margin:4px 0 0}
+button{font:inherit;color:inherit;border:0;border-radius:12px;padding:12px 16px;background:var(--card2);cursor:pointer}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.pri{background:var(--acc);color:#1b1305;font-weight:700}
+button.ok{background:var(--ok);color:#06210f;font-weight:700}
+button.bad{background:var(--bad);color:#2a0805;font-weight:700}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1}
+input{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;width:100%;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:99px;padding:6px 6px 6px 14px;display:flex;align-items:center;gap:6px}
+.chip button{padding:2px 9px;border-radius:99px;background:var(--card2);color:var(--mut)}
+.modes{display:grid;gap:8px}
+.mode{display:block;text-align:left;background:var(--card);border:2px solid transparent;width:100%}
+.mode.sel{border-color:var(--acc)}
+.mode b{font-size:17px}.mode small{display:block;color:var(--mut);margin-top:2px}
+.seg{display:flex;background:var(--card);border-radius:12px;padding:4px;gap:4px}
+.seg button{flex:1;background:transparent;padding:10px 4px;font-size:14px}
+.seg button.sel{background:var(--acc);color:#1b1305;font-weight:700}
+.note{font-size:12px;color:var(--mut);margin-top:24px;text-align:center}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.top button{padding:8px 12px;font-size:14px}
+.turn{text-align:center;margin:18px 0 6px}
+.turn small{color:var(--mut);text-transform:uppercase;letter-spacing:1.2px;font-size:12px}
+.turn div{font-size:34px;font-weight:800;color:var(--acc)}
+.dots{display:flex;gap:8px;justify-content:center;margin:6px 0 14px}
+.dots i{width:14px;height:14px;border-radius:50%;background:var(--card2);border:2px solid var(--line)}
+.dots i.on{background:var(--acc);border-color:var(--acc)}
+.big{background:var(--card);border-radius:20px;padding:22px 18px;text-align:center;border:1px solid var(--line)}
+.big .ic{font-size:44px}
+.big h3{margin:6px 0;font-size:22px}
+.big p{margin:0;color:var(--mut);font-size:17px;color:var(--fg)}
+.big .sips{display:inline-block;margin-top:12px;background:var(--card2);padding:4px 14px;border-radius:99px;font-weight:700;color:var(--acc)}
+.target{font-size:72px;font-weight:900;line-height:1;color:var(--acc)}
+.log{min-height:24px;text-align:center;color:var(--mut);margin:12px 0;font-size:15px}
+.log b{color:var(--fg)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid button{padding:16px 8px;text-align:center}
+.grid button small{display:block;color:var(--mut);font-size:12px}
+.grid button.wide{grid-column:span 2}
+table{width:100%;border-collapse:collapse;margin-top:6px}
+td,th{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line)}
+th{color:var(--mut);font-size:12px;font-weight:600;text-transform:uppercase}
+td:first-child,th:first-child{text-align:left}
+tr.cur td{color:var(--acc);font-weight:700}
+.award{background:var(--card);border-radius:14px;padding:14px;margin-top:8px;display:flex;gap:12px;align-items:center}
+.award .ic{font-size:30px}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+const KEY='dart-drinks-v1';
+const MODES={
+  challenge:{ic:'🎲',name:'Challenge-Roulette',desc:'Jeder bekommt eine Zufalls-Aufgabe. Geschafft = Schlücke verteilen, verpatzt = selber trinken.'},
+  clock:{ic:'🕐',name:'Around the Clock',desc:'Triff 1 bis 20 und dann das Bull – wer zuerst ankommt, gewinnt. Wer überholt wird oder daneben wirft, trinkt.'},
+  rules:{ic:'📜',name:'Wurf-Regeln',desc:'Freies Spiel mit festen Regeln für jeden Wurf: Doppel, Triple, Bull, Daneben …'}
+};
+const RULE_TABLE={
+  miss:{l:'Daneben',s:'trinke 1',t:'drink',n:1,ic:'💨'},
+  floor:{l:'Boden / Wand',s:'trinke 2',t:'drink',n:2,ic:'🧱'},
+  single:{l:'Single',s:'nichts',t:'none',n:0,ic:'🎯'},
+  double:{l:'Doppel',s:'verteile 2',t:'give',n:2,ic:'✌️'},
+  triple:{l:'Triple',s:'verteile 3',t:'give',n:3,ic:'🔥'},
+  bull:{l:'Bull (25)',s:'verteile 4',t:'give',n:4,ic:'🟢'},
+  eye:{l:'Bullseye (50)',s:'alle anderen trinken 2',t:'others',n:2,ic:'🔴'}
+};
+const RULE_CARDS=[
+  {kind:'all',title:'Prost!',text:'Alle trinken.',sips:1,ic:'🍻'},
+  {kind:'all',except:1,title:'Gemeinschaft',text:'Alle außer dir trinken.',sips:1,ic:'🫵'},
+  {kind:'pick',title:'Du bestimmst',text:'Wähle einen Mitspieler, der trinken muss.',sips:3,ic:'👑'},
+  {kind:'pick',title:'Rache',text:'Wähle jemanden, der dich zuletzt geärgert hat.',sips:2,ic:'😈'},
+  {kind:'self',title:'Pech gehabt',text:'Du trinkst – einfach so.',sips:2,ic:'🍀'}
+];
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $app=document.getElementById('app');
+
+function fresh(){return{screen:'setup',names:[],mult:1,mode:'challenge',players:[],turn:0,dart:0,hits:0,card:null,pending:null,log:'',winner:null,round:1}}
+let S;try{S=Object.assign(fresh(),JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){S=fresh()}
+let hist=[];
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const snap=()=>{hist.push(JSON.stringify(S));if(hist.length>30)hist.shift()};
+const sp=n=>Math.max(1,Math.round(n*S.mult));
+const cur=()=>S.players[S.turn];
+const sipWord=n=>n===1?'1 Schluck':n+' Schlücke';
+const setLog=h=>{S.log=h};
+
+function genCard(){
+  if(Math.random()<0.2)return rnd(RULE_CARDS);
+  const n=1+Math.floor(Math.random()*20);
+  return rnd([
+    {text:`Triff die ${n} (Single, Double oder Triple).`,sips:2,ic:'🎯'},
+    {text:'Triff ein beliebiges Doppel.',sips:3,ic:'✌️'},
+    {text:'Triff ein beliebiges Triple.',sips:4,ic:'🔥'},
+    {text:'Triff das Bull (grün oder rot).',sips:3,ic:'🟢'},
+    {text:'Triff das Bullseye.',sips:5,ic:'🔴'},
+    {text:'Summe deiner 3 Darts über 40.',sips:2,ic:'➕'},
+    {text:'Summe deiner 3 Darts unter 20.',sips:3,ic:'➖'},
+    {text:'Alle 3 Darts treffen eine gerade Zahl.',sips:3,ic:'2️⃣'},
+    {text:'Alle 3 Darts treffen eine ungerade Zahl.',sips:3,ic:'1️⃣'},
+    {text:'Wirf mit der schwachen Hand und triff die Scheibe.',sips:2,ic:'🤚'},
+    {text:'Wirf mit geschlossenen Augen und triff die Scheibe.',sips:2,ic:'🙈'},
+    {text:'Alle 3 Darts landen im selben Feld.',sips:5,ic:'🧲'},
+    {text:'Triff die obere Hälfte der Scheibe mit allen 3 Darts.',sips:2,ic:'⬆️'}
+  ].map(c=>Object.assign({kind:'throw',title:'Deine Aufgabe'},c)));
+}
+
+function nextTurn(){
+  S.turn=(S.turn+1)%S.players.length;
+  if(S.turn===0)S.round++;
+  S.dart=0;S.hits=0;S.pending=null;
+  S.card=S.mode==='challenge'?genCard():null;
+  save();render();
+}
+function startGame(){
+  S.players=S.names.map(name=>({name,drunk:0,given:0,pos:1}));
+  S.turn=0;S.dart=0;S.hits=0;S.round=1;S.pending=null;S.winner=null;S.log='';hist=[];
+  S.card=S.mode==='challenge'?genCard():null;
+  S.screen='game';save();render();
+}
+function drink(i,n){S.players[i].drunk+=n}
+function afterGive(){ if(S.mode==='challenge'||S.dart>=3)nextTurn();else{save();render()} }
+
+function act(a,el){
+  const d=el.dataset;
+  if(a==='add'){
+    const inp=document.getElementById('nm');const v=inp.value.trim().slice(0,16);
+    if(v&&S.names.length<12&&!S.names.includes(v)){S.names.push(v);save()}
+    render();document.getElementById('nm').focus();return;
+  }
+  if(a==='del'){S.names.splice(+d.i,1);save();return render()}
+  if(a==='mult'){S.mult=+d.v;save();return render()}
+  if(a==='mode'){S.mode=d.v;save();return render()}
+  if(a==='start')return startGame();
+    if(a==='menu'){if(S.screen==='game'&&!confirm('Spiel abbrechen?'))return;S.screen='setup';save();return render()}
+  if(a==='again')return startGame();
+  if(a==='finish'){if(!confirm('Spiel beenden und Auswertung zeigen?'))return;S.screen='end';save();return render()}
+  if(a==='undo'){if(hist.length){S=JSON.parse(hist.pop());save();render()}return}
+  // game actions below — snapshot for undo
+  snap();
+  const p=cur();
+  if(a==='ok'){
+    const n=sp(S.card.sips);S.pending={n};
+    setLog(`<b>${esc(p.name)}</b> hat es geschafft!`);
+  }else if(a==='fail'){
+    const n=sp(S.card.sips);drink(S.turn,n);
+    setLog(`<b>${esc(p.name)}</b> trinkt ${sipWord(n)}.`);return nextTurn();
+  }else if(a==='card-go'){
+    const c=S.card,n=sp(c.sips);
+    if(c.kind==='pick'){S.pending={n,pick:1};setLog('')}
+    else{
+      S.players.forEach((q,i)=>{if(c.kind==='all'&&!(c.except&&i===S.turn))drink(i,n);if(c.kind==='self'&&i===S.turn)drink(i,n)});
+      setLog(c.kind==='all'?(c.except?`Alle außer <b>${esc(p.name)}</b> trinken ${sipWord(n)}.`:`Alle trinken ${sipWord(n)}.`):`<b>${esc(p.name)}</b> trinkt ${sipWord(n)}.`);
+      return nextTurn();
+    }
+  }else if(a==='give'){
+    const n=S.pending.n,i=+d.i;drink(i,n);p.given+=n;
+    setLog(`<b>${esc(S.players[i].name)}</b> trinkt ${sipWord(n)} von <b>${esc(p.name)}</b>.`);
+    S.pending=null;return afterGive();
+  }else if(a==='skipgive'){
+    S.pending=null;return afterGive();
+  }else if(a==='rdart'){
+    const r=RULE_TABLE[d.k];S.dart++;
+    if(r.t==='drink'){const n=sp(r.n);drink(S.turn,n);setLog(`${r.ic} <b>${esc(p.name)}</b> trinkt ${sipWord(n)}.`)}
+    else if(r.t==='others'){const n=sp(r.n);S.players.forEach((q,i)=>{if(i!==S.turn)drink(i,n)});p.given+=n*(S.players.length-1);setLog(`${r.ic} <b>BULLSEYE!</b> Alle anderen trinken ${sipWord(n)}.`)}
+    else if(r.t==='give'){S.pending={n:sp(r.n)};setLog(`${r.ic} <b>${esc(p.name)}</b>: ${r.l}!`)}
+    else setLog(`${r.ic} <b>${esc(p.name)}</b>: ${r.l}.`);
+    if(!S.pending&&S.dart>=3)return nextTurn();
+  }else if(a==='cdart'){
+    const k=+d.k;S.dart++;
+    if(k===0)setLog(`💨 <b>${esc(p.name)}</b> trifft nicht.`);
+    else{
+      S.hits++;p.pos+=k;
+      if(p.pos>=21){
+        p.pos=21;S.winner=S.turn;const n=sp(2);
+        S.players.forEach((q,i)=>{if(i!==S.turn)drink(i,n)});
+        S.screen='end';save();return render();
+      }
+      const caught=[];
+      S.players.forEach((q,i)=>{if(i!==S.turn&&q.pos===p.pos){drink(i,sp(1));caught.push(esc(q.name))}});
+      setLog(`🎯 <b>${esc(p.name)}</b> rückt auf ${p.pos}.`+(caught.length?` Eingeholt: <b>${caught.join(', ')}</b> trinkt ${sipWord(sp(1))}.`:''));
+    }
+    if(S.dart>=3){
+      if(S.hits===0){const n=sp(2);drink(S.turn,n);setLog(`🥶 <b>${esc(p.name)}</b> hat nichts getroffen und trinkt ${sipWord(n)}.`)}
+      return nextTurn();
+    }
+  }
+  save();render();
+}
+
+function scoreboard(){
+  const clock=S.mode==='clock';
+  return `<h2>Punktestand</h2><table><tr><th>Spieler</th>${clock?'<th>Ziel</th>':''}<th>Trank</th><th>Verteilt</th></tr>`+
+    S.players.map((q,i)=>`<tr class="${i===S.turn&&S.screen==='game'?'cur':''}"><td>${esc(q.name)}</td>${clock?`<td>${q.pos>=21?'Bull':q.pos}</td>`:''}<td>${q.drunk}</td><td>${q.given}</td></tr>`).join('')+`</table>`;
+}
+
+function renderSetup(){
+  const can=S.names.length>=2;
+  return `<h1>🎯 Dart <span>Drinks</span></h1><p class="sub">Das Trinkspiel für Dartscheibe und Freunde.</p>
+  <h2>Spieler (${S.names.length}/12)</h2>
+  <div class="row"><input id="nm" placeholder="Name eingeben" maxlength="16" autocomplete="off"><button class="pri" data-a="add" style="flex:0 0 auto">+</button></div>
+  <div class="chips">${S.names.map((n,i)=>`<span class="chip">${esc(n)}<button data-a="del" data-i="${i}">✕</button></span>`).join('')}</div>
+  <h2>Modus</h2><div class="modes">${Object.entries(MODES).map(([k,m])=>`<button class="mode ${S.mode===k?'sel':''}" data-a="mode" data-v="${k}"><b>${m.ic} ${m.name}</b><small>${m.desc}</small></button>`).join('')}</div>
+  <h2>Intensität</h2><div class="seg">${[[0.5,'Chill'],[1,'Normal'],[2,'Hardcore']].map(([v,l])=>`<button class="${S.mult===v?'sel':''}" data-a="mult" data-v="${v}">${l}</button>`).join('')}</div>
+  <div style="margin-top:24px" class="row"><button class="pri" data-a="start" ${can?'':'disabled'}>Spiel starten</button></div>
+  ${can?'':'<p class="note" style="margin-top:8px">Mindestens 2 Spieler nötig.</p>'}
+  <p class="note">Ab 18. Trink verantwortungsvoll – „Schlücke“ gehen auch mit Wasser oder Saft. Wer nicht mehr kann, setzt aus. Kein Alkohol am Steuer.</p>`;
+}
+
+function renderGame(){
+  const p=cur(),m=MODES[S.mode];
+  let body='';
+  if(S.pending){
+    const others=S.players.map((q,i)=>[q,i]).filter(([q,i])=>i!==S.turn);
+    body=`<div class="big"><div class="ic">🎁</div><h3>${S.pending.pick?'Wen trifft es?':'Verteile '+sipWord(S.pending.n)}</h3><p>${S.pending.pick?`Wähle einen Mitspieler (${sipWord(S.pending.n)}).`:'Wer muss trinken?'}</p></div>
+    <div class="grid" style="margin-top:12px">${others.map(([q,i])=>`<button data-a="give" data-i="${i}">${esc(q.name)}</button>`).join('')}${S.pending.pick?'':'<button class="ghost wide" data-a="skipgive">Niemanden</button>'}</div>`;
+  }else if(S.mode==='challenge'){
+    const c=S.card;
+    if(c.kind==='throw')body=`<div class="big"><div class="ic">${c.ic}</div><h3>${c.title}</h3><p>${c.text}</p><span class="sips">Verpatzt: ${sipWord(sp(c.sips))}</span></div>
+      <div class="grid" style="margin-top:12px"><button class="ok" data-a="ok">✅ Geschafft</button><button class="bad" data-a="fail">❌ Verpatzt</button></div>`;
+    else body=`<div class="big"><div class="ic">${c.ic}</div><h3>${c.title}</h3><p>${c.text}</p><span class="sips">${sipWord(sp(c.sips))}</span></div>
+      <div style="margin-top:12px" class="row"><button class="pri" data-a="card-go">${c.kind==='pick'?'Opfer wählen':'Erledigt'}</button></div>`;
+  }else if(S.mode==='clock'){
+    body=`<div class="big"><p>Dein Ziel</p><div class="target">${p.pos>=21?'Bull':p.pos}</div></div>
+    <div class="dots">${[0,1,2].map(i=>`<i class="${i<S.dart?'on':''}"></i>`).join('')}</div>
+    <div class="grid"><button data-a="cdart" data-k="1">🎯 Treffer<small>+1</small></button><button data-a="cdart" data-k="0">💨 Daneben</button><button data-a="cdart" data-k="2">✌️ Doppel<small>+2</small></button><button data-a="cdart" data-k="3">🔥 Triple<small>+3</small></button></div>`;
+  }else{
+    body=`<div class="dots">${[0,1,2].map(i=>`<i class="${i<S.dart?'on':''}"></i>`).join('')}</div>
+    <div class="grid">${Object.entries(RULE_TABLE).map(([k,r],i,a)=>`<button data-a="rdart" data-k="${k}" class="${i===a.length-1?'wide':''}">${r.ic} ${r.l}<small>${r.t==='others'?r.s.replace('2',sp(r.n)):r.t==='none'?r.s:r.s.replace(/\d/,sp(r.n))}</small></button>`).join('')}</div>`;
+  }
+  return `<div class="top"><button class="ghost" data-a="menu">☰ Menü</button><span>${m.ic} ${m.name} · Runde ${S.round}</span><button class="ghost" data-a="undo" ${hist.length?'':'disabled'}>↶</button></div>
+  <div class="turn"><small>Dran ist</small><div>${esc(p.name)}</div></div>
+  ${body}
+  <div class="log">${S.log||'&nbsp;'}</div>
+  ${scoreboard()}
+  <div style="margin-top:16px" class="row"><button class="ghost" data-a="finish">🏁 Spiel beenden</button></div>`;
+}
+
+function renderEnd(){
+  const byDrunk=[...S.players].sort((a,b)=>b.drunk-a.drunk);
+  const byGiven=[...S.players].sort((a,b)=>b.given-a.given);
+  const win=S.winner!==null?S.players[S.winner]:null;
+  return `<h1>🏁 Auswertung</h1>
+  ${win?`<div class="award"><span class="ic">🏆</span><div><b>${esc(win.name)} gewinnt!</b><br><span class="sub" style="color:var(--mut)">Alle anderen trinken ${sipWord(sp(2))}.</span></div></div>`:''}
+  <div class="award"><span class="ic">🍺</span><div><b>Tapferster Trinker</b><br>${esc(byDrunk[0].name)} – ${sipWord(byDrunk[0].drunk)}</div></div>
+  <div class="award"><span class="ic">🎯</span><div><b>Großzügigster Verteiler</b><br>${byGiven[0].given?`${esc(byGiven[0].name)} – ${sipWord(byGiven[0].given)}`:'Niemand hat verteilt.'}</div></div>
+  ${scoreboard()}
+  <div style="margin-top:20px" class="row"><button class="pri" data-a="again">Nochmal spielen</button><button data-a="menu">Menü</button></div>`;
+}
+
+function render(){
+  const scr=S.screen==='game'&&S.players.length?renderGame():S.screen==='end'&&S.players.length?renderEnd():renderSetup();
+  $app.innerHTML=scr;
+}
+$app.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(el&&!el.disabled)act(el.dataset.a,el)});
+$app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='nm')act('add',e.target)});
+render();
+</script>
+</body>
+</html>
