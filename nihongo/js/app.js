@@ -436,7 +436,7 @@ const A = {
   'story-de': t => { story.show = !story.show; document.querySelectorAll('.bubble .de').forEach(e => (e.hidden = !story.show)); t.textContent = story.show ? '🇩🇪 Übersetzung verbergen' : '🇩🇪 Übersetzung zeigen'; },
   'story-done': t => { S.storiesRead[t.dataset.id] = true; markActivity('input'); toast('Schön! Wieder ein Stück verstanden 🌸'); location.hash = '#/home'; },
   set: t => { const k = t.dataset.key; if (k.startsWith('track-')) { S.tracks[k.slice(6)] = t.checked; if (!S.tracks.script && !S.tracks.lang) { S.tracks[k === 'track-script' ? 'lang' : 'script'] = true; toast('Mindestens ein Weg bleibt aktiv 🙂'); save(); return viewSettings(); } } else if (k === 'focus') S.focus = t.value; else S.settings[k] = t.type === 'checkbox' ? t.checked : t.value; save(); applyTheme(); },
-  reset: () => { if (confirm('Wirklich allen Fortschritt löschen?')) { const nm = S.name; S = structuredClone(DEFAULTS); S.name = nm; S.onboarded = true; save(); toast('Zurückgesetzt – neu starten ist auch Lernen 🌱'); location.hash = '#/home'; route(); } },
+  reset: t => { if (!t.dataset.sure) { t.dataset.sure = 1; t.textContent = 'Wirklich löschen? Nochmal tippen.'; return; } { const nm = S.name; S = structuredClone(DEFAULTS); S.name = nm; S.onboarded = true; save(); toast('Zurückgesetzt – neu starten ist auch Lernen 🌱'); location.hash = '#/home'; route(); } },
 };
 document.addEventListener('click', e => { const t = e.target.closest('[data-a]'); if (!t || t.tagName === 'SELECT' || t.type === 'checkbox') return; A[t.dataset.a]?.(t, e); });
 document.addEventListener('change', e => { const t = e.target.closest('[data-a="set"]'); if (t) A.set(t); });
