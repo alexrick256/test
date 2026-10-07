@@ -1,5 +1,6 @@
 import { GROUPS, ALL_GROUPS, KANA, WORDS, STORIES, METHOD, TOPICS, LEVELS, LEVEL_INFO, GOALS, KANJI, KGROUPS, KANJI_MAP } from './data.js';
 import { SCENES, mochi } from './illus.js';
+import { STROKES } from './strokes.js';
 
 /* ---------- Helfer ---------- */
 const $ = (s, el = document) => el.querySelector(s);
@@ -12,10 +13,10 @@ const view = $('#view');
 
 /* ---------- Zustand ---------- */
 const KEY = 'mochi-nihongo-v1';
-const EMPTY_DAY = () => ({ date: todayStr(), new: 0, kanji: 0, tnew: 0, input: 0, rev: 0 });
+const EMPTY_DAY = () => ({ date: todayStr(), new: 0, kanji: 0, tnew: 0, input: 0, rev: 0, write: 0 });
 const DEFAULTS = { onboarded: false, name: '', focus: 'hira', level: 'N5', goals: ['alltag'], goalMin: 10, tracks: { script: true, lang: true },
-  groupsDone: {}, srs: {}, wsrs: {}, ksrs: {}, topicsDone: {}, kanjiDone: {}, storiesRead: {}, time: {}, streak: { last: '', count: 0 },
-  day: { date: '', new: 0, kanji: 0, tnew: 0, input: 0, rev: 0 }, settings: { romaji: true, sound: true, theme: 'auto', textScript: 'both' } };
+  groupsDone: {}, srs: {}, wsrs: {}, ksrs: {}, topicsDone: {}, kanjiDone: {}, storiesRead: {}, time: {}, trace: {}, scriptTest: {}, seenLevel: 'N5', streak: { last: '', count: 0 },
+  day: { date: '', new: 0, kanji: 0, tnew: 0, input: 0, rev: 0 }, settings: { romaji: true, sound: true, speak: true, theme: 'auto', textScript: 'both' } };
 let S;
 try { S = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; S.settings = { ...DEFAULTS.settings, ...S.settings }; S.tracks = { ...DEFAULTS.tracks, ...S.tracks }; S.day = { ...EMPTY_DAY(), ...S.day }; } catch { S = structuredClone(DEFAULTS); }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* privater Modus */ } };
@@ -56,6 +57,173 @@ function speak(text, rate = .8) {
   });
 }
 
+/* ---------- Noten & Spracherkennung ---------- */
+const PASS = 67; // Note 3 oder besser
+const noteOf = p => (p >= 92 ? 1 : p >= 81 ? 2 : p >= 67 ? 3 : p >= 50 ? 4 : p >= 30 ? 5 : 6);
+const NOTE_TXT = ['', 'sehr gut', 'gut', 'befriedigend', 'ausreichend', 'mangelhaft', 'ungenügend'];
+const gradeHtml = p => `Note <b>${noteOf(p)}</b> · ${NOTE_TXT[noteOf(p)]} · ${Math.round(p)} %`;
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const canListen = () => !!SR && S.settings.speak !== false;
+function listen(ctl) {
+  return new Promise((resolve, reject) => {
+    const r = new SR(); let done = false;
+    r.lang = 'ja-JP'; r.interimResults = false; r.maxAlternatives = 5; r.continuous = false;
+    const fin = (fn, v) => { if (!done) { done = true; fn(v); } };
+    r.onresult = e => fin(resolve, Array.from(e.results[0]).map(a => a.transcript));
+    r.onerror = e => fin(reject, e.error || 'error');
+    r.onnomatch = () => fin(reject, 'no-speech');
+    r.onend = () => fin(reject, 'no-speech');
+    if (ctl) ctl.stop = () => { try { r.stop(); } catch { /* bereits beendet */ } };
+    try { r.start(); } catch (e) { fin(reject, 'error'); }
+  });
+}
+const RM = {};
+{
+  const V = 'aiueo', base = { '': 'あいうえお', k: 'かきくけこ', s: 'さしすせそ', t: 'たちつてと', n: 'なにぬねの', h: 'はひふへほ', m: 'まみむめも', r: 'らりるれろ', g: 'がぎぐげご', z: 'ざじずぜぞ', d: 'だぢづでど', b: 'ばびぶべぼ', p: 'ぱぴぷぺぽ' };
+  Object.entries(base).forEach(([c, row]) => [...row].forEach((k, i) => (RM[c + V[i]] = k)));
+  Object.assign(RM, { ya: 'や', yu: 'ゆ', yo: 'よ', wa: 'わ', wo: 'を', n: 'ん', shi: 'し', chi: 'ち', tsu: 'つ', fu: 'ふ', ji: 'じ', sha: 'しゃ', shu: 'しゅ', sho: 'しょ', cha: 'ちゃ', chu: 'ちゅ', cho: 'ちょ', ja: 'じゃ', ju: 'じゅ', jo: 'じょ' });
+  Object.entries({ k: 'き', g: 'ぎ', n: 'に', h: 'ひ', b: 'び', p: 'ぴ', m: 'み', r: 'り' }).forEach(([c, k]) => { RM[c + 'ya'] = k + 'ゃ'; RM[c + 'yu'] = k + 'ゅ'; RM[c + 'yo'] = k + 'ょ'; });
+}
+function romajiToKana(s) {
+  s = String(s).toLowerCase().replace(/[^a-z' ]/g, ''); let out = '', i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (c === ' ' || c === "'") { i++; continue; }
+    if (s[i + 1] === c && !'aiueon'.includes(c)) { out += 'っ'; i++; continue; }
+    let hit = false;
+    for (const n of [3, 2, 1]) { const sub = s.substr(i, n); if (RM[sub]) { out += RM[sub]; i += n; hit = true; break; } }
+    if (!hit) i++;
+  }
+  return out;
+}
+const normKana = t => String(t).replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).replace(/[\s、。！？!?,.・「」『』ー〜~]/g, '')
+  .replace(/([おこそとのほもよろをごぞどぼぽ])[うお]/g, '$1').replace(/([あかさたなはまやらわがざだばぱ])あ/g, '$1').replace(/([いきしちにひみりぎじびぴ])い/g, '$1')
+  .replace(/([うくすつぬふむゆるぐずづぶぷ])う/g, '$1').replace(/([えけせてねへめれげぜでべぺ])[いえ]/g, '$1');
+function lev(a, b) {
+  const m = a.length, n = b.length; if (!m || !n) return Math.max(m, n);
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) { const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; }
+  return prev[n];
+}
+const sim = (a, b) => (a || b ? 1 - lev(a, b) / Math.max(a.length, b.length) : 0);
+function speechScore(target, alts) { // 0–100: Erkennungstext gegen Zielwort (Schreibweise und Lesung)
+  const tw = normKana(target.w), tr = target.r ? normKana(romajiToKana(target.r)) : '';
+  let best = 0;
+  for (const raw of alts) { const a = normKana(raw); best = Math.max(best, sim(a, tw), tr ? sim(a, tr) : 0); }
+  return Math.round(best * 100);
+}
+
+/* ---------- Schreiben: Strichfolge, Nachzeichnen, Benotung ---------- */
+const SVGNS = 'http://www.w3.org/2000/svg';
+let measureSvg;
+function sampleStroke(d, n = 32) {
+  if (!measureSvg) { measureSvg = document.createElementNS(SVGNS, 'svg'); measureSvg.setAttribute('width', 0); measureSvg.setAttribute('height', 0); measureSvg.style.cssText = 'position:absolute;left:-9999px;top:0'; document.body.appendChild(measureSvg); }
+  const p = document.createElementNS(SVGNS, 'path'); p.setAttribute('d', d); measureSvg.appendChild(p);
+  const len = p.getTotalLength(), pts = [...Array(n)].map((_, i) => { const q = p.getPointAtLength(len * i / (n - 1)); return { x: q.x, y: q.y }; });
+  measureSvg.removeChild(p); return pts;
+}
+const REF = {};
+const refOf = ch => (REF[ch] ||= (STROKES[ch] || []).map((d, i) => ({ d, pts: sampleStroke(d), i })));
+function resample(pts, n = 32) {
+  const d = [0]; let L = 0;
+  for (let i = 1; i < pts.length; i++) { L += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); d.push(L); }
+  if (!L) return Array(n).fill(pts[0]);
+  const out = []; let j = 0;
+  for (let k = 0; k < n; k++) { const t = L * k / (n - 1); while (j < d.length - 2 && d[j + 1] < t) j++; const f = (t - d[j]) / ((d[j + 1] - d[j]) || 1); out.push({ x: pts[j].x + (pts[j + 1].x - pts[j].x) * f, y: pts[j].y + (pts[j + 1].y - pts[j].y) * f }); }
+  return out;
+}
+const mdist = (a, b) => a.reduce((s, p, i) => s + Math.hypot(p.x - b[i].x, p.y - b[i].y), 0) / a.length;
+const fscore = d => Math.max(0, Math.min(1, 1 - (d - 6) / 20)); // ≤ 6 Einheiten = voll, ≥ 26 = 0 (Raster 109×109)
+function gradeWriting(ch, strokes) {
+  const ref = refOf(ch), user = strokes.map(s => resample(s)), per = [];
+  const n = Math.min(ref.length, user.length);
+  for (let i = 0; i < n; i++) {
+    const fwd = mdist(user[i], ref[i].pts), rev = mdist(user[i], [...ref[i].pts].reverse()), f = fscore(fwd), r = fscore(rev);
+    const wrongDir = r > f + .25; per.push({ score: wrongDir ? r * .4 : f, wrongDir });
+  }
+  const pct = ref.length ? Math.round(100 * per.reduce((s, p) => s + p.score, 0) / Math.max(ref.length, user.length)) : 0;
+  return { pct, per, nRef: ref.length, nUser: user.length };
+}
+const writtenOK = c => (S.trace[c] || 0) >= PASS;
+
+let W = null;
+const wArrow = (pts) => { const i = Math.round(pts.length * .6), a = pts[i - 1], b = pts[i], deg = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI; return `<path class="warrow" d="M-3.4 -2.6L3.4 0L-3.4 2.6Z" transform="translate(${b.x.toFixed(1)} ${b.y.toFixed(1)}) rotate(${deg.toFixed(0)})"/>`; };
+function wNumber(r) { const a = r.pts[0], b = r.pts[3], l = Math.hypot(b.x - a.x, b.y - a.y) || 1, x = a.x - (b.x - a.x) / l * 5.5, y = a.y - (b.y - a.y) / l * 5.5, cx = Math.max(5, Math.min(104, x)), cy = Math.max(5, Math.min(104, y)); return `<g class="wnum"><circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4.2"/><text x="${cx.toFixed(1)}" y="${(cy + .3).toFixed(1)}">${r.i + 1}</text></g>`; }
+function wDrawGuide() {
+  const ref = refOf(W.ch), g = $('#wg'), nn = $('#wn'); if (!g) return;
+  const guide = W.mode !== 'blind';
+  g.innerHTML = guide ? ref.map(r => `<path d="${r.d}" class="wgp"/>`).join('') : '';
+  nn.innerHTML = guide ? ref.map(r => wArrow(r.pts) + wNumber(r)).join('') : '';
+  $('#wa').innerHTML = '';
+}
+function wPlay() {
+  const ref = refOf(W.ch), a = $('#wa'); a.innerHTML = ref.map(r => `<path d="${r.d}" class="wap" pathLength="1"/>`).join('');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  [...a.children].forEach((p, i) => { p.style.strokeDasharray = 1; p.style.strokeDashoffset = reduce ? 0 : 1; if (!reduce) p.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 650, delay: i * 800, fill: 'forwards', easing: 'ease-in-out' }); });
+}
+function wSetMode(m) {
+  W.mode = m; W.strokes = []; W.graded = false; $('#wu').innerHTML = ''; wDrawGuide();
+  document.querySelectorAll('.wmodes button').forEach(b => b.classList.toggle('on', b.dataset.v === m));
+  const show = m === 'show'; $('#wsvg').classList.toggle('locked', show);
+  const cb = document.querySelector('[data-a=w-clear]'); if (cb) cb.textContent = 'Neu';
+  document.querySelectorAll('.wbtns .wdraw').forEach(b => (b.hidden = show));
+  $('#wfb').innerHTML = show ? 'Schau dir die Reihenfolge an: Zahlen zeigen den Start, Pfeile die Richtung.' : m === 'trace' ? 'Fahre die Striche der Reihe nach nach – dann „Prüfen“.' : 'Schreibe das Zeichen aus dem Kopf – dann „Prüfen“.';
+  if (show) wPlay();
+}
+function mountWriter(box, ch, { mode = 'show', modes = true, onGraded } = {}) {
+  W = { ch, mode, strokes: [], onGraded, graded: false, cur: null };
+  box.innerHTML = `<div class="writer">${modes ? `<div class="wmodes">${[['show', 'Reihenfolge'], ['trace', 'Nachzeichnen'], ['blind', 'Aus dem Kopf']].map(([v, l]) => `<button data-a="w-mode" data-v="${v}">${l}</button>`).join('')}</div>` : ''}
+    <svg id="wsvg" class="wsvg" viewBox="0 0 109 109" role="img" aria-label="Schreibfläche"><g class="wgrid"><rect x=".5" y=".5" width="108" height="108"/><path d="M54.5 0V109M0 54.5H109"/></g><g id="wg"></g><g id="wn"></g><g id="wa"></g><g id="wu"></g></svg>
+    <div class="wfb" id="wfb" aria-live="polite"></div>
+    <div class="row wbtns" style="justify-content:center"><button class="btn sm" data-a="w-play">▶ Abspielen</button><button class="btn sm wdraw" data-a="w-undo">↶ Zurück</button><button class="btn sm wdraw" data-a="w-clear">Neu</button><button class="btn sm primary wdraw" data-a="w-check">Prüfen</button></div></div>`;
+  const svg = $('#wsvg'), pt = e => { const r = svg.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * 109, y: (e.clientY - r.top) / r.height * 109 }; };
+  svg.onpointerdown = e => { if (W.mode === 'show' || W.graded) return; e.preventDefault(); svg.setPointerCapture(e.pointerId); const p = document.createElementNS(SVGNS, 'polyline'); p.setAttribute('class', 'wup'); $('#wu').appendChild(p); W.cur = { pts: [pt(e)], el: p }; };
+  svg.onpointermove = e => { if (!W.cur) return; W.cur.pts.push(pt(e)); W.cur.el.setAttribute('points', W.cur.pts.map(q => q.x.toFixed(1) + ',' + q.y.toFixed(1)).join(' ')); };
+  svg.onpointerup = svg.onpointercancel = () => {
+    if (!W.cur) return; const c = W.cur; W.cur = null;
+    const len = c.pts.reduce((s, p, i) => s + (i ? Math.hypot(p.x - c.pts[i - 1].x, p.y - c.pts[i - 1].y) : 0), 0);
+    if (len < 2.5) { c.el.remove(); return; } W.strokes.push(c.pts);
+  };
+  wSetMode(mode);
+}
+function wCheck() {
+  if (W.graded) return; if (!W.strokes.length) return toast('Zeichne zuerst das Zeichen 🙂');
+  const g = gradeWriting(W.ch, W.strokes); W.graded = true;
+  S.trace[W.ch] = Math.max(S.trace[W.ch] || 0, g.pct); if (g.pct >= PASS) S.day.write = (S.day.write || 0) + 1; markActivity();
+  const ref = refOf(W.ch); $('#wg').innerHTML = ref.map(r => `<path d="${r.d}" class="wgp"/>`).join(''); $('#wn').innerHTML = ref.map(r => wArrow(r.pts) + wNumber(r)).join('');
+  [...$('#wu').children].forEach((el, i) => { const s = g.per[i]; el.setAttribute('class', 'wup ' + (!s ? 'bad' : s.score >= .7 ? 'good' : s.score >= .4 ? 'mid' : 'bad')); });
+  const notes = []; if (g.nUser !== g.nRef) notes.push(`Du hast ${g.nUser} statt ${g.nRef} Striche gezeichnet.`);
+  g.per.forEach((s, i) => { if (s.wrongDir) notes.push(`Strich ${i + 1}: Richtung umgekehrt.`); });
+  $('#wfb').innerHTML = `<b>${gradeHtml(g.pct)}</b>${g.pct >= PASS ? ' ✔' : ''}<br><span class="small">${notes.join(' ') || (g.pct >= PASS ? 'Sauber geschrieben!' : 'Achte auf Form und Länge der Striche.')}</span>`;
+  document.querySelectorAll('.wbtns .wdraw').forEach(b => { if (b.dataset.a !== 'w-clear') b.hidden = true; }); document.querySelector('[data-a=w-clear]').textContent = 'Nochmal';
+  W.onGraded?.(g);
+}
+function openWriter(ch) {
+  const sh = $('#sheet'), k = KANA[ch], kj = KANJI_MAP[ch];
+  sh.innerHTML = `<div class="between row"><span class="chip">${k ? (k.script === 'hira' ? 'Hiragana' : 'Katakana') + ' · ' + k.r : 'Kanji · ' + esc(kj.de)}</span><button class="icon-btn" data-a="close" aria-label="Schließen">✕</button></div><div id="wbox"></div>
+    <p class="small muted" style="text-align:center;margin:6px 0 0">Bestes Ergebnis: ${S.trace[ch] != null ? gradeHtml(S.trace[ch]) : 'noch nicht geschrieben'}</p>`;
+  if (!sh.open) sh.showModal(); mountWriter($('#wbox'), ch, { mode: 'show' });
+}
+// Vollbild-Schreibübung (Folge von Zeichen)
+let WS = null;
+function startWrite(chars, { mode = 'trace', title = 'Schreiben', onDone } = {}) {
+  if (!chars.length) { toast('Noch keine Zeichen zum Schreiben.'); location.hash = backTo; return; }
+  WS = { chars, i: 0, scores: [], mode, onDone, title }; renderWriteStep();
+}
+function renderWriteStep() {
+  const ch = WS.chars[WS.i], k = KANA[ch], kj = KANJI_MAP[ch], last = WS.i === WS.chars.length - 1;
+  view.innerHTML = `<div class="ltop"><button class="icon-btn" data-a="quit" aria-label="Beenden">✕</button><div class="bar"><i style="width:${WS.i / WS.chars.length * 100}%"></i></div><span class="chip">✍️ ${WS.i + 1}/${WS.chars.length}</span></div>
+    <div class="card" style="text-align:center"><div class="row" style="justify-content:center;gap:10px"><span style="font-size:2rem">${k ? k.e : '漢'}</span><b style="font-size:1.2rem">${k ? k.r : esc(kj.de)}</b>${WS.mode === 'blind' ? '<span class="chip">aus dem Kopf</span>' : ''}</div>
+      <div id="wbox"></div></div><button class="btn primary block pin" id="wnext" data-a="w-next" style="visibility:hidden">${last ? 'Ergebnis' : 'Weiter'}</button>`;
+  mountWriter($('#wbox'), ch, { mode: WS.mode, modes: false, onGraded: g => { WS.scores[WS.i] = Math.max(WS.scores[WS.i] || 0, g.pct); $('#wnext').style.visibility = 'visible'; } });
+}
+function writeNext() {
+  if (WS.i < WS.chars.length - 1) { WS.i++; return renderWriteStep(); }
+  const avg = WS.scores.reduce((a, b) => a + b, 0) / WS.chars.length, w = WS; WS = null;
+  w.onDone ? w.onDone({ pct: avg, scores: w.scores, chars: w.chars }) : (location.hash = backTo);
+}
+
 /* ---------- Router ---------- */
 let backTo = '#/home';
 function route() {
@@ -63,13 +231,13 @@ function route() {
   const [, p1 = 'home', p2] = location.hash.split('/');
   if (!S.onboarded && p1 !== 'onboarding') { location.hash = '#/onboarding'; return; }
   rollDay();
-  const focus = ['onboarding', 'lesson', 'review', 'topic', 'wreview', 'kanji', 'kreview'].includes(p1);
-  backTo = ['topic', 'wreview'].includes(p1) ? '#/read' : ['lesson', 'kanji', 'kreview'].includes(p1) ? '#/kana' : '#/home';
+  const focus = ['onboarding', 'lesson', 'review', 'topic', 'wreview', 'kanji', 'kreview', 'stest', 'write'].includes(p1);
+  backTo = ['topic', 'wreview'].includes(p1) ? '#/read' : ['lesson', 'kanji', 'kreview', 'stest', 'write'].includes(p1) ? '#/kana' : '#/home';
   document.body.classList.toggle('focus', focus);
-  const tab = { lesson: 'kana', kanji: 'kana', kreview: 'kana', topic: 'read', wreview: 'read', review: 'kana' }[p1] || p1;
+  const tab = { lesson: 'kana', kanji: 'kana', kreview: 'kana', topic: 'read', wreview: 'read', review: 'kana', stest: 'kana', write: 'kana' }[p1] || p1;
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   const R = { home: viewHome, kana: () => viewKana(), lesson: () => startLesson(p2), review: () => startReview(p2 === 'free'), topic: () => startTopic(p2), wreview: () => startWordReview(p2 === 'free'),
-    kanji: () => startKanji(p2), kreview: () => startKanjiReview(p2 === 'free'),
+    kanji: () => startKanji(p2), kreview: () => startKanjiReview(p2 === 'free'), stest: () => scriptTest(p2 || 'hira'), write: () => writePractice(p2 || 'hira'),
     read: () => (p2 ? viewStory(p2) : viewReadList()), method: viewMethod, settings: viewSettings, onboarding: () => viewOnboarding(0) };
   (R[p1] || viewHome)(); view.scrollTo?.(0, 0);
 }
@@ -132,29 +300,44 @@ function storyWordRatio(st, kw = knownWordSet()) { // Anteil bekannter Wörter (
 }
 const lvIdx = l => LEVELS.indexOf(l);
 const tagScore = t => (S.goals.includes(t.tag) ? 1 : 0);
-function recommendedStory() {
-  const ks = knownKana(), kw = knownWordSet(), unread = STORIES.filter(s => !S.storiesRead[s.id] && lvIdx(s.lvl) >= lvIdx(S.level)), pool = unread.length ? unread : STORIES.filter(s => !S.storiesRead[s.id]).length ? STORIES.filter(s => !S.storiesRead[s.id]) : STORIES;
-  const r = S.tracks.lang ? s => storyWordRatio(s, kw) : s => storyRatio(s, ks);
-  return [...pool].sort((a, b) => lvIdx(a.lvl) - lvIdx(b.lvl) || Math.abs(r(a) - .8) - Math.abs(r(b) - .8))[0];
-}
 const countKnown = sc => GROUPS[sc].filter(g => S.groupsDone[g.id]).reduce((n, g) => n + g.kana.length, 0);
 const dueWords = () => Object.entries(S.wsrs).filter(([, v]) => v.due <= Date.now()).sort((a, b) => a[1].due - b[1].due).map(([w]) => ITEMS[w]).filter(Boolean);
-const nextTopic = () => { const open = TOPICS.filter(t => !S.topicsDone[t.id]); return [...open].filter(t => lvIdx(t.lvl) >= lvIdx(S.level)).sort((a, b) => lvIdx(a.lvl) - lvIdx(b.lvl) || tagScore(b) - tagScore(a))[0] || open[0]; };
-const nextKanjiGroup = () => { const open = KGROUPS.filter(g => !S.kanjiDone[g.id]); return open.find(g => lvIdx(g.lvl) >= lvIdx(S.level)) || open[0]; };
 
-function lvlPct(L) {
-  if (lvIdx(L) < lvIdx(S.level)) return 100;
-  let tot = 0, done = 0;
+// Fortschritt zählt nur für bestandene Tests (Themen, Kanji-Sätze, Kana-Gruppen, Geschichten)
+function lvlParts(L) {
+  const P = [];
   if (S.tracks.lang) {
-    TOPICS.filter(t => t.lvl === L).forEach(t => { tot += t.items.length; if (S.topicsDone[t.id]) done += t.items.length; });
-    STORIES.filter(x => x.lvl === L).forEach(x => { tot += 5; if (S.storiesRead[x.id]) done += 5; });
+    const ts = TOPICS.filter(t => t.lvl === L), ss = STORIES.filter(x => x.lvl === L);
+    P.push({ k: 'Themen', d: ts.filter(t => S.topicsDone[t.id]).length, t: ts.length, w: 8 }, { k: 'Geschichten', d: ss.filter(x => S.storiesRead[x.id]).length, t: ss.length, w: 5 });
   }
   if (S.tracks.script) {
-    KGROUPS.filter(g => g.lvl === L).forEach(g => { tot += g.items.length; if (S.kanjiDone[g.id]) done += g.items.length; });
-    if (L === 'N5') { tot += 71; done += (countKnown('hira') + countKnown('kata')) / 2; }
+    const gs = KGROUPS.filter(g => g.lvl === L);
+    P.push({ k: 'Kanji', d: gs.filter(g => S.kanjiDone[g.id]).length, t: gs.length, w: 5 });
+    if (L === 'N5') P.push({ k: 'Kana', d: ALL_GROUPS.filter(g => S.groupsDone[g.id]).length, t: ALL_GROUPS.length, w: 3 });
   }
-  return tot ? Math.round(done / tot * 100) : 0;
+  return P.filter(p => p.t);
 }
+function lvlPct(L) {
+  if (lvIdx(L) < lvIdx(S.level)) return 100;
+  const P = lvlParts(L), tot = P.reduce((a, p) => a + p.t * p.w, 0), done = P.reduce((a, p) => a + p.d * p.w, 0);
+  return !tot || done >= tot ? 100 : Math.min(99, Math.round(done / tot * 100));
+}
+function curLevel() { for (const L of LEVELS.slice(lvIdx(S.level))) if (lvlPct(L) < 100) return L; return 'N1'; }
+const allDone = () => curLevel() === 'N1' && lvlPct('N1') === 100;
+const unlocked = L => lvIdx(L) <= lvIdx(curLevel());
+function levelNote() {
+  const key = allDone() ? 'DONE' : curLevel(), rank = k => (k === 'DONE' ? 5 : lvIdx(k)); if (rank(key) <= rank(S.seenLevel || 'N5')) return '';
+  const prev = LEVELS[rank(key) - 1]; S.seenLevel = key; save();
+  return `<div class="levelup">${key === 'DONE' ? '🏆 Alle Stufen geschafft – 頑張りました!' : `🎉 ${prev} geschafft! ${key} ist freigeschaltet`}</div>`;
+}
+function recommendedStory() {
+  const cl = curLevel(), ks = knownKana(), kw = knownWordSet(), r = S.tracks.lang ? s => storyWordRatio(s, kw) : s => storyRatio(s, ks);
+  const open = STORIES.filter(s => !S.storiesRead[s.id] && unlocked(s.lvl)), cur = open.filter(s => s.lvl === cl), pool = cur.length ? cur : open.length ? open : STORIES.filter(s => s.lvl === cl);
+  return [...pool].sort((a, b) => Math.abs(r(a) - .8) - Math.abs(r(b) - .8))[0] || STORIES[0];
+}
+const nextTopic = () => TOPICS.filter(t => !S.topicsDone[t.id] && t.lvl === curLevel()).sort((a, b) => tagScore(b) - tagScore(a))[0];
+const nextKanjiGroup = () => KGROUPS.find(g => !S.kanjiDone[g.id] && g.lvl === curLevel());
+
 const LVC = ['var(--green)', 'var(--indigo)', 'var(--sun)', 'var(--accent)', 'var(--violet)'];
 function ring(pct, { size = 64, sw = 7, color = 'var(--accent)', inner = '' } = {}) {
   const r = (size - sw) / 2, c = 2 * Math.PI * r, h = size / 2;
@@ -168,12 +351,13 @@ function nextAction() {
   const dueK = dueKana().length, dueJ = dueKanji().length, dueW = dueWords().length;
   const review = dueK ? '#/review' : dueJ ? '#/kreview' : dueW ? '#/wreview' : knownKana().size ? '#/review/free' : Object.keys(S.wsrs).length ? '#/wreview/free' : null;
   const A_ = [];
-  if (T_.lang && !d.input) A_.push({ ic: '🎧', t: 'Geschichte hören', s: st.title, href: '#/read/' + st.id });
+  if (T_.lang && !d.input && st) A_.push({ ic: '🎧', t: 'Geschichte hören', s: st.title, href: '#/read/' + st.id });
   const kana = T_.script && !d.new && g && { ic: 'あ', t: 'Neue Kana', s: `${g.script === 'hira' ? 'Hiragana' : 'Katakana'} · ${g.title}`, href: '#/lesson/' + g.id };
   const kanji = T_.script && !d.kanji && kg && { ic: '漢', t: 'Neue Kanji', s: `${kg.lvl} · Satz ${kg.n}`, href: '#/kanji/' + kg.id };
   (S.goals.includes('jlpt') ? [kanji, kana] : [kana, kanji]).forEach(x => x && A_.push(x));
   if (T_.lang && !d.tnew && nt) A_.push({ ic: '🗣️', t: 'Neues Thema', s: `${nt.emoji} ${nt.title}`, href: '#/topic/' + nt.id });
   if (d.rev < 10 && review) A_.push({ ic: '🔁', t: 'Wiederholen', s: 'sanft & ohne Druck', href: review });
+  if (T_.script && (d.write || 0) < 3 && knownKana().size) A_.push({ ic: '✍️', t: 'Schreiben üben', s: 'Strichfolge & Note', href: '#/write/' + (knownKana().has(GROUPS[S.focus][0].kana[0].k) ? S.focus : 'hira') });
   return A_[0] || { ic: '🌿', t: 'Freies Lernen', s: 'Alle Tagesaufgaben sind erledigt', href: review || '#/read' };
 }
 
@@ -182,73 +366,97 @@ function viewHome() {
   const hr = new Date().getHours(), greet = hr < 11 ? 'Ohayou' : hr < 18 ? 'Konnichiwa' : 'Konbanwa', yest = new Date(Date.now() - DAY).toLocaleDateString('sv');
   const week = [...Array(7)].map((_, k) => { const dt = new Date(Date.now() - (6 - k) * DAY); return { day: dt.toLocaleDateString('de', { weekday: 'narrow' }), s: S.time[dt.toLocaleDateString('sv')] || 0, today: k === 6 }; });
   const g = nextGroup(), kg = nextKanjiGroup(), nt = nextTopic(), st = recommendedStory(), na = nextAction();
-  const dueAny = dueKana().length + dueKanji().length + dueWords().length;
+  const cl = curLevel(), lp = lvlPct(cl), done = allDone(), li = lvIdx(cl), parts = lvlParts(cl);
   const rev = dueKana().length ? '#/review' : dueKanji().length ? '#/kreview' : dueWords().length ? '#/wreview' : knownKana().size ? '#/review/free' : '#/read';
   const tasks = [
-    ...(T_.script ? [{ ic: 'あ', n: 'Kana', v: d.new, goal: 1, href: g ? '#/lesson/' + g.id : '#/kana' }, { ic: '漢', n: 'Kanji', v: d.kanji, goal: 1, href: kg ? '#/kanji/' + kg.id : '#/kana' }] : []),
+    ...(T_.script ? [{ ic: 'あ', n: 'Kana', v: d.new, goal: 1, href: g ? '#/lesson/' + g.id : '#/kana' }, { ic: '漢', n: 'Kanji', v: d.kanji, goal: 1, href: kg ? '#/kanji/' + kg.id : '#/kana' }, { ic: '✍️', n: 'Schreiben', v: d.write || 0, goal: 3, href: '#/write/' + S.focus }] : []),
     ...(T_.lang ? [{ ic: '🗣️', n: 'Thema', v: d.tnew, goal: 1, href: nt ? '#/topic/' + nt.id : '#/read' }, { ic: '🎧', n: 'Story', v: d.input, goal: 1, href: '#/read/' + st.id }] : []),
     { ic: '🔁', n: 'Üben', v: d.rev, goal: 10, href: rev },
   ];
   const streak = S.streak.last === todayStr() || S.streak.last === yest ? S.streak.count : 0;
   view.innerHTML = `<div class="dboard">
-    <div class="head tight"><div class="hero">${mochi({ acc: 'wave' }, 56)}<div><p class="sub">${greet}${S.name ? ', ' + esc(S.name) : ''}!</p><h1>Dashboard</h1></div></div>
+    <div class="head tight"><div class="hero">${mochi({ acc: 'wave' }, 52)}<div><p class="sub">${greet}${S.name ? ', ' + esc(S.name) : ''}!</p><h1>Dashboard</h1></div></div>
       <div class="row" style="gap:8px"><span class="chip sun">🔥 ${streak}</span><button class="icon-btn" data-a="go" data-to="settings" aria-label="Einstellungen">⚙️</button></div></div>
-    <section class="card daily"><div class="dring">${ring(pct, { size: 112, sw: 11, inner: ringText(pct + '%', 112, 26) })}</div>
-      <div class="dtxt"><span class="small muted">Tagesziel · ${S.goalMin} Min.</span>
-        <b class="big">${pct >= 100 ? 'Geschafft! 🎉' : `Noch ${100 - pct} %`}</b><span class="small muted">${fmt(secs)} von ${S.goalMin}:00 Min.</span>
-        <div class="week" aria-label="Lernzeit der letzten 7 Tage">${week.map(w => `<span class="wb ${w.today ? 'today' : ''}"><i style="height:${Math.max(6, Math.min(100, w.s / goal * 100))}%" class="${w.s >= goal ? 'full' : ''}"></i><small>${w.day}</small></span>`).join('')}</div></div></section>
-    <h3 class="sec">JLPT-Stufen <small class="muted">dein Fortschritt</small></h3>
-    <div class="lvls">${LEVELS.map((L, i) => { const p = lvlPct(L); return `<button class="lv" data-a="lvl-go" data-v="${L}" aria-label="${L}: ${p}%">${ring(p, { size: 62, sw: 7, color: LVC[i], inner: ringText(p + '%', 62, 14) })}<b>${L}</b><small class="muted">${lvIdx(L) < lvIdx(S.level) ? 'bekannt' : LEVEL_INFO[L].split(' ')[0]}</small></button>`; }).join('')}</div>
-    <h3 class="sec">Heute <small class="muted">${dueAny ? dueAny + ' zur Wiederholung' : 'Aufgaben'}</small></h3>
-    <div class="tasks">${tasks.map(t => { const p = Math.min(100, t.v / t.goal * 100); return `<a class="tk ${p >= 100 ? 'done' : ''}" href="${t.href}">${ring(p, { size: 54, sw: 6, color: p >= 100 ? 'var(--green)' : 'var(--accent)', inner: `<text x="27" y="27" text-anchor="middle" dominant-baseline="central" style="font:700 ${t.ic.length > 1 && /[a-z]/i.test(t.ic) ? 14 : 20}px var(--jp);fill:var(--ink)">${t.ic}</text>` })}<small>${t.n} <span class="muted">${Math.min(t.v, t.goal)}/${t.goal}</span></small></a>`; }).join('')}</div>
+    <div class="rings2">
+      <section class="rcard"><span class="small muted">${done ? 'Geschafft' : 'Aktuelle Stufe'}</span>${ring(lp, { size: 108, sw: 11, color: LVC[li], inner: ringText(done ? '🏆' : lp + '%', 108, done ? 34 : 26, -6) + (done ? '' : `<text x="54" y="72" text-anchor="middle" style="font:800 13px var(--ui);fill:var(--muted)">${cl}</text>`) })}
+        <b>${done ? 'N5–N1' : cl + ' · ' + LEVEL_INFO[cl]}</b><small class="muted">${done ? 'Alle Stufen bestanden' : li < 4 ? 'Danach: ' + LEVELS[li + 1] : 'Letzte Stufe'}</small></section>
+      <section class="rcard"><span class="small muted">Tagesziel · ${S.goalMin} Min.</span>${ring(pct, { size: 108, sw: 11, inner: ringText(pct + '%', 108, 26) })}
+        <b>${pct >= 100 ? 'Geschafft! 🎉' : 'Noch ' + (100 - pct) + ' %'}</b><small class="muted">${fmt(secs)} von ${S.goalMin}:00 Min.</small></section></div>
+    <div class="parts">${parts.map(p => `<span class="chip ${p.d >= p.t ? 'green' : ''}">${p.k} ${p.d}/${p.t}</span>`).join('')}</div>
+    <h3 class="sec">Heute <small class="muted">Aufgaben</small></h3>
+    <div class="tasks">${tasks.map(t => { const p = Math.min(100, t.v / t.goal * 100); return `<a class="tk ${p >= 100 ? 'done' : ''}" href="${t.href}">${ring(p, { size: 50, sw: 6, color: p >= 100 ? 'var(--green)' : 'var(--accent)', inner: `<text x="25" y="25" text-anchor="middle" dominant-baseline="central" style="font:700 ${/[a-z]/i.test(t.ic) ? 13 : 19}px var(--jp);fill:var(--ink)">${t.ic}</text>` })}<small>${t.n} <span class="muted">${Math.min(t.v, t.goal)}/${t.goal}</span></small></a>`; }).join('')}</div>
+    <div class="week" aria-label="Lernzeit der letzten 7 Tage">${week.map(w => `<span class="wb ${w.today ? 'today' : ''}"><i style="height:${Math.max(6, Math.min(100, w.s / goal * 100))}%" class="${w.s >= goal ? 'full' : ''}"></i><small>${w.day}</small></span>`).join('')}</div>
     <a class="btn primary block go" href="${na.href}"><span class="goic">${na.ic}</span><span class="gotx"><b>Weiterlernen: ${na.t}</b><small>${na.s}</small></span><span>▶</span></a></div>`;
 }
 
 /* ---------- Kana-Übersicht & Tafel ---------- */
 let kanaScript = 'hira', kanaMode = 'lessons', kanjiLvl = null, langLvl = null;
-const lvSeg = (cur, act) => `<div class="seg lv-seg">${LEVELS.map(l => `<button data-a="${act}" data-v="${l}" class="${cur === l ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+const lvSeg = (cur, act) => `<div class="seg lv-seg">${LEVELS.map(l => { const lock = !unlocked(l); return `<button data-a="${lock ? 'lvlock' : act}" data-v="${l}" class="${cur === l ? 'on' : ''} ${lock ? 'lock' : ''}">${l}${lock ? ' 🔒' : ''}</button>`; }).join('')}</div>`;
+function scriptStats(sc) {
+  if (sc === 'kanji') { const ks = KANJI.filter(k => k.lvl === kanjiLvl); return { name: 'Kanji ' + kanjiLvl, learned: ks.filter(k => S.ksrs[k.k]).length, total: ks.length, written: ks.filter(k => writtenOK(k.k)).length, test: S.scriptTest.kanji || 0, known: Object.keys(S.ksrs).length }; }
+  const all = GROUPS[sc].flatMap(g => g.kana), kn = knownKana();
+  return { name: sc === 'hira' ? 'Hiragana' : 'Katakana', learned: all.filter(k => kn.has(k.k)).length, total: all.length, written: all.filter(k => writtenOK(k.k)).length, test: S.scriptTest[sc] || 0, known: [...kn].filter(c => KANA[c].script === sc).length };
+}
+function progressCard(sc) {
+  const st = scriptStats(sc), pL = st.total ? st.learned / st.total * 100 : 0, pW = st.total ? st.written / st.total * 100 : 0;
+  const blk = (label, p, txt, col) => `<div class="pr">${ring(p, { size: 62, sw: 7, color: col, inner: ringText(txt, 62, txt.length > 3 ? 13 : 15) })}<small>${label}</small></div>`;
+  return `<div class="card pcard"><div class="prow">${blk(`Gelernt ${st.learned}/${st.total}`, pL, Math.round(pL) + '%', 'var(--green)')}${blk(`Geschrieben ${st.written}/${st.total}`, pW, Math.round(pW) + '%', 'var(--indigo)')}${blk('Bester Test', st.test, st.test ? 'Note ' + noteOf(st.test) : '–', 'var(--sun)')}</div>
+    <div class="row" style="gap:8px;justify-content:center"><button class="btn sm" data-a="stest" data-v="${sc}">📝 Test</button><button class="btn sm" data-a="wprac" data-v="${sc}">✍️ Schreiben üben</button></div></div>`;
+}
 function viewKana() {
-  kanjiLvl = kanjiLvl || S.level;
-  const nxt = nextGroup(), isK = kanaScript === 'kanji', nkg = nextKanjiGroup();
+  kanjiLvl = kanjiLvl || curLevel(); const nxt = nextGroup(), isK = kanaScript === 'kanji', nkg = nextKanjiGroup();
   let body = '';
   if (isK) {
     const gs = KGROUPS.filter(g => g.lvl === kanjiLvl), dj = dueKanji().length;
     body = kanaMode === 'lessons'
-      ? `<div class="tip"><span>💡</span><span>Kanji lernst du in Fünfer-Sätzen, immer mit einem echten Beispielwort. Du musst nichts schreiben.</span></div>
-        ${dj ? `<a class="btn block sm" style="margin-top:10px" href="#/kreview">🔁 ${dj} Kanji wiederholen</a>` : ''}<div style="height:10px"></div>
+      ? `${dj ? `<a class="btn block sm" style="margin-bottom:10px" href="#/kreview">🔁 ${dj} Kanji wiederholen</a>` : ''}
         ${gs.map(g => `<button class="gcard ${S.kanjiDone[g.id] ? 'done' : ''} ${nkg && nkg.id === g.id ? 'next' : ''}" data-a="go" data-to="kanji/${g.id}"><span class="num">${S.kanjiDone[g.id] ? '✔' : g.n}</span><span class="grow"><b>Satz ${g.n}</b><br><span class="glyphs">${g.items.map(k => k.k).join(' ')}</span></span>${nkg && nkg.id === g.id ? '<span class="chip red">empfohlen</span>' : S.kanjiDone[g.id] ? '<span class="chip green">gelernt</span>' : ''}</button>`).join('')}`
       : `<div class="chart">${KANJI.filter(k => k.lvl === kanjiLvl).map(k => { const e = S.ksrs[k.k]; return `<button class="tile ${e ? 'k' + e.box : 'lock'}" data-a="kanjiinfo" data-k="${k.k}"><span class="g">${k.k}</span><span class="r">${esc(k.de.split(' / ')[0])}</span></button>`; }).join('')}</div>`;
   } else {
     const gs = GROUPS[kanaScript];
-    body = kanaMode === 'lessons' ? `<div class="tip"><span>💡</span><span>${kanaScript === 'hira' ? 'Hiragana ist die Grundschrift für jedes japanische Wort.' : 'Katakana schreibt Fremdwörter wie コーヒー (Kaffee).'} Jede Gruppe ist frei wählbar.</span></div><div style="height:10px"></div>
-      ${gs.map(g => `<button class="gcard ${S.groupsDone[g.id] ? 'done' : ''} ${nxt && nxt.id === g.id ? 'next' : ''}" data-a="go" data-to="lesson/${g.id}"><span class="num">${S.groupsDone[g.id] ? '✔' : g.n}</span>
-        <span class="grow"><b>${g.title}</b><br><span class="glyphs">${g.kana.map(k => k.k).join(' ')}</span></span>${nxt && nxt.id === g.id ? '<span class="chip red">empfohlen</span>' : S.groupsDone[g.id] ? '<span class="chip green">gelernt</span>' : ''}</button>`).join('')}`
+    body = kanaMode === 'lessons' ? gs.map(g => `<button class="gcard ${S.groupsDone[g.id] ? 'done' : ''} ${nxt && nxt.id === g.id ? 'next' : ''}" data-a="go" data-to="lesson/${g.id}"><span class="num">${S.groupsDone[g.id] ? '✔' : g.n}</span>
+        <span class="grow"><b>${g.title}</b><br><span class="glyphs">${g.kana.map(k => k.k).join(' ')}</span></span>${nxt && nxt.id === g.id ? '<span class="chip red">empfohlen</span>' : S.groupsDone[g.id] ? '<span class="chip green">gelernt</span>' : ''}</button>`).join('')
       : `<div class="chart">${gs.flatMap(g => g.kana).map(k => { const e = S.srs[k.k]; return `<button class="tile ${e ? 'k' + e.box : 'lock'}" data-a="kana" data-k="${k.k}"><span class="g">${k.k}</span><span class="r">${k.r}</span></button>`; }).join('')}</div>`;
   }
   view.innerHTML = `<div class="head tight"><div><h1>Schrift</h1><p class="sub">Kana &amp; Kanji – unabhängig von der Sprache</p></div></div>
     <div class="seg" role="tablist"><button data-a="kscript" data-v="hira" class="${kanaScript === 'hira' ? 'on' : ''}"><span class="jp">あ</span> Hiragana</button><button data-a="kscript" data-v="kata" class="${kanaScript === 'kata' ? 'on' : ''}"><span class="jp">ア</span> Katakana</button><button data-a="kscript" data-v="kanji" class="${isK ? 'on' : ''}"><span class="jp">漢</span> Kanji</button></div>
-    ${isK ? lvSeg(kanjiLvl, 'klvl') : ''}
+    ${isK ? lvSeg(kanjiLvl, 'klvl') : ''}${progressCard(kanaScript)}
     <div class="seg"><button data-a="kmode" data-v="lessons" class="${kanaMode === 'lessons' ? 'on' : ''}">Lektionen</button><button data-a="kmode" data-v="chart" class="${kanaMode === 'chart' ? 'on' : ''}">Tafel</button></div>${body}`;
 }
 
-/* Detail-Sheet mit optionalem Nachzeichnen */
+/* Detail-Sheets */
 function openKana(ch) {
   const k = KANA[ch], sh = $('#sheet');
   sh.innerHTML = `<div class="between row"><span class="chip">${k.script === 'hira' ? 'Hiragana' : 'Katakana'} · ${k.r}</span><button class="icon-btn" data-a="close" aria-label="Schließen">✕</button></div>
     <div class="disc"><div class="glyph" style="font-size:6rem">${k.k}</div><div class="emo" style="font-size:2.6rem">${k.e}</div><p class="hook">${esc(k.h)}</p>
-    <button class="btn" data-a="say" data-t="${k.k}">🔊 Anhören</button> <button class="btn ghost" data-a="trace-toggle">✍️ Nachzeichnen (freiwillig)</button><div id="tracebox"></div></div>`;
+    <button class="btn" data-a="say" data-t="${k.k}">🔊 Anhören</button> <button class="btn primary" data-a="writer" data-k="${k.k}">✍️ Schreiben</button>${S.trace[ch] != null ? `<p class="small muted" style="margin-top:8px">Bestes Schreiben: ${gradeHtml(S.trace[ch])}</p>` : ''}</div>`;
   sh.showModal(); speak(k.k);
 }
-function initTrace(box, ch) {
-  box.innerHTML = '<canvas id="trace" width="560" height="560" aria-label="Zeichenfläche"></canvas><div class="row" style="justify-content:center"><button class="btn sm" data-a="trace-clear">Neu</button></div>';
-  const c = $('#trace'), x = c.getContext('2d');
-  const ink = () => getComputedStyle(document.documentElement).getPropertyValue('--ink');
-  const ghost = () => { x.clearRect(0, 0, 560, 560); x.font = '400 440px "Zen Maru Gothic","Noto Sans JP",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.globalAlpha = .13; x.fillStyle = ink(); x.fillText(ch, 280, 300); x.globalAlpha = 1; };
-  ghost(); c._ghost = ghost; let down = false;
-  const pos = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * 560 / r.width, (e.clientY - r.top) * 560 / r.height]; };
-  c.onpointerdown = e => { down = true; c.setPointerCapture(e.pointerId); const [px, py] = pos(e); x.beginPath(); x.moveTo(px, py); x.lineWidth = 18; x.lineCap = x.lineJoin = 'round'; x.strokeStyle = '#E8533F'; };
-  c.onpointermove = e => { if (!down) return; const [px, py] = pos(e); x.lineTo(px, py); x.stroke(); };
-  c.onpointerup = c.onpointercancel = () => { down = false; };
+function openKanji(ch) {
+  const k = KANJI_MAP[ch], sh = $('#sheet');
+  sh.innerHTML = `<div class="between row"><span class="chip">${k.lvl} · ${k.r}</span><button class="icon-btn" data-a="close" aria-label="Schließen">✕</button></div>
+    <div class="disc"><div class="glyph" style="font-size:6rem">${k.k}</div><h2>${esc(k.de)}</h2><p class="hook jp"><b>${k.ex.w}</b> ${k.ex.r} – ${esc(k.ex.d)}</p><button class="btn" data-a="say" data-t="${k.ex.w}">🔊 Anhören</button> <button class="btn primary" data-a="writer" data-k="${k.k}">✍️ Schreiben</button>${S.trace[ch] != null ? `<p class="small muted" style="margin-top:8px">Bestes Schreiben: ${gradeHtml(S.trace[ch])}</p>` : ''}</div>`;
+  sh.showModal(); speak(k.ex.w);
+}
+
+/* Tests & Schreibübungen auf der Schrift-Seite */
+function scriptTest(sc) {
+  const st = scriptStats(sc); if (st.known < 5) return toast('Lerne zuerst mindestens 5 Zeichen 🙂');
+  let core, sp = [];
+  if (sc === 'kanji') { const sel = pick(Object.keys(S.ksrs).map(k => KANJI_MAP[k]).filter(Boolean), 12); core = sel.map((k, i) => [qKMean, qKPick, qKWord][i % 3](k)); sp = canListen() ? pick(sel, 2).map(k => qSpeak({ w: k.ex.w, r: k.ex.r, d: k.ex.d })) : []; }
+  else { const sel = pick([...knownKana()].map(c => KANA[c]).filter(k => k.script === sc), 12); core = sel.map((k, i) => [qSound, qRead, qPic][i % 3](k)); sp = canListen() ? pick(knownWords().filter(w => w.script === sc), 2).map(w => qSpeak({ w: w.w, r: w.r, d: w.d })) : []; }
+  runTest({ core, speak: sp, pass: () => writePractice(sc, 'blind'), passLabel: '✍️ Schreibtest (3 Zeichen)', redo: () => scriptTest(sc),
+    onRes: res => { S.scriptTest[sc] = Math.max(S.scriptTest[sc] || 0, res.pct); markActivity(); } });
+}
+function writePractice(sc, mode = 'trace') {
+  const pool = sc === 'kanji' ? Object.keys(S.ksrs) : [...knownKana()].filter(c => KANA[c].script === sc);
+  if (!pool.length) { toast('Lerne zuerst ein paar Zeichen 🙂'); location.hash = '#/kana'; return; }
+  const chars = [...pool].sort((a, b) => (S.trace[a] ?? -1) - (S.trace[b] ?? -1) || Math.random() - .5).slice(0, mode === 'blind' ? 3 : 5);
+  writeChars(chars, mode);
+}
+function writeChars(chars, mode = 'trace') {
+  document.body.classList.add('focus');
+  startWrite(chars, { mode, onDone: res => showResult({ pct: res.pct, n: 0, right: 0, rn: 0, sn: 0 }, { note: 'Schreibübung', pass: () => (location.hash = '#/kana'), passLabel: 'Fertig', redo: () => writeChars(chars, mode), redoLabel: 'Nochmal schreiben' }) });
 }
 
 /* ---------- Quiz-Engine (ohne Zeitdruck, ohne Strafen) ---------- */
@@ -267,64 +475,116 @@ function qWord(w, pool) {
   return { kind: 'word', big: w.w, say: w.w, hint: `Lies Zeichen für Zeichen: ${[...w.w].map(c => KANA[c] ? KANA[c].r : '').join(' · ')}`, word: w,
     opts: shuffle([w, ...others]).map(o => ({ html: `<span class="oe">${o.e}</span><span>${esc(o.d)}</span>`, ok: o.w === w.w, txt: true })), explain: `<b>${w.w}</b> (${w.r}) = ${w.e} ${esc(w.d)}` };
 }
-function startQuiz(qs, onDone, topHtml = '') { Q = { qs, i: 0, right: 0, onDone, topHtml, ans: false, hint: false }; renderQuiz(); }
+function startQuiz(qs, onDone, topHtml = '', opt = {}) { Q = { qs, i: 0, right: 0, onDone, topHtml, ans: false, graded: !!opt.graded, n: 0, pts: 0, rn: 0, rpts: 0, sn: 0, spts: 0 }; renderQuiz(); }
+const TIP_RE = /<div class="tip"[\s\S]*?<\/div>/;
+const qTopHtml = () => (Q.i === 0 ? Q.topHtml : Q.topHtml.replace(TIP_RE, '')) + (Q.topHtml.includes('class="ltop"') ? '' : `<div class="ltop"><button class="icon-btn" data-a="quit" aria-label="Beenden">✕</button><div class="bar"><i style="width:${Q.i / Q.qs.length * 100}%"></i></div></div>`);
+function promptHtml(q) {
+  const ts = S.settings.textScript, big = (t, extra = '') => `<div class="wordbig">${t}</div>${extra}`;
+  const hear = `<button class="btn sm" data-a="qsay" style="margin-top:8px">🔊 Hören</button>`;
+  const hearBig = `<button class="btn" data-a="qsay" style="font-size:1.3rem;padding:18px 28px">🔊 Hören</button>`;
+  const shown = q.item ? (ts === 'romaji' ? q.item.r : q.item.w) : '';
+  switch (q.kind) {
+    case 'sound': return `${hearBig}<p class="muted small" style="margin-top:10px">${canSpeak() ? 'Welches Zeichen hörst du?' : `Klingt wie: <b>${KANA[q.kana].r}</b>`}</p>`;
+    case 'pic': return `<div class="glyph" style="font-size:clamp(3rem,10vh,4.5rem)">${q.pic}</div><p class="muted small">Welches Zeichen gehört zu diesem Bild?</p>`;
+    case 'word': return `${big(q.big)}${hear}<p class="muted small" style="margin-top:8px">Was bedeutet das Wort?</p>`;
+    case 'lsound': return `${hearBig}<p class="muted small" style="margin-top:10px">${canSpeak() ? 'Was bedeutet das, was du hörst?' : `Klingt wie: <b>${q.item.r}</b>`}</p>`;
+    case 'lword': return `${big(shown, ts === 'both' ? `<div class="muted">${q.item.r}</div>` : '')}${hear}<p class="muted small" style="margin-top:8px">Was bedeutet das?</p>`;
+    case 'kmean': return `<div class="glyph">${q.big}</div><p class="muted small">Was bedeutet dieses Zeichen?</p>`;
+    case 'kpick': return `<div class="wordbig" style="font-family:var(--ui);font-size:1.7rem">${esc(q.big)}</div><p class="muted small">Welches Zeichen ist das?</p>`;
+    case 'kword': return `${big(q.big)}${hear}<p class="muted small" style="margin-top:8px">Was bedeutet das Wort?</p>`;
+    case 'sline': return `<div class="wordbig" style="font-size:1.45rem;line-height:1.5">${ts === 'romaji' ? esc(q.romaji) : q.big}</div>${ts === 'both' ? `<div class="muted small">${esc(q.romaji)}</div>` : ''}${hear}<p class="muted small" style="margin-top:8px">Was bedeutet der Satz?</p>`;
+    case 'sword': return `${big(ts === 'romaji' ? q.ro : q.big, ts === 'both' ? `<div class="muted">${esc(q.ro)}</div>` : '')}${hear}<p class="muted small" style="margin-top:8px">Was bedeutet das Wort?</p>`;
+    default: return `<div class="glyph">${q.big}</div><p class="muted small">Wie klingt dieses Zeichen?</p>`;
+  }
+}
 function renderQuiz() {
-  const q = Q.qs[Q.i], total = Q.qs.length;
-  const romajiVisible = q.kind === 'sound' && !canSpeak();
-  const ts = S.settings.textScript, shown = q.item ? (ts === 'romaji' ? q.item.r : q.item.w) : '';
-  const prompt = q.kind === 'kmean' ? `<div class="glyph">${q.big}</div><p class="muted small">Was bedeutet dieses Zeichen?</p>`
-    : q.kind === 'kpick' ? `<div class="wordbig" style="font-family:var(--ui);font-size:1.7rem">${esc(q.big)}</div><p class="muted small">Welches Zeichen ist das?</p>`
-    : q.kind === 'kword' ? `<div class="wordbig">${q.big}</div><button class="btn sm" data-a="qsay" style="margin-top:8px">🔊 Hören</button><p class="muted small" style="margin-top:8px">Was bedeutet das Wort?</p>`
-    : q.kind === 'lsound' ? `<button class="btn" data-a="qsay" style="font-size:1.3rem;padding:18px 28px">🔊 Hören</button><p class="muted small" style="margin-top:10px">${canSpeak() ? 'Was bedeutet das, was du hörst?' : `Klingt wie: <b>${q.item.r}</b>`}</p>`
-    : q.kind === 'lword' ? `<div class="wordbig">${shown}</div>${ts === 'both' ? `<div class="muted">${q.item.r}</div>` : ''}<button class="btn sm" data-a="qsay" style="margin-top:8px">🔊 Hören</button><p class="muted small" style="margin-top:8px">Was bedeutet das?</p>`
-    : q.kind === 'sound' ? `<button class="btn" data-a="qsay" style="font-size:1.3rem;padding:18px 28px">🔊 Hören</button><p class="muted small" style="margin-top:10px">${romajiVisible ? `Klingt wie: <b>${KANA[q.kana].r}</b>` : 'Welches Zeichen hörst du?'}</p>`
-    : q.kind === 'pic' ? `<div class="glyph" style="font-size:5rem">${q.pic}</div><p class="muted small">Welches Zeichen gehört zu diesem Bild?</p>`
-    : q.kind === 'word' ? `<div class="wordbig">${q.big}</div><button class="btn sm" data-a="qsay">🔊 Hören</button><p class="muted small" style="margin-top:8px">Was bedeutet das Wort?</p>`
-    : `<div class="glyph">${q.big}</div><p class="muted small">Wie klingt dieses Zeichen?</p>`;
-  view.innerHTML = `${Q.i === 0 ? Q.topHtml : Q.topHtml.replace(/<div class="tip"[\s\S]*?<\/div>/, '')}${Q.topHtml.includes('class="ltop"') ? '' : `<div class="ltop"><button class="icon-btn" data-a="quit" aria-label="Beenden">✕</button><div class="bar"><i style="width:${Q.i / total * 100}%"></i></div></div>`}
-    <div class="card"><div class="prompt">${prompt}</div>
+  const q = Q.qs[Q.i];
+  if (q.kind === 'speak') return renderSpeak(q);
+  view.innerHTML = `${qTopHtml()}<div class="card"><div class="prompt">${promptHtml(q)}</div>
       <div class="opts ${q.opts[0].txt ? 'col1' : ''}">${q.opts.map((o, i) => `<button class="opt ${o.txt ? 'txt' : ''}" data-a="ans" data-i="${i}">${o.html}</button>`).join('')}</div>
       <div class="fb" id="fb" aria-live="polite"></div>
       <div class="row between"><button class="btn sm ghost" data-a="hint">💡 Tipp</button><button class="btn primary" id="nxt" data-a="qnext" style="visibility:hidden">Weiter</button></div></div>`;
   Q.ans = false; if (q.kind === 'sound' || q.kind === 'lsound') setTimeout(() => speak(q.say), 250);
+}
+const qSpeak = target => ({ kind: 'speak', target, say: target.w, noscore: true });
+function renderSpeak(q) {
+  const ts = S.settings.textScript, t = q.target, shown = ts === 'romaji' ? t.r : t.w;
+  view.innerHTML = `${qTopHtml()}<div class="card"><div class="prompt"><span class="chip">🎤 Aussprache · freiwillig</span><div class="wordbig" style="margin-top:8px">${esc(shown)}</div>${ts === 'both' ? `<div class="muted">${esc(t.r)}</div>` : ''}<p class="muted small">${t.d ? esc(t.d) : ''}</p>
+    <div class="row" style="justify-content:center;gap:10px"><button class="btn" data-a="qsay">🔊 Vorsprechen</button><button class="btn primary" id="mic" data-a="sp-rec">🎤 Aufnehmen</button></div></div>
+    <div class="fb" id="fb" aria-live="polite">Sprich das Wort nach. Deine Aussprache wird erkannt und benotet – das zählt nicht fürs Bestehen.</div>
+    <div class="row between"><button class="btn sm ghost" data-a="sp-skip">Überspringen</button><button class="btn primary" id="nxt" data-a="qnext" style="visibility:hidden">Weiter</button></div></div>`;
+  Q.ans = false; Q.listening = false;
+}
+async function recordSpeech() {
+  if (!Q || Q.ans || Q.listening) return; const q = Q.qs[Q.i], mic = $('#mic'), fb = $('#fb'); Q.listening = true; Q.ctl = {};
+  mic.textContent = '🎙️ Ich höre zu …'; mic.classList.add('rec'); fb.className = 'fb'; fb.textContent = 'Sprich jetzt …';
+  try {
+    const alts = await listen(Q.ctl), pct = speechScore(q.target, alts); if (!Q) return;
+    Q.ans = true; Q.sn++; Q.spts += pct / 100; fb.className = 'fb ' + (pct >= PASS ? 'ok' : 'no');
+    fb.innerHTML = `Erkannt: <b>${esc(alts[0])}</b><br>Aussprache: ${gradeHtml(pct)}`; mic.textContent = '🎤 Aufgenommen'; mic.disabled = true; $('#nxt').style.visibility = 'visible';
+  } catch (e) {
+    if (!Q) return; mic.textContent = '🎤 Nochmal'; fb.className = 'fb no';
+    fb.textContent = /not-allowed|service/.test(e) ? 'Das Mikrofon ist nicht erlaubt. Erlaube es in den Browser-Einstellungen oder überspringe die Aufgabe.' : e === 'network' ? 'Die Spracherkennung ist gerade nicht erreichbar. Du kannst überspringen.' : 'Ich habe nichts verstanden – tippe nochmal auf 🎤.';
+  } finally { if (Q) { Q.listening = false; mic.classList.remove('rec'); } }
 }
 function answer(i) {
   if (Q.ans) return; Q.ans = true; const q = Q.qs[Q.i], btns = [...view.querySelectorAll('.opt')], ok = q.opts[i].ok;
   btns.forEach((b, j) => { b.disabled = true; if (q.opts[j].ok) b.classList.add(ok || j === i ? 'good' : 'soft'); else if (j !== i) b.classList.add('dim'); });
   const fb = $('#fb');
   if (ok) { Q.right++; fb.className = 'fb ok'; fb.innerHTML = `${OK_MSG[Math.random() * OK_MSG.length | 0]}<br><span class="small">${q.explain}</span>`; }
-  else { fb.className = 'fb no'; fb.innerHTML = `Fast! 🌱 ${q.explain}.<br><span class="small muted">Kein Problem – das kommt gleich nochmal vorbei.</span>`; if (!q.retry) Q.qs.push({ ...q, retry: true, opts: shuffle(q.opts) }); }
-  if (q.kana) Q.onResult?.(q.kana, ok);
-  if (q.wkey) Q.onWResult?.(q.wkey, ok);
-  if (q.kkey) Q.onKResult?.(q.kkey, ok);
-  if (Q.isRev) { S.day.rev++; save(); }
+  else { fb.className = 'fb no'; fb.innerHTML = `Fast! 🌱 ${q.explain}.<br><span class="small muted">Kein Problem – das kommt gleich nochmal vorbei.</span>`; if (!q.retry) Q.qs.splice(Math.min(Q.qs.length, Q.i + 3), 0, { ...q, retry: true, opts: shuffle(q.opts) }); }
+  if (!q.retry) {
+    if (Q.graded) { if (q.review) { Q.rn++; if (ok) Q.rpts++; } else { Q.n++; if (ok) Q.pts++; } }
+    if (q.kana) Q.onResult?.(q.kana, ok); if (q.wkey) Q.onWResult?.(q.wkey, ok); if (q.kkey) Q.onKResult?.(q.kkey, ok);
+    if (Q.isRev) { S.day.rev++; save(); }
+  }
   speak(q.say);
   const n = $('#nxt'); n.style.visibility = 'visible'; n.focus();
 }
-function qnext() { Q.i++; if (Q.i >= Q.qs.length) { const f = Q.onDone; Q = null; f(); } else renderQuiz(); }
+function quizResult() { return { pct: Q.n ? Q.pts / Q.n * 100 : 100, n: Q.n, right: Q.pts, rn: Q.rn, rright: Q.rpts, sn: Q.sn, spct: Q.sn ? Q.spts / Q.sn * 100 : 0 }; }
+function qnext() { Q.i++; if (Q.i >= Q.qs.length) { const f = Q.onDone, res = quizResult(); Q = null; f(res); } else renderQuiz(); }
 
-/* ---------- Lektion: Entdecken → Zuordnen → Hören → Lesen ---------- */
-const STAGES = [['Entdecken', 'Schauen und Hören – noch ohne Test. Erst verstehen, dann erinnern (Input zuerst).'], ['Zuordnen', 'Verknüpfe Zeichen und Bild. Bilder + Klang bleiben besonders gut hängen.'], ['Hören', 'Welches Zeichen hörst du? Fehler sind okay – du bekommst einfach einen Hinweis.'], ['Wörter lesen', 'Jetzt liest du echte Wörter – mit den Zeichen, die du gerade kennengelernt hast.']];
+/* ---------- Tests: erst lernen, dann abfragen, dazu Wiederholungen ---------- */
+const pickReview = (items, store, key, n) => { const due = items.filter(x => store[key(x)] && store[key(x)].due <= Date.now()); return [...shuffle(due), ...shuffle(items.filter(x => !due.includes(x)))].slice(0, n); };
+let RES = null;
+function runTest({ core, review = [], speak: sp = [], top = '', pass, redo, relearn, passLabel, onRes }) {
+  startQuiz([...shuffle([...core, ...review.map(q => ({ ...q, review: true }))]), ...sp], res => { onRes?.(res); showResult(res, { pass, redo, relearn, passLabel }); }, top, { graded: true });
+  Q.onResult = (k, ok) => { if (S.srs[k]) rate(k, ok); };
+  Q.onWResult = (w, ok) => { if (S.wsrs[w]) rate(w, ok, 'wsrs'); };
+  Q.onKResult = (k, ok) => { if (S.ksrs[k]) rate(k, ok, 'ksrs'); };
+}
+function showResult(res, o) {
+  const pass = res.pct >= PASS; RES = { o, res }; document.body.classList.add('focus');
+  const lines = [res.n ? `Neu gelernt: ${Math.round(res.right)} von ${res.n} richtig` : '', res.rn ? `Wiederholung: ${Math.round(res.rright)} von ${res.rn} richtig` : '', res.sn ? `Aussprache: ${gradeHtml(res.spct)}` : '', o.note || ''].filter(Boolean);
+  view.innerHTML = `<div class="party card"><div class="art">${ring(res.pct, { size: 112, sw: 11, color: pass ? 'var(--green)' : 'var(--sun)', inner: ringText('Note ' + noteOf(res.pct), 112, 22) })}</div>
+    <h2>${pass ? 'Bestanden! 🎉' : 'Noch nicht ganz 🌱'}</h2><p>${gradeHtml(res.pct)}</p><p class="small muted">${lines.join('<br>')}</p>
+    ${pass ? '' : `<p class="small">Zum Bestehen brauchst du mindestens Note 3 (${PASS} %). Dein Fortschritt zählt erst nach bestandenem Test.</p>`}</div>
+    ${pass ? `<button class="btn primary block" data-a="res-pass">${o.passLabel || 'Weiter'}</button>` : `<button class="btn primary block" data-a="res-redo">${o.redoLabel || 'Test wiederholen'}</button>${o.relearn ? '<div style="height:10px"></div><button class="btn block" data-a="res-relearn">Nochmal lernen</button>' : ''}`}
+    <div style="height:10px"></div><a class="btn ghost block" href="#/home">Später</a>`;
+}
+
+/* ---------- Lektion: Entdecken → Zuordnen → Test ---------- */
+const STAGES = [['Entdecken', 'Schauen und Hören – noch ohne Test. Erst verstehen, dann erinnern (Input zuerst).'], ['Zuordnen', 'Verknüpfe Zeichen und Bild. Bilder + Klang bleiben besonders gut hängen.'], ['Test', 'Jetzt zeigst du, was hängen geblieben ist – dazu ein paar Wiederholungen von früher.']];
 let L = null;
 function startLesson(gid) {
   const g = ALL_GROUPS.find(x => x.id === gid); if (!g) { location.hash = '#/kana'; return; }
   L = { g, stage: 0, i: 0, sel: null, matched: new Set() }; renderLesson();
 }
-const lessonTop = () => `<div class="ltop"><button class="icon-btn" data-a="quit" aria-label="Beenden">✕</button><div class="bar"><i style="width:${L.stage / 4 * 100}%"></i></div><span class="chip">${L.g.script === 'hira' ? 'あ' : 'ア'} ${L.g.title}</span></div>`;
-const stageTip = () => `<div class="tip" style="margin-bottom:14px"><span>💡</span><span><b>${STAGES[L.stage][0]}.</b> ${STAGES[L.stage][1]}</span></div>`;
+const lessonTop = () => `<div class="ltop"><button class="icon-btn" data-a="quit" aria-label="Beenden">✕</button><div class="bar"><i style="width:${L.stage / 3 * 100}%"></i></div><span class="chip">${L.g.script === 'hira' ? 'あ' : 'ア'} ${L.g.title}</span></div>`;
+const stageTip = () => `<div class="tip"><span>💡</span><span><b>${STAGES[L.stage][0]}.</b> ${STAGES[L.stage][1]}</span></div>`;
 function renderLesson() {
   if (L.stage === 0) {
     const k = L.g.kana[L.i];
     view.innerHTML = `${lessonTop()}${L.i === 0 ? stageTip() : ''}<div class="card disc"><span class="chip">${L.i + 1} / ${L.g.kana.length}</span><div class="glyph">${k.k}</div><div class="emo" key="${k.k}">${k.e}</div><p class="hook">${esc(k.h)}</p>
-      <div class="romaji">${S.settings.romaji || !canSpeak() ? k.r : '🔊'}</div><div class="row" style="justify-content:center"><button class="btn" data-a="say" data-t="${k.k}">🔊 Nochmal hören</button><button class="btn ghost" data-a="kana" data-k="${k.k}">✍️ Nachzeichnen</button></div></div>
+      <div class="romaji">${S.settings.romaji || !canSpeak() ? k.r : '🔊'}</div><div class="row" style="justify-content:center"><button class="btn" data-a="say" data-t="${k.k}">🔊 Hören</button><button class="btn" data-a="writer" data-k="${k.k}">✍️ Schreiben</button></div></div>
       <div class="dotsrow">${L.g.kana.map((_, j) => `<i class="${j <= L.i ? 'on' : ''}"></i>`).join('')}</div>
-      <button class="btn primary block" data-a="disc-next">${L.i === L.g.kana.length - 1 ? 'Zum Zuordnen' : 'Weiter'}</button>`;
+      <button class="btn primary block pin" data-a="disc-next">${L.i === L.g.kana.length - 1 ? 'Zum Zuordnen' : 'Weiter'}</button>`;
     setTimeout(() => speak(k.k), 200);
   } else if (L.stage === 1) {
     if (!L.cols) L.cols = [shuffle(L.g.kana), shuffle(L.g.kana)];
     const done = L.matched.size === L.g.kana.length;
     view.innerHTML = `${lessonTop()}${stageTip()}<div class="card"><div class="pairs">${[0, 1].map(side => `<div class="stack" style="display:grid;gap:10px">${L.cols[side].map(k => `<button class="tile ${L.matched.has(k.k) ? 'ok' : ''} ${L.sel && L.sel.side === side && L.sel.k === k.k ? 'sel' : ''}" data-a="pair" data-side="${side}" data-k="${k.k}" ${side ? `aria-label="Bild zu ${k.r}"` : ''}><span class="g">${side ? k.e : k.k}</span></button>`).join('')}</div>`).join('')}</div></div>
-      ${done ? '<button class="btn primary block" data-a="stage-next">Weiter zum Hören</button>' : '<p class="muted small" style="text-align:center">Tippe ein Zeichen und dann das passende Bild.</p>'}`;
+      ${done ? '<button class="btn primary block pin" data-a="stage-next">Weiter zum Test</button>' : '<p class="muted small" style="text-align:center">Tippe ein Zeichen und dann das passende Bild.</p>'}`;
   }
 }
 function pair(side, k) {
@@ -334,29 +594,26 @@ function pair(side, k) {
   if (L.sel.k === k) { L.matched.add(k); L.sel = null; renderLesson(); speak(k); }
   else { const bad = [...view.querySelectorAll('.tile')].filter(t => t.dataset.k === k || t.dataset.k === L.sel.k); bad.forEach(t => t.classList.add('shake')); L.sel = null; setTimeout(renderLesson, 380); }
 }
-function stageNext() {
-  L.stage++; L.i = 0;
-  if (L.stage === 1) return renderLesson();
-  if (L.stage === 2) {
-    const ks = L.g.kana, qs = shuffle([...ks.map(k => qSound(k, ks)), ...ks.map(k => qPic(k, ks)), ...ks.map(k => qRead(k, ks))]).slice(0, Math.max(8, ks.length * 2));
-    return startQuiz(qs, stageNext, lessonTop() + stageTip());
-  }
-  if (L.stage === 3) {
-    const ks = new Set([...knownKana(), ...L.g.kana.map(k => k.k)]), ws = knownWords(ks), mine = ws.filter(w => w.chars.some(c => L.g.kana.some(k => k.k === c)));
-    if (mine.length < 2) return finishLesson();
-    return startQuiz(pick(mine, 6).map(w => qWord(w, ws.length >= 3 ? ws : WORDS)), finishLesson, lessonTop() + stageTip());
-  }
+function stageNext() { L.stage++; L.i = 0; if (L.stage === 1) return renderLesson(); kanaTest(); }
+function kanaTest() {
+  L.stage = 2; const ks = L.g.kana, kn = new Set([...knownKana(), ...ks.map(k => k.k)]), ws = knownWords(kn);
+  const mine = ws.filter(w => w.chars.some(c => ks.some(k => k.k === c))), pool = ws.length >= 3 ? ws : WORDS;
+  const core = [...ks.map(k => qSound(k, ks)), ...ks.map((k, i) => (i % 2 ? qRead(k, ks) : qPic(k, ks))), ...pick(mine, 3).map(w => qWord(w, pool))];
+  const rev = pickReview([...knownKana()].map(c => KANA[c]).filter(k => !ks.includes(k)), S.srs, k => k.k, 4).map((k, i) => (i % 2 ? qRead(k) : qSound(k)));
+  const sp = canListen() ? pick(mine, 2).map(w => qSpeak({ w: w.w, r: w.r, d: w.d })) : [];
+  runTest({ core, review: rev, speak: sp, top: lessonTop() + stageTip(), pass: finishLesson, redo: kanaTest, relearn: () => { L.stage = 0; L.i = 0; L.cols = null; L.matched = new Set(); renderLesson(); } });
 }
 function finishLesson() {
   const g = L.g, first = !S.groupsDone[g.id]; S.groupsDone[g.id] = true;
   g.kana.forEach(k => { if (!S.srs[k.k]) S.srs[k.k] = { box: 1, due: Date.now() + 18 * 36e5 }; });
-  markActivity('new'); const nxt = nextGroup(), ws = knownWords();
+  markActivity('new'); const nxt = nextGroup(), ws = knownWords(), note = levelNote(), chars = g.kana.map(k => k.k);
   document.body.classList.add('focus');
-  view.innerHTML = `<div class="party card"><div class="art">${mochi({ acc: 'cheer', mood: 'cheer' }, 130)}</div><h1>${first ? 'Gruppe geschafft! 🎉' : 'Schön wiederholt! 🌸'}</h1>
+  view.innerHTML = `<div class="party card"><div class="art">${mochi({ acc: 'cheer', mood: 'cheer' }, 110)}</div>${note}<h1>${first ? 'Gruppe gelernt! 🎉' : 'Schön wiederholt! 🌸'}</h1>
     <p class="jp" style="font-size:2rem;font-weight:700">${g.kana.map(k => k.k).join(' ')}</p>
-    <p>Du kannst jetzt <b>${ws.length}</b> Wörter lesen. Die Zeichen kommen morgen sanft zur Wiederholung zurück – ganz ohne Stress.</p></div>
+    <p>Du kannst jetzt <b>${ws.length}</b> Wörter lesen. Die Zeichen kommen sanft zur Wiederholung zurück.</p></div>
+    <button class="btn block" data-a="write-chars" data-c="${chars.join('')}">✍️ Jetzt schreiben üben</button><div style="height:10px"></div>
     ${nxt && nxt.id !== g.id ? `<a class="btn primary block" href="#/lesson/${nxt.id}">Weiter: ${nxt.title}</a><div style="height:10px"></div>` : ''}
-    <a class="btn block" href="#/read/${recommendedStory().id}">🎧 Eine Geschichte lesen</a><div style="height:10px"></div><a class="btn ghost block" href="#/home">Zurück zum Dashboard</a>`;
+    <a class="btn ghost block" href="#/home">Zurück zum Dashboard</a>`;
   L = null;
 }
 
@@ -382,32 +639,43 @@ const lq = (it, kind) => {
   return { kind, say: it.w, wkey: it.w, item: it, hint: `${it.r}${S.settings.textScript === 'romaji' ? '' : ' · ' + it.w}`,
     opts: shuffle([it, ...others]).map(o => ({ html: `<span class="oe">${o.e}</span><span>${esc(o.d)}</span>`, ok: o.w === it.w, txt: true })), explain: `${it.e} <b>${it.r}</b> = ${esc(it.d)}` };
 };
-const TSTAGES = [['Entdecken', 'Nimm Bedeutung über Bild und Klang auf – noch ohne Test. Verstehen kommt vor Erinnern.'], ['Hören & verstehen', 'Ordne dem Klang eine Bedeutung zu. Raten ist erlaubt, Fehler kosten nichts.'], ['Wörter erkennen', 'Jetzt siehst du die Wörter – erkennst du sie wieder?']];
+const TSTAGES = [['Entdecken', 'Nimm Bedeutung über Bild und Klang auf – noch ohne Test. Verstehen kommt vor Erinnern.'], ['Üben', 'Ordne dem Klang eine Bedeutung zu. Raten ist erlaubt, Fehler kosten nichts.'], ['Test', 'Jetzt die Abfrage – dazu ein paar Wörter von früher.']];
 const topicTop = () => `<div class="ltop"><button class="icon-btn" data-a="quit" aria-label="Beenden">✕</button><div class="bar"><i style="width:${T.stage / 3 * 100}%"></i></div><span class="chip">${T.t.emoji} ${T.t.title}</span></div>`;
-const topicTip = () => `<div class="tip" style="margin-bottom:14px"><span>💡</span><span><b>${TSTAGES[T.stage][0]}.</b> ${TSTAGES[T.stage][1]}</span></div>`;
+const topicTip = () => `<div class="tip"><span>💡</span><span><b>${TSTAGES[T.stage][0]}.</b> ${TSTAGES[T.stage][1]}</span></div>`;
 function startTopic(id) {
   const t = TOPICS.find(x => x.id === id); if (!t) { location.hash = '#/read'; return; }
+  if (!unlocked(t.lvl)) { toast(`Schließe zuerst ${curLevel()} ab 🔒`); location.hash = '#/home'; return; }
   T = { t, stage: 0, i: 0, items: t.items.map(([w, r, d, e]) => ({ w, r, d, e })) }; renderTopic();
 }
 function renderTopic() {
   const it = T.items[T.i], ts = S.settings.textScript;
-  view.innerHTML = `${topicTop()}${T.i === 0 ? topicTip() : ''}<div class="card disc"><span class="chip">${T.i + 1} / ${T.items.length}</span><div class="emo" style="font-size:5.5rem">${it.e}</div>
-    <div class="wordbig jp" style="font-size:2.6rem;font-weight:700">${ts === 'romaji' ? it.r : it.w}</div>${ts === 'both' ? `<div class="romaji">${it.r}</div>` : ''}<p class="hook"><b>${esc(it.d)}</b></p>
+  view.innerHTML = `${topicTop()}${T.i === 0 ? topicTip() : ''}<div class="card disc"><span class="chip">${T.i + 1} / ${T.items.length}</span><div class="emo" style="font-size:clamp(3rem,10vh,5rem)">${it.e}</div>
+    <div class="wordbig jp" style="font-size:2.4rem;font-weight:700">${ts === 'romaji' ? it.r : it.w}</div>${ts === 'both' ? `<div class="romaji">${it.r}</div>` : ''}<p class="hook"><b>${esc(it.d)}</b></p>
     <button class="btn" data-a="say" data-t="${it.w}">🔊 Nochmal hören</button></div>
     <div class="dotsrow">${T.items.map((_, j) => `<i class="${j <= T.i ? 'on' : ''}"></i>`).join('')}</div>
-    <button class="btn primary block" data-a="t-next">${T.i === T.items.length - 1 ? 'Zum Hören' : 'Weiter'}</button>`;
+    <button class="btn primary block pin" data-a="t-next">${T.i === T.items.length - 1 ? 'Zum Üben' : 'Weiter'}</button>`;
   setTimeout(() => speak(it.w), 200);
 }
 function topicNext() {
   if (T.stage === 0) { if (T.i < T.items.length - 1) { T.i++; return renderTopic(); } T.stage = 1; return startQuiz(shuffle(T.items.map(it => lq(it, 'lsound'))), topicNext, topicTop() + topicTip()); }
-  if (T.stage === 1) { T.stage = 2; return startQuiz(shuffle(T.items.map(it => lq(it, 'lword'))), topicNext, topicTop() + topicTip()); }
+  T.stage = 2; topicTest();
+}
+function topicTest() {
+  T.stage = 2; const items = T.items;
+  const core = items.map((it, i) => lq(it, i % 2 ? 'lword' : 'lsound'));
+  const rev = pickReview(Object.keys(S.wsrs).map(w => ITEMS[w]).filter(x => x && !items.some(i => i.w === x.w)), S.wsrs, x => x.w, 3).map((it, i) => lq(it, i % 2 ? 'lsound' : 'lword'));
+  const sp = canListen() ? pick(items, 2).map(it => qSpeak(it)) : [];
+  runTest({ core, review: rev, speak: sp, top: topicTop() + topicTip(), pass: topicFinish, redo: topicTest, relearn: () => { T.stage = 0; T.i = 0; renderTopic(); } });
+}
+function topicFinish() {
   const t = T.t; S.topicsDone[t.id] = true; T.items.forEach(it => { if (!S.wsrs[it.w]) S.wsrs[it.w] = { box: 1, due: Date.now() + 18 * 36e5 }; });
-  markActivity('tnew'); const nt = nextTopic(), st = recommendedStory(); T = null;
-  view.innerHTML = `<div class="party card"><div class="art">${mochi({ acc: 'cheer', mood: 'cheer' }, 130)}</div><h1>Thema geschafft! 🎉</h1><p style="font-size:2.2rem">${t.emoji}</p>
-    <p>Diese Wörter kommen morgen sanft zur Wiederholung zurück. Wörter, die du schon kennst, erkennst du in Geschichten sofort wieder.</p></div>
+  markActivity('tnew'); const nt = nextTopic(), st = recommendedStory(), note = levelNote(); T = null; document.body.classList.add('focus');
+  view.innerHTML = `<div class="party card"><div class="art">${mochi({ acc: 'cheer', mood: 'cheer' }, 110)}</div>${note}<h1>Thema gelernt! 🎉</h1><p style="font-size:2.2rem;margin:0">${t.emoji}</p>
+    <p>Diese Wörter kommen sanft zur Wiederholung zurück. In Geschichten erkennst du sie wieder.</p></div>
     ${nt ? `<a class="btn primary block" href="#/topic/${nt.id}">Weiter: ${nt.emoji} ${nt.title}</a><div style="height:10px"></div>` : ''}
     <a class="btn block" href="#/read/${st.id}">🎧 Eine Geschichte hören</a><div style="height:10px"></div><a class="btn ghost block" href="#/home">Zurück zum Dashboard</a>`;
 }
+
 function startWordReview(free) {
   const all = Object.keys(S.wsrs).map(w => ITEMS[w]).filter(Boolean);
   if (!all.length) { view.innerHTML = `<div class="card party">${mochi({}, 110)}<h2>Noch nichts zu wiederholen</h2><p>Lerne zuerst ein Thema – dann tauchen die Wörter hier auf.</p><a class="btn primary" href="#/read">Zu den Themen</a></div>`; return; }
@@ -428,32 +696,44 @@ const qKMean = kj => ({ kind: 'kmean', big: kj.k, say: kj.ex.w, kkey: kj.k, hint
 const qKPick = kj => ({ kind: 'kpick', big: kj.de, say: kj.ex.w, kkey: kj.k, hint: `Lesung: ${kj.r} · ${exLine(kj)}`, opts: shuffle([kj, ...kPool(kj).slice(0, 3)]).map(o => ({ html: o.k, ok: o.k === kj.k })), explain: `${esc(kj.de)} = <b>${kj.k}</b> (${kj.r})` });
 const qKWord = kj => { const others = kPool(kj).filter(x => x.ex.d !== kj.ex.d).slice(0, 2);
   return { kind: 'kword', big: kj.ex.w, say: kj.ex.w, kkey: kj.k, hint: `${kj.ex.r} – enthält ${kj.k} (${esc(kj.de)})`, opts: shuffle([kj, ...others]).map(o => ({ html: `<span>${esc(o.ex.d)}</span>`, ok: o.k === kj.k, txt: true })), explain: `<b>${kj.ex.w}</b> (${kj.ex.r}) = ${esc(kj.ex.d)}` }; };
-const KSTAGES = [['Entdecken', 'Sieh dir Zeichen und Beispielwort an. Die Bedeutung kommt über den Kontext – noch kein Test.'], ['Erkennen', 'Ordne Zeichen und Bedeutung zu. Raten ist erlaubt.'], ['Im Wort', 'Jetzt siehst du das Zeichen in einem echten Wort.']];
+const KSTAGES = [['Entdecken', 'Sieh dir Zeichen und Beispielwort an. Die Bedeutung kommt über den Kontext – noch kein Test.'], ['Üben', 'Ordne Zeichen und Bedeutung zu. Raten ist erlaubt.'], ['Test', 'Jetzt die Abfrage – dazu ein paar Kanji von früher.']];
 const kTop = () => `<div class="ltop"><button class="icon-btn" data-a="quit" aria-label="Beenden">✕</button><div class="bar"><i style="width:${J.stage / 3 * 100}%"></i></div><span class="chip">漢 ${J.g.lvl} · Satz ${J.g.n}</span></div>`;
 const kTip = () => `<div class="tip"><span>💡</span><span><b>${KSTAGES[J.stage][0]}.</b> ${KSTAGES[J.stage][1]}</span></div>`;
 function startKanji(id) {
   const g = KGROUPS.find(x => x.id === id); if (!g) { location.hash = '#/kana'; return; }
+  if (!unlocked(g.lvl)) { toast(`Schließe zuerst ${curLevel()} ab 🔒`); location.hash = '#/home'; return; }
   kanaScript = 'kanji'; kanjiLvl = g.lvl; J = { g, stage: 0, i: 0 }; renderKanji();
 }
 function renderKanji() {
   const k = J.g.items[J.i];
   view.innerHTML = `${kTop()}${J.i === 0 ? kTip() : ''}<div class="card disc"><span class="chip">${J.i + 1} / ${J.g.items.length}</span><div class="glyph">${k.k}</div><h2 style="margin:.1em 0">${esc(k.de)}</h2>
     <div class="romaji" style="font-size:1.05rem">${k.r}</div><p class="hook jp"><b>${k.ex.w}</b> <span class="muted" style="font-family:var(--ui)">${k.ex.r}</span><br><span style="font-family:var(--ui)">${esc(k.ex.d)}</span></p>
-    <button class="btn" data-a="say" data-t="${k.ex.w}">🔊 Beispielwort hören</button></div>
+    <div class="row" style="justify-content:center"><button class="btn" data-a="say" data-t="${k.ex.w}">🔊 Hören</button><button class="btn" data-a="writer" data-k="${k.k}">✍️ Schreiben</button></div></div>
     <div class="dotsrow">${J.g.items.map((_, j) => `<i class="${j <= J.i ? 'on' : ''}"></i>`).join('')}</div>
-    <button class="btn primary block pin" data-a="k-next">${J.i === J.g.items.length - 1 ? 'Zum Erkennen' : 'Weiter'}</button>`;
+    <button class="btn primary block pin" data-a="k-next">${J.i === J.g.items.length - 1 ? 'Zum Üben' : 'Weiter'}</button>`;
   setTimeout(() => speak(k.ex.w), 200);
 }
 function kanjiNext() {
   const it = J.g.items;
   if (J.stage === 0) { if (J.i < it.length - 1) { J.i++; return renderKanji(); } J.stage = 1; return startQuiz(shuffle([...it.map(qKMean), ...it.map(qKPick)]), kanjiNext, kTop() + kTip()); }
-  if (J.stage === 1) { J.stage = 2; return startQuiz(shuffle(it.map(qKWord)), kanjiNext, kTop() + kTip()); }
+  kanjiTest();
+}
+function kanjiTest() {
+  J.stage = 2; const it = J.g.items, known = Object.keys(S.ksrs).map(k => KANJI_MAP[k]).filter(k => k && !it.includes(k));
+  const core = [...it.map(qKWord), ...it.map(qKMean)];
+  const rev = pickReview(known, S.ksrs, k => k.k, 3).map((k, i) => (i % 2 ? qKPick(k) : qKWord(k)));
+  const sp = canListen() ? pick(it, 2).map(k => qSpeak({ w: k.ex.w, r: k.ex.r, d: k.ex.d })) : [];
+  runTest({ core, review: rev, speak: sp, top: kTop() + kTip(), pass: kanjiFinish, redo: kanjiTest, relearn: () => { J.stage = 0; J.i = 0; renderKanji(); } });
+}
+function kanjiFinish() {
   const g = J.g; S.kanjiDone[g.id] = true; g.items.forEach(k => { if (!S.ksrs[k.k]) S.ksrs[k.k] = { box: 1, due: Date.now() + 18 * 36e5 }; });
-  markActivity('kanji'); const nx = nextKanjiGroup(); J = null;
-  view.innerHTML = `<div class="party card"><div class="art">${mochi({ acc: 'cheer', mood: 'cheer' }, 110)}</div><h1>Kanji-Satz geschafft! 🎉</h1><p class="jp" style="font-size:2rem;font-weight:700">${g.items.map(k => k.k).join(' ')}</p>
-    <p>Sie kommen morgen sanft zur Wiederholung zurück.</p></div>
+  markActivity('kanji'); const nx = nextKanjiGroup(), note = levelNote(), chars = g.items.map(k => k.k).join(''); J = null; document.body.classList.add('focus');
+  view.innerHTML = `<div class="party card"><div class="art">${mochi({ acc: 'cheer', mood: 'cheer' }, 100)}</div>${note}<h1>Kanji-Satz gelernt! 🎉</h1><p class="jp" style="font-size:2rem;font-weight:700">${g.items.map(k => k.k).join(' ')}</p>
+    <p>Sie kommen sanft zur Wiederholung zurück.</p></div>
+    <button class="btn block" data-a="write-chars" data-c="${chars}">✍️ Jetzt schreiben üben</button><div style="height:10px"></div>
     ${nx ? `<a class="btn primary block" href="#/kanji/${nx.id}">Weiter: ${nx.lvl} · Satz ${nx.n}</a><div style="height:10px"></div>` : ''}<a class="btn ghost block" href="#/home">Zurück zum Dashboard</a>`;
 }
+
 function startKanjiReview(free) {
   const all = Object.keys(S.ksrs).map(k => KANJI_MAP[k]).filter(Boolean);
   if (!all.length) { view.innerHTML = `<div class="card party">${mochi({}, 100)}<h2>Noch keine Kanji</h2><p>Lerne zuerst einen Satz – dann erscheinen sie hier.</p><a class="btn primary" href="#/kana">Zu den Kanji</a></div>`; return; }
@@ -464,19 +744,12 @@ function startKanjiReview(free) {
   }, `<div class="tip"><span>🔁</span><span>Sanfte Wiederholung: Was sitzt, kommt seltener.</span></div>`);
   Q.onKResult = (k, ok) => rate(k, ok, 'ksrs'); Q.isRev = true;
 }
-function openKanji(ch) {
-  const k = KANJI_MAP[ch], sh = $('#sheet');
-  sh.innerHTML = `<div class="between row"><span class="chip">${k.lvl} · ${k.r}</span><button class="icon-btn" data-a="close" aria-label="Schließen">✕</button></div>
-    <div class="disc"><div class="glyph" style="font-size:6rem">${k.k}</div><h2>${esc(k.de)}</h2><p class="hook jp"><b>${k.ex.w}</b> ${k.ex.r} – ${esc(k.ex.d)}</p><button class="btn" data-a="say" data-t="${k.ex.w}">🔊 Anhören</button> <button class="btn ghost" data-a="trace-toggle">✍️ Nachzeichnen</button><div id="tracebox"></div></div>`;
-  sh.showModal(); speak(k.ex.w);
-}
-
 /* ---------- Geschichten ---------- */
 let story = { token: 0, show: false };
 function stopStory() { story.token++; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
 const WORD_TEXT = w => (S.settings.textScript === 'romaji' ? w[1] : w[0]);
 function viewReadList() {
-  langLvl = langLvl || S.level;
+  langLvl = langLvl || curLevel();
   const ks = knownKana(), kw = knownWordSet(), dw = dueWords().length;
   const tps = TOPICS.filter(t => t.lvl === langLvl).sort((a, b) => tagScore(b) - tagScore(a)), sts = STORIES.filter(x => x.lvl === langLvl);
   view.innerHTML = `<div class="head tight"><div><h1>Sprache</h1><p class="sub">Verstehen, hören, lesen – ohne Schriftzwang</p></div></div>
@@ -489,6 +762,7 @@ function viewReadList() {
 }
 function viewStory(id) {
   const s = STORIES.find(x => x.id === id); if (!s) { location.hash = '#/read'; return; }
+  if (!unlocked(s.lvl)) { toast(`Schließe zuerst ${curLevel()} ab 🔒`); location.hash = '#/home'; return; }
   const ks = knownKana(), r = Math.round(storyWordRatio(s) * 100), av = { A: '🧑', B: '👩', N: '📖' }, ts = S.settings.textScript;
   story.show = false;
   view.innerHTML = `<div class="head"><a class="icon-btn" href="#/read" aria-label="Zurück" style="display:grid;place-items:center;text-decoration:none">←</a><div class="grow"><h2 style="margin:0">${s.emoji} ${s.title}</h2><p class="sub">Du kennst ${r}% der Wörter${ks.size ? ` · ${Math.round(storyRatio(s, ks) * 100)}% der Zeichen` : ''}</p></div></div>
@@ -497,7 +771,7 @@ function viewStory(id) {
       <button class="icon-btn" style="width:34px;height:34px;font-size:.9rem;margin-left:4px" data-a="story-line" data-i="${i}" aria-label="Zeile anhören">🔊</button></div>
       ${ts === 'kana' ? '' : ts === 'romaji' ? '' : `<div class="ro">${l.words.map(w => esc(w[1])).join(' ')}</div>`}<div class="de" hidden>${esc(l.de)}</div></div></div>`).join('')}
     <div class="gloss" id="gloss">👆 Tippe auf ein Wort</div>
-    <div style="height:14px"></div><button class="btn primary block" data-a="story-done" data-id="${s.id}">Fertig – das hat Spaß gemacht ✔</button>`;
+    <div style="height:14px"></div><button class="btn primary block pin" data-a="story-test" data-id="${s.id}">Verstanden? Zum Test 📝</button>`;
 }
 const lineText = l => l.words.map(w => w[0]).join('') + l.end;
 async function playStory(id) {
@@ -512,15 +786,36 @@ async function playStory(id) {
   document.querySelectorAll('.line').forEach(e => e.classList.remove('playing')); if (btn) btn.textContent = '🔊 Alles anhören';
 }
 
+const qLine = (line, all) => { const others = shuffle(all.filter(l => l.de !== line.de)).slice(0, 2);
+  return { kind: 'sline', big: lineText(line), romaji: line.words.map(w => w[1]).join(' '), say: lineText(line), hint: line.words.map(w => `${w[0]} = ${w[2]}`).join(' · '),
+    opts: shuffle([line, ...others]).map(o => ({ html: `<span>${esc(o.de)}</span>`, ok: o === line, txt: true })), explain: esc(line.de) }; };
+const qSWord = (w, pool) => { const others = shuffle(pool.filter(x => x[2] !== w[2])).slice(0, 2);
+  return { kind: 'sword', big: w[0], ro: w[1], say: w[0], hint: `${w[1]}`, opts: shuffle([w, ...others]).map(o => ({ html: `<span>${esc(o[2])}</span>`, ok: o === w, txt: true })), explain: `<b>${w[0]}</b> (${w[1]}) = ${esc(w[2])}` }; };
+function storyTest(id) {
+  const s = STORIES.find(x => x.id === id), allLines = STORIES.flatMap(x => x.lines), allWords = [...new Map(STORIES.flatMap(x => x.lines.flatMap(l => l.words)).filter(w => !isFn(w)).map(w => [w[2], w])).values()];
+  const mine = [...new Map(s.lines.flatMap(l => l.words).filter(w => !isFn(w)).map(w => [w[0], w])).values()];
+  const core = [...pick(s.lines, Math.min(3, s.lines.length)).map(l => qLine(l, allLines)), ...pick(mine, Math.min(3, mine.length)).map(w => qSWord(w, allWords))];
+  const rev = pickReview(Object.keys(S.wsrs).map(w => ITEMS[w]).filter(Boolean), S.wsrs, x => x.w, 2).map((it, i) => lq(it, i % 2 ? 'lsound' : 'lword'));
+  const short = [...s.lines].sort((a, b) => lineText(a).length - lineText(b).length)[0];
+  const sp = canListen() ? [qSpeak({ w: lineText(short), r: short.words.map(w => w[1]).join(' '), d: short.de })] : [];
+  runTest({ core, review: rev, speak: sp, pass: () => storyFinish(id), redo: () => storyTest(id), relearn: () => viewStory(id) });
+}
+function storyFinish(id) {
+  S.storiesRead[id] = true; markActivity('input'); const st = recommendedStory(), nt = nextTopic(), note = levelNote(); document.body.classList.add('focus');
+  view.innerHTML = `<div class="party card"><div class="art">${mochi({ acc: 'cheer', mood: 'cheer' }, 110)}</div>${note}<h1>Geschichte verstanden! 🎉</h1><p>Wieder ein Stück Japanisch ohne Büffeln erworben.</p></div>
+    ${nt ? `<a class="btn primary block" href="#/topic/${nt.id}">Weiter: ${nt.emoji} ${nt.title}</a><div style="height:10px"></div>` : ''}
+    <a class="btn block" href="#/read/${st.id}">🎧 Nächste Geschichte</a><div style="height:10px"></div><a class="btn ghost block" href="#/home">Zurück zum Dashboard</a>`;
+}
+
 /* ---------- Methode ---------- */
 function viewMethod() {
   view.innerHTML = `<div class="head"><div><h1>Die Methode</h1><p class="sub">Warum du hier ohne Pauken lernst</p></div></div>
     <div class="card" style="padding:8px 14px 14px">${SCENES.acquire}<p>Mochi basiert auf der <b>Natural-Approach-Idee von Stephen Krashen</b> (Linguist, University of Southern California). Seine Theorie besteht aus fünf Hypothesen – dazu kommt die stille Phase. Tippe auf eine Karte, um zu sehen, <b>was Krashen sagt</b> und <b>wie die App es umsetzt</b>.</p></div>
     ${METHOD.map(m => `<details class="m"><summary><span class="ic">${m.ic}</span><span>${m.t}<br><small class="muted" style="font-weight:600">${m.h}</small></span></summary><div class="m-body"><div class="k"><b class="l">Krashen</b>${m.k}</div><div class="a"><b class="l">In Mochi</b>${m.a}</div></div></details>`).join('')}
     <div class="card" style="margin-top:18px"><h3>So läuft ein typischer Tag</h3><ol class="steps"><li><b>🎧 Hören &amp; Lesen (2–4 Min.)</b> – eine kurze Geschichte mit Bild-Kontext, Wort-Tipps und Übersetzung.</li><li><b>🌱 Neues entdecken (4–6 Min.)</b> – eine Gruppe Zeichen: Entdecken → Zuordnen → Hören → Wörter lesen.</li><li><b>🔁 Sanft wiederholen (2–3 Min.)</b> – Zeichen kehren in wachsenden Abständen zurück (1, 2, 4, 8, 16 Tage).</li></ol></div>
-    <div class="card"><h3>N5 bis N1</h3><p>Die Inhalte folgen den fünf JLPT-Stufen. Die Prozentwerte im Dashboard zeigen, wie viel der <b>in Mochi enthaltenen</b> Themen, Geschichten, Kanji und Kana einer Stufe du geschafft hast. Das ist eine kuratierte Auswahl und kein vollständiger Prüfungswortschatz: Für N1 braucht man über 2.000 Kanji, hier sind es die häufigsten Alltags- und Einstiegszeichen. Mehr Stoff lässt sich einfach in <code>js/data.js</code> ergänzen.</p></div><div class="card"><h3>Zwei getrennte Wege: Schrift &amp; Sprache</h3><p>Lesen und Schreiben sind eigene Fertigkeiten. Nach Krashen steht beim Spracherwerb das <b>Verstehen gesprochener und geschriebener Sprache</b> im Mittelpunkt – dafür musst du die Schrift nicht beherrschen. Deshalb kannst du in Mochi <b>die Schrift</b> (Hiragana &amp; Katakana) und <b>die Sprache</b> (Themen, Wörter, Geschichten mit Romaji, Ton und Übersetzung) <b>unabhängig voneinander</b> lernen – nur einen Weg, beide parallel oder später den anderen dazu. Wenn du beides lernst, verknüpft sich das von selbst: In Geschichten siehst du Wörter in Kana, sobald du die Zeichen kennst. Umschalten geht jederzeit unter ⚙️.</p></div><div class="card"><h3>Was Mochi zusätzlich tut</h3><p><b>Merkbilder</b> (Dual Coding nach Allan Paivio: Wort + Bild) und <b>Spaced Repetition</b> (Ebbinghaus/Leitner) stammen nicht von Krashen. Sie unterstützen das Erinnern der Schriftzeichen und sind immer in Bedeutung eingebettet: Du siehst sofort echte Wörter, nicht nur Tabellen.</p></div>
+    <div class="card"><h3>Erst lernen, dann Test</h3><p>Neues siehst und hörst du zuerst ohne Druck. Danach folgt eine Abfrage mit Note (1 bis 6). Dazu kommen immer ein paar Wiederholungen von früher, damit das Gelernte hängen bleibt. Erst ab <b>Note 3</b> zählt der Fortschritt, und erst wenn eine Stufe komplett bestanden ist, wird die nächste freigeschaltet (N5 → N1). Schreiben und Aussprache werden separat benotet und blockieren nichts.</p></div><div class="card"><h3>N5 bis N1</h3><p>Die Inhalte folgen den fünf JLPT-Stufen. Die Prozentwerte im Dashboard zeigen, wie viel der <b>in Mochi enthaltenen</b> Themen, Geschichten, Kanji und Kana einer Stufe du geschafft hast. Das ist eine kuratierte Auswahl und kein vollständiger Prüfungswortschatz: Für N1 braucht man über 2.000 Kanji, hier sind es die häufigsten Alltags- und Einstiegszeichen. Mehr Stoff lässt sich einfach in <code>js/data.js</code> ergänzen.</p></div><div class="card"><h3>Zwei getrennte Wege: Schrift &amp; Sprache</h3><p>Lesen und Schreiben sind eigene Fertigkeiten. Nach Krashen steht beim Spracherwerb das <b>Verstehen gesprochener und geschriebener Sprache</b> im Mittelpunkt – dafür musst du die Schrift nicht beherrschen. Deshalb kannst du in Mochi <b>die Schrift</b> (Hiragana &amp; Katakana) und <b>die Sprache</b> (Themen, Wörter, Geschichten mit Romaji, Ton und Übersetzung) <b>unabhängig voneinander</b> lernen – nur einen Weg, beide parallel oder später den anderen dazu. Wenn du beides lernst, verknüpft sich das von selbst: In Geschichten siehst du Wörter in Kana, sobald du die Zeichen kennst. Umschalten geht jederzeit unter ⚙️.</p></div><div class="card"><h3>Was Mochi zusätzlich tut</h3><p><b>Merkbilder</b> (Dual Coding nach Allan Paivio: Wort + Bild) und <b>Spaced Repetition</b> (Ebbinghaus/Leitner) stammen nicht von Krashen. Sie unterstützen das Erinnern der Schriftzeichen und sind immer in Bedeutung eingebettet: Du siehst sofort echte Wörter, nicht nur Tabellen.</p></div>
     <div class="card"><h3>Ehrliche Einordnung</h3><p>Krashens Hypothesen sind einflussreich, aber auch umstritten: Sie sind schwer exakt zu prüfen, und Forschende wie Merrill Swain betonen, dass auch eigenes Sprechen (Output) und Feedback helfen. Realistisch heißt das: Mochi bringt dich sanft in die Schrift und ins Leseverstehen. Für echte Sprachkompetenz brauchst du darüber hinaus viel <b>echten Input</b> (Kinderbücher, einfache Podcasts, Videos mit Untertiteln) und – wenn du Lust hast – Gespräche.</p></div>
-    <div class="card flat"><h3>Quellen</h3><ul class="small muted"><li>S. Krashen (1982): <i>Principles and Practice in Second Language Acquisition</i></li><li>S. Krashen (1985): <i>The Input Hypothesis: Issues and Implications</i></li><li>S. Krashen &amp; T. Terrell (1983): <i>The Natural Approach</i></li><li>M. Swain (1985): Output Hypothesis · A. Paivio (1971): Dual Coding Theory</li></ul></div>
+    <div class="card flat"><h3>Quellen</h3><ul class="small muted"><li>S. Krashen (1982): <i>Principles and Practice in Second Language Acquisition</i></li><li>S. Krashen (1985): <i>The Input Hypothesis: Issues and Implications</i></li><li>S. Krashen &amp; T. Terrell (1983): <i>The Natural Approach</i></li><li>M. Swain (1985): Output Hypothesis · A. Paivio (1971): Dual Coding Theory</li><li>Strichdaten: <a href="https://kanjivg.tagaini.net" target="_blank" rel="noopener">KanjiVG</a> © Ulrich Apel, Lizenz CC BY-SA 3.0</li></ul></div>
     <button class="btn block" data-a="onb-again">🎬 Einführung noch einmal ansehen</button>`;
 }
 
@@ -536,6 +831,7 @@ function viewSettings() {
     <label class="set"><span>Text in Wörtern &amp; Geschichten</span><select data-a="set" data-key="textScript">${sel('romaji', s.textScript, 'nur Romaji')}${sel('both', s.textScript, 'Kana + Romaji')}${sel('kana', s.textScript, 'nur Kana')}</select></label>
     <p style="margin:12px 0 6px"><b>Meine Ziele</b></p><div class="goals sm">${GOALS.map(g => `<button data-a="goal-toggle" data-v="${g.id}" class="${S.goals.includes(g.id) ? 'on' : ''}"><span>${g.e}</span>${g.t}</button>`).join('')}</div></div>
     <div class="card"><label class="set"><span>Dein Name</span><input class="txt" id="nm" style="max-width:170px" maxlength="20" value="${esc(S.name)}"></label>
+    <label class="set"><span>Sprechaufgaben in Tests<br><small class="muted">Mikrofon &amp; Spracherkennung</small></span><input type="checkbox" data-a="set" data-key="speak" ${s.speak !== false ? 'checked' : ''}></label>
     <label class="set"><span>Romaji in Kana-Lektionen</span><input type="checkbox" data-a="set" data-key="romaji" ${s.romaji ? 'checked' : ''}></label>
     <label class="set"><span>Ton (japanische Stimme)<br><small class="muted">Sprachausgabe deines Geräts</small></span><input type="checkbox" data-a="set" data-key="sound" ${s.sound ? 'checked' : ''}></label>
     <label class="set"><span>Darstellung</span><select data-a="set" data-key="theme">${sel('auto', s.theme, 'Automatisch')}${sel('light', s.theme, 'Hell')}${sel('dark', s.theme, 'Dunkel')}</select></label>
@@ -551,8 +847,14 @@ const A = {
   go: t => (location.hash = '#/' + t.dataset.to),
   say: t => speak(t.dataset.t), qsay: () => speak(Q.qs[Q.i].say),
   kana: t => openKana(t.dataset.k), close: () => $('#sheet').close(),
-  'trace-toggle': () => { const b = $('#tracebox'); b.children.length ? (b.innerHTML = '') : initTrace(b, $('#sheet .glyph').textContent); },
-  'trace-clear': () => $('#trace')._ghost(),
+  writer: t => openWriter(t.dataset.k), 'w-mode': t => wSetMode(t.dataset.v), 'w-play': () => wPlay(),
+  'w-undo': () => { if (W.graded) return; W.strokes.pop(); $('#wu').lastElementChild?.remove(); },
+  'w-clear': () => wSetMode(W.mode), 'w-check': wCheck, 'w-next': writeNext,
+  'write-chars': t => writeChars([...t.dataset.c]),
+  'res-pass': () => RES.o.pass(RES.res), 'res-redo': () => RES.o.redo(), 'res-relearn': () => RES.o.relearn(),
+  'sp-rec': recordSpeech, 'sp-skip': () => { Q.ctl?.stop?.(); Q.ans = true; qnext(); },
+  stest: t => scriptTest(t.dataset.v), wprac: t => writePractice(t.dataset.v), 'story-test': t => storyTest(t.dataset.id),
+  lvlock: () => toast(`Schließe zuerst ${curLevel()} ab 🔒`),
   kscript: t => { kanaScript = t.dataset.v; viewKana(); }, kmode: t => { kanaMode = t.dataset.v; viewKana(); },
   'onb-next': () => viewOnboarding(onbStep + 1), 'onb-back': () => viewOnboarding(Math.max(0, onbStep - 1)), 'onb-skip': () => viewOnboarding(ONB.length),
   'ob-track': t => { const k = t.dataset.v, o = onbData; if (o[k] && !(k === 'script' ? o.lang : o.script)) return toast('Mindestens ein Weg bleibt aktiv 🙂'); o[k] = !o[k]; viewOnboarding(onbStep); },
@@ -570,11 +872,11 @@ const A = {
     const o = onbData, opt = LVL_OPTS.find(x => x.id === o.lvl);
     S.name = o.name.trim(); S.tracks = { script: o.script, lang: o.lang }; S.focus = o.focus; S.goals = o.goals.length ? [...o.goals] : ['alltag']; S.goalMin = o.goalMin; S.level = opt.level;
     if (opt.kana) ALL_GROUPS.forEach(g => (S.groupsDone[g.id] = true));
-    S.settings.textScript = !o.script && !opt.kana ? 'romaji' : 'both'; S.onboarded = true; save(); location.hash = '#/home'; route();
+    S.settings.textScript = !o.script && !opt.kana ? 'romaji' : 'both'; S.seenLevel = S.level; S.onboarded = true; save(); location.hash = '#/home'; route();
   },
   'onb-again': () => { S.onboarded = false; location.hash = '#/onboarding'; route(); },
   ans: t => answer(+t.dataset.i), qnext, hint: () => { const q = Q?.qs[Q.i]; if (q) { const fb = $('#fb'); fb.className = 'fb no'; fb.innerHTML = '💡 ' + q.hint; } },
-  quit: () => { stopStory(); Q = null; L = null; T = null; location.hash = backTo; },
+  quit: () => { stopStory(); Q?.ctl?.stop?.(); Q = null; L = null; T = null; J = null; WS = null; location.hash = backTo; },
   'disc-next': () => { if (L.i < L.g.kana.length - 1) { L.i++; renderLesson(); } else stageNext(); },
   pair: t => pair(+t.dataset.side, t.dataset.k), 'stage-next': stageNext,
   word: t => { document.querySelectorAll('.w.on').forEach(e => e.classList.remove('on')); t.classList.add('on'); $('#gloss').innerHTML = `<span class="jp" style="font-size:1.2rem">${t.dataset.jp}</span> · ${t.dataset.ro} · <b>${t.dataset.de}</b>`; speak(t.dataset.jp); },
@@ -610,5 +912,6 @@ setInterval(() => {
 addEventListener('pagehide', save);
 
 /* ---------- Start ---------- */
+if (location.search.includes('debug')) window.__mochi = { Q: () => Q, S: () => S, refOf, curLevel, lvlPct };
 applyTheme(); route();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});

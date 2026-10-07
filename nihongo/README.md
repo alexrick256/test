@@ -13,3 +13,9 @@ cd nihongo && python3 -m http.server 8000   # dann http://localhost:8000
 - **Dashboard:** Tagesziel in Minuten (aktive Lernzeit), Fortschrittsringe je JLPT-Stufe, Tagesaufgaben, Wochenverlauf
 - Schrift und Sprache sind getrennte Lernwege; Ziele (Alltag, Reisen, Anime …) und Niveau steuern die Empfehlungen
 - Hinweis: kuratierte Auswahl, kein vollständiger JLPT-Wortschatz (N1 bräuchte >2.000 Kanji)
+
+## Lernlogik
+- **Erst lernen, dann Test:** Entdecken → Üben → benoteter Test (Note 1–6, bestanden ab Note 3) mit Wiederholungen aus früher Gelerntem. Fortschritt zählt erst nach bestandenem Test.
+- **Stufen nacheinander:** N5 → N4 → … → N1; die nächste Stufe wird erst nach 100 % der vorherigen freigeschaltet.
+- **Schreiben:** Strichfolge mit Zahlen und Pfeilen, Nachzeichnen oder aus dem Kopf, Benotung nach Genauigkeit von Form, Reihenfolge und Richtung. Strichdaten: [KanjiVG](https://kanjivg.tagaini.net) © Ulrich Apel, CC BY-SA 3.0 (`js/strokes.js`).
+- **Sprechen:** Web Speech API (`ja-JP`) erkennt die Aussprache, die App benotet die Übereinstimmung. Funktioniert in Chrome/Edge/Safari über HTTPS, nicht in jeder Vorschau.
