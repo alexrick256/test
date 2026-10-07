@@ -142,3 +142,9 @@ label.set{display:flex;align-items:center;justify-content:space-between;gap:12px
 select,input[type=checkbox]{font:inherit;accent-color:var(--accent)}input[type=checkbox]{width:22px;height:22px}select{padding:8px 12px;border-radius:12px;border:2px solid var(--line);background:var(--surface);color:var(--ink)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (min-width:640px){#view{padding-top:36px}}
+
+h3.sec{margin:22px 0 10px;font-size:1.1rem}h3.sec small{font-weight:600;font-size:.8rem}
+.topics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+.tcard{display:flex;flex-direction:column;gap:2px;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:14px}
+.tcard .em{font-size:2rem}.tcard.done{background:var(--green-soft);border-color:var(--green)}
+.stats{grid-template-columns:repeat(auto-fit,minmax(90px,1fr))}

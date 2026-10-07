@@ -1,4 +1,4 @@
-import { GROUPS, ALL_GROUPS, KANA, WORDS, STORIES, METHOD } from './data.js';
+import { GROUPS, ALL_GROUPS, KANA, WORDS, STORIES, METHOD, TOPICS } from './data.js';
 import { SCENES, mochi } from './illus.js';
 
 /* ---------- Helfer ---------- */
@@ -12,12 +12,12 @@ const view = $('#view');
 
 /* ---------- Zustand ---------- */
 const KEY = 'mochi-nihongo-v1';
-const DEFAULTS = { onboarded: false, name: '', focus: 'hira', groupsDone: {}, srs: {}, streak: { last: '', count: 0 },
-  day: { date: '', input: false, new: false, review: false }, storiesRead: {}, settings: { romaji: true, sound: true, theme: 'auto' } };
+const DEFAULTS = { onboarded: false, name: '', focus: 'hira', tracks: { script: true, lang: true }, groupsDone: {}, srs: {}, wsrs: {}, topicsDone: {}, streak: { last: '', count: 0 },
+  day: { date: '', input: false, new: false, review: false, tnew: false, trev: false }, storiesRead: {}, settings: { romaji: true, sound: true, theme: 'auto', textScript: 'both' } };
 let S;
-try { S = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; S.settings = { ...DEFAULTS.settings, ...S.settings }; } catch { S = structuredClone(DEFAULTS); }
+try { S = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; S.settings = { ...DEFAULTS.settings, ...S.settings }; S.tracks = { ...DEFAULTS.tracks, ...S.tracks }; } catch { S = structuredClone(DEFAULTS); }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* privater Modus */ } };
-function rollDay() { if (S.day.date !== todayStr()) S.day = { date: todayStr(), input: false, new: false, review: false }; }
+function rollDay() { if (S.day.date !== todayStr()) S.day = { date: todayStr(), input: false, new: false, review: false, tnew: false, trev: false }; }
 function markActivity(step) {
   rollDay(); if (step) S.day[step] = true;
   if (S.streak.last !== todayStr()) {
@@ -31,10 +31,10 @@ const knownKana = () => { const s = new Set(); ALL_GROUPS.forEach(g => S.groupsD
 const knownWords = (ks = knownKana()) => WORDS.filter(w => w.chars.length && w.chars.every(c => ks.has(c)));
 const nextGroup = () => { const order = S.focus === 'hira' ? ['hira', 'kata'] : ['kata', 'hira']; for (const sc of order) { const g = GROUPS[sc].find(g => !S.groupsDone[g.id]); if (g) return g; } return null; };
 const dueKana = () => Object.entries(S.srs).filter(([, v]) => v.due <= Date.now()).sort((a, b) => a[1].due - b[1].due).map(([k]) => KANA[k]).filter(Boolean);
-function rate(k, ok) {
-  const e = S.srs[k] || { box: 1 };
+function rate(k, ok, st = 'srs') {
+  const e = S[st][k] || { box: 1 };
   e.box = ok ? Math.min(5, e.box + 1) : Math.max(1, e.box - 1);
-  e.due = Date.now() + INTERVALS[e.box] * DAY - (INTERVALS[e.box] ? 2 * 36e5 : 0); S.srs[k] = e; save();
+  e.due = Date.now() + INTERVALS[e.box] * DAY - (INTERVALS[e.box] ? 2 * 36e5 : 0); S[st][k] = e; save();
 }
 const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2400); };
 
@@ -56,16 +56,17 @@ function speak(text, rate = .8) {
 }
 
 /* ---------- Router ---------- */
-const TABS = ['home', 'kana', 'read', 'method'];
+let backTo = '#/home';
 function route() {
   stopStory();
   const [, p1 = 'home', p2] = location.hash.split('/');
   if (!S.onboarded && p1 !== 'onboarding') { location.hash = '#/onboarding'; return; }
   rollDay();
-  const focus = ['onboarding', 'lesson', 'review'].includes(p1);
+  const focus = ['onboarding', 'lesson', 'review', 'topic', 'wreview'].includes(p1);
+  backTo = ['topic', 'wreview'].includes(p1) ? '#/read' : p1 === 'lesson' ? '#/kana' : '#/home';
   document.body.classList.toggle('focus', focus);
-  document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === p1 || (p1 === 'lesson' && a.dataset.tab === 'kana')));
-  const R = { home: viewHome, kana: () => viewKana(), lesson: () => startLesson(p2), review: () => startReview(p2 === 'free'),
+  document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === p1 || (p1 === 'lesson' && a.dataset.tab === 'kana') || (['topic', 'wreview'].includes(p1) && a.dataset.tab === 'read')));
+  const R = { home: viewHome, kana: () => viewKana(), lesson: () => startLesson(p2), review: () => startReview(p2 === 'free'), topic: () => startTopic(p2), wreview: () => startWordReview(p2 === 'free'),
     read: () => (p2 ? viewStory(p2) : viewReadList()), method: viewMethod, settings: viewSettings, onboarding: () => viewOnboarding(0) };
   (R[p1] || viewHome)(); view.scrollTo?.(0, 0); window.scrollTo(0, 0);
 }
@@ -92,41 +93,57 @@ function viewOnboarding(i) {
       <button class="btn primary block" data-a="onb-next">${i === ONB.length - 1 ? 'Weiter' : 'Verstanden'}</button></div></div>`;
   } else {
     view.innerHTML = `<div class="onb"><div><div class="art" style="text-align:center">${mochi({ acc: 'cheer', mood: 'cheer' }, 120)}</div>
-      <h1>Fast geschafft!</h1><p>Mit welcher Schrift möchtest du starten? Beide kannst du jederzeit lernen.</p>
-      <div class="choice" id="focus"><button data-a="onb-focus" data-v="hira" class="on"><span class="jp">あ</span>Hiragana<br><small class="muted">rund &amp; weich – Empfehlung</small></button><button data-a="onb-focus" data-v="kata"><span class="jp">ア</span>Katakana<br><small class="muted">eckig – für Fremdwörter</small></button></div>
+      <h1>Fast geschafft!</h1><p>Mochi hat <b>zwei getrennte Wege</b>: Du kannst sie einzeln oder zusammen lernen – ganz wie du magst.</p>
+      <div class="choice" id="tracks"><button data-a="onb-track" data-v="script" class="on"><span class="jp">あ</span>Schrift<br><small class="muted">Hiragana &amp; Katakana</small></button><button data-a="onb-track" data-v="lang" class="on"><span class="jp">💬</span>Sprache<br><small class="muted">Wörter &amp; Sätze hören/verstehen</small></button></div>
+      <div id="focusbox"><p style="margin:16px 0 8px"><b>Mit welcher Schrift startest du?</b></p>
+      <div class="choice" id="focus"><button data-a="onb-focus" data-v="hira" class="on"><span class="jp">あ</span>Hiragana<br><small class="muted">rund &amp; weich – Empfehlung</small></button><button data-a="onb-focus" data-v="kata"><span class="jp">ア</span>Katakana<br><small class="muted">eckig – für Fremdwörter</small></button></div></div>
       <p style="margin-top:18px"><label for="nm"><b>Wie darf Mochi dich nennen?</b> <span class="muted">(optional)</span></label></p><input id="nm" class="txt" maxlength="20" placeholder="Dein Name" autocomplete="given-name"></div>
       <button class="btn primary block" data-a="onb-done">Los geht’s! 🍡</button></div>`;
   }
 }
 
 /* ---------- Heute ---------- */
-function recommendedStory() {
-  const ks = knownKana(), unread = STORIES.filter(s => !S.storiesRead[s.id]), pool = unread.length ? unread : STORIES;
-  return [...pool].sort((a, b) => Math.abs(storyRatio(a, ks) - .9) - Math.abs(storyRatio(b, ks) - .9))[0];
-}
-function storyRatio(st, ks) {
+const isFn = w => w[2].startsWith('(');
+const knownWordSet = () => new Set(Object.keys(S.wsrs));
+function storyRatio(st, ks) { // Anteil bekannter Kana
   const chars = st.lines.flatMap(l => l.words.flatMap(w => [...w[0]])).filter(c => KANA[c]);
   return chars.length ? chars.filter(c => ks.has(c)).length / chars.length : 1;
 }
+function storyWordRatio(st, kw = knownWordSet()) { // Anteil bekannter Wörter (Funktionswörter zählen als bekannt)
+  const ws = st.lines.flatMap(l => l.words);
+  return ws.length ? ws.filter(w => isFn(w) || kw.has(w[0])).length / ws.length : 1;
+}
+function recommendedStory() {
+  const ks = knownKana(), kw = knownWordSet(), unread = STORIES.filter(s => !S.storiesRead[s.id]), pool = unread.length ? unread : STORIES;
+  const r = S.tracks.lang ? s => storyWordRatio(s, kw) : s => storyRatio(s, ks);
+  return [...pool].sort((a, b) => Math.abs(r(a) - .8) - Math.abs(r(b) - .8))[0];
+}
 const countKnown = sc => GROUPS[sc].filter(g => S.groupsDone[g.id]).reduce((n, g) => n + g.kana.length, 0);
+const dueWords = () => Object.entries(S.wsrs).filter(([, v]) => v.due <= Date.now()).sort((a, b) => a[1].due - b[1].due).map(([w]) => ITEMS[w]).filter(Boolean);
+const nextTopic = () => TOPICS.find(t => !S.topicsDone[t.id]);
+const stepHtml = (cls, href, ic, title, sub, done) => `<a class="step ${cls} ${done ? 'done' : ''}" href="${href}"><span class="ic">${ic}</span><span><b>${title}</b><span class="small muted">${sub}</span></span><span class="tick">✔</span></a>`;
 function viewHome() {
-  const g = nextGroup(), due = dueKana().length, st = recommendedStory(), d = S.day;
-  const greet = new Date().getHours() < 11 ? 'Ohayou' : new Date().getHours() < 18 ? 'Konnichiwa' : 'Konbanwa';
-  const done = [d.input, d.new, d.review].filter(Boolean).length;
+  const g = nextGroup(), due = dueKana().length, st = recommendedStory(), d = S.day, T_ = S.tracks, nt = nextTopic(), dw = dueWords().length;
+  const hr = new Date().getHours(), greet = hr < 11 ? 'Ohayou' : hr < 18 ? 'Konnichiwa' : 'Konbanwa';
+  const flags = [...(T_.script ? [d.new, d.review] : []), ...(T_.lang ? [d.input, d.tnew, d.trev] : [])], done = flags.filter(Boolean).length, tot = flags.length || 1;
+  const yest = new Date(Date.now() - DAY).toLocaleDateString('sv');
+  const scriptSteps = !T_.script ? '' : `<h3 class="sec">✍️ Schrift <small class="muted">Hiragana &amp; Katakana</small></h3>
+    ${g ? stepHtml('new', '#/lesson/' + g.id, '🌱', 'Neue Zeichen entdecken', `${g.script === 'hira' ? 'Hiragana' : 'Katakana'} · ${g.title}: <span class="jp">${g.kana.map(k => k.k).join(' ')}</span>`, d.new) : stepHtml('new', '#/kana', '🏆', 'Alle Zeichen entdeckt!', 'Stark – jetzt hilft Lesen.', true)}
+    ${stepHtml('rev', due ? '#/review' : knownKana().size ? '#/review/free' : '#/kana', '🔁', 'Zeichen wiederholen', due ? `${due} Zeichen warten` : knownKana().size ? 'Nichts fällig 🌿 – freies Üben möglich' : 'Erscheint, sobald du Zeichen kennst', d.review)}`;
+  const langSteps = !T_.lang ? '' : `<h3 class="sec">💬 Sprache <small class="muted">Wörter &amp; Sätze – auch ohne Schrift</small></h3>
+    ${stepHtml('', '#/read/' + st.id, '🎧', 'Hören & Lesen', `„${st.title}“ – verständlicher Input mit Übersetzung`, d.input)}
+    ${nt ? stepHtml('new', '#/topic/' + nt.id, '🗣️', 'Neues Thema', `${nt.emoji} ${nt.title}`, d.tnew) : stepHtml('new', '#/read', '🏆', 'Alle Themen entdeckt!', 'Weiter mit Geschichten.', true)}
+    ${stepHtml('rev', dw ? '#/wreview' : Object.keys(S.wsrs).length ? '#/wreview/free' : '#/read', '🔁', 'Wörter wiederholen', dw ? `${dw} Wörter warten` : Object.keys(S.wsrs).length ? 'Nichts fällig 🌿 – freies Üben möglich' : 'Erscheint nach dem ersten Thema', d.trev)}`;
   view.innerHTML = `
     <div class="head"><div class="hero">${mochi({ acc: 'wave' }, 84)}<div><p class="sub">${greet}${S.name ? ', ' + esc(S.name) : ''}!</p><h1>Dein Tag</h1></div></div>
       <button class="icon-btn" data-a="go" data-to="settings" aria-label="Einstellungen">⚙️</button></div>
-    <div class="stats"><div class="stat"><b>🔥 ${S.streak.last === todayStr() || S.streak.last === new Date(Date.now() - DAY).toLocaleDateString('sv') ? S.streak.count : 0}</b><span class="small muted">Tage dabei</span></div>
-      <div class="stat"><b>${knownKana().size}</b><span class="small muted">Kana gelernt</span></div><div class="stat"><b>${knownWords().length}</b><span class="small muted">Wörter lesbar</span></div></div>
-    <div class="card flat"><div class="row between"><b>${done === 3 ? 'Alles geschafft – toll! 🎉' : `${done} von 3 Schritten`}</b><span class="chip green">ca. 10 Min.</span></div><div class="bar" style="margin-top:10px"><i style="width:${done / 3 * 100}%"></i></div>
-      <p class="small muted" style="margin:.7em 0 0">Kein Druck: Auch ein Schritt ist ein guter Tag. Eine Pause ist völlig okay. 🍵</p></div>
-    <a class="step ${d.input ? 'done' : ''}" href="#/read/${st.id}"><span class="ic">🎧</span><span><b>1 · Hören &amp; Lesen</b><span class="small muted">„${st.title}“ – verständlicher Input mit Übersetzung</span></span><span class="tick">✔</span></a>
-    ${g ? `<a class="step new ${d.new ? 'done' : ''}" href="#/lesson/${g.id}"><span class="ic">🌱</span><span><b>2 · Neues entdecken (i + 1)</b><span class="small muted">${g.script === 'hira' ? 'Hiragana' : 'Katakana'} · ${g.title}: <span class="jp">${g.kana.map(k => k.k).join(' ')}</span></span></span><span class="tick">✔</span></a>`
-      : '<div class="step new done"><span class="ic">🏆</span><span><b>Alle Zeichen entdeckt!</b><span class="small muted">Jetzt hilft viel Lesen und Hören.</span></span></div>'}
-    <a class="step rev ${d.review ? 'done' : ''}" href="${due ? '#/review' : knownKana().size ? '#/review/free' : '#/kana'}"><span class="ic">🔁</span><span><b>3 · Sanft wiederholen</b><span class="small muted">${due ? `${due} Zeichen warten auf dich` : knownKana().size ? 'Nichts fällig 🌿 – freies Üben ist möglich' : 'Sobald du Zeichen kennst, erscheinen sie hier'}</span></span><span class="tick">✔</span></a>
-    <div class="card flat" style="margin-top:18px"><h3>Fortschritt</h3>
-      ${['hira', 'kata'].map(sc => `<div class="row between small"><span>${sc === 'hira' ? 'Hiragana' : 'Katakana'}</span><span class="muted">${countKnown(sc)} / 71</span></div><div class="bar" style="margin:4px 0 10px"><i style="width:${countKnown(sc) / 71 * 100}%"></i></div>`).join('')}</div>
-    <a class="btn block" href="#/method">🌱 Warum funktioniert das? – Die Methode</a>`;
+    <div class="stats"><div class="stat"><b>🔥 ${S.streak.last === todayStr() || S.streak.last === yest ? S.streak.count : 0}</b><span class="small muted">Tage dabei</span></div>
+      ${T_.script ? `<div class="stat"><b>${knownKana().size}</b><span class="small muted">Kana gelernt</span></div>` : ''}${T_.lang ? `<div class="stat"><b>${Object.keys(S.wsrs).length}</b><span class="small muted">Wörter gelernt</span></div>` : ''}</div>
+    <div class="card flat"><div class="row between"><b>${done === flags.length && flags.length ? 'Alles geschafft – toll! 🎉' : `${done} von ${flags.length} Schritten`}</b><span class="chip green">ca. 10 Min.</span></div><div class="bar" style="margin-top:10px"><i style="width:${done / tot * 100}%"></i></div>
+      <p class="small muted" style="margin:.7em 0 0">Kein Druck: Auch ein Schritt ist ein guter Tag. Du musst nicht alles machen. 🍵</p></div>
+    ${scriptSteps}${langSteps}
+    ${!T_.script || !T_.lang ? `<p class="small muted" style="margin-top:14px">Du lernst gerade nur ${T_.script ? 'die Schrift' : 'die Sprache'}. Den anderen Weg kannst du unter ⚙️ Einstellungen jederzeit dazuschalten.</p>` : ''}
+    <a class="btn block" style="margin-top:14px" href="#/method">🌱 Warum funktioniert das? – Die Methode</a>`;
 }
 
 /* ---------- Kana-Übersicht & Tafel ---------- */
@@ -183,7 +200,10 @@ function startQuiz(qs, onDone, topHtml = '') { Q = { qs, i: 0, right: 0, onDone,
 function renderQuiz() {
   const q = Q.qs[Q.i], total = Q.qs.length;
   const romajiVisible = q.kind === 'sound' && !canSpeak();
-  const prompt = q.kind === 'sound' ? `<button class="btn" data-a="qsay" style="font-size:1.3rem;padding:18px 28px">🔊 Hören</button><p class="muted small" style="margin-top:10px">${romajiVisible ? `Klingt wie: <b>${KANA[q.kana].r}</b>` : 'Welches Zeichen hörst du?'}</p>`
+  const ts = S.settings.textScript, shown = q.item ? (ts === 'romaji' ? q.item.r : q.item.w) : '';
+  const prompt = q.kind === 'lsound' ? `<button class="btn" data-a="qsay" style="font-size:1.3rem;padding:18px 28px">🔊 Hören</button><p class="muted small" style="margin-top:10px">${canSpeak() ? 'Was bedeutet das, was du hörst?' : `Klingt wie: <b>${q.item.r}</b>`}</p>`
+    : q.kind === 'lword' ? `<div class="wordbig">${shown}</div>${ts === 'both' ? `<div class="muted">${q.item.r}</div>` : ''}<button class="btn sm" data-a="qsay" style="margin-top:8px">🔊 Hören</button><p class="muted small" style="margin-top:8px">Was bedeutet das?</p>`
+    : q.kind === 'sound' ? `<button class="btn" data-a="qsay" style="font-size:1.3rem;padding:18px 28px">🔊 Hören</button><p class="muted small" style="margin-top:10px">${romajiVisible ? `Klingt wie: <b>${KANA[q.kana].r}</b>` : 'Welches Zeichen hörst du?'}</p>`
     : q.kind === 'pic' ? `<div class="glyph" style="font-size:5rem">${q.pic}</div><p class="muted small">Welches Zeichen gehört zu diesem Bild?</p>`
     : q.kind === 'word' ? `<div class="wordbig">${q.big}</div><button class="btn sm" data-a="qsay">🔊 Hören</button><p class="muted small" style="margin-top:8px">Was bedeutet das Wort?</p>`
     : `<div class="glyph">${q.big}</div><p class="muted small">Wie klingt dieses Zeichen?</p>`;
@@ -192,7 +212,7 @@ function renderQuiz() {
       <div class="opts ${q.opts[0].txt ? 'col1' : ''}">${q.opts.map((o, i) => `<button class="opt ${o.txt ? 'txt' : ''}" data-a="ans" data-i="${i}">${o.html}</button>`).join('')}</div>
       <div class="fb" id="fb" aria-live="polite"></div>
       <div class="row between"><button class="btn sm ghost" data-a="hint">💡 Tipp</button><button class="btn primary" id="nxt" data-a="qnext" style="visibility:hidden">Weiter</button></div></div>`;
-  Q.ans = false; if (q.kind === 'sound') setTimeout(() => speak(q.say), 250);
+  Q.ans = false; if (q.kind === 'sound' || q.kind === 'lsound') setTimeout(() => speak(q.say), 250);
 }
 function answer(i) {
   if (Q.ans) return; Q.ans = true; const q = Q.qs[Q.i], btns = [...view.querySelectorAll('.opt')], ok = q.opts[i].ok;
@@ -201,6 +221,7 @@ function answer(i) {
   if (ok) { Q.right++; fb.className = 'fb ok'; fb.innerHTML = `${OK_MSG[Math.random() * OK_MSG.length | 0]}<br><span class="small">${q.explain}</span>`; }
   else { fb.className = 'fb no'; fb.innerHTML = `Fast! 🌱 ${q.explain}.<br><span class="small muted">Kein Problem – das kommt gleich nochmal vorbei.</span>`; if (!q.retry) Q.qs.push({ ...q, retry: true, opts: shuffle(q.opts) }); }
   if (q.kana) Q.onResult?.(q.kana, ok);
+  if (q.wkey) Q.onWResult?.(q.wkey, ok);
   speak(q.say);
   const n = $('#nxt'); n.style.visibility = 'visible'; n.focus();
 }
@@ -277,24 +298,75 @@ function startReview(free) {
   Q.onResult = (k, ok) => rate(k, ok);
 }
 
+/* ---------- Sprach-Themen (unabhängig von der Schrift) ---------- */
+const ITEMS = {}; TOPICS.forEach(t => t.items.forEach(([w, r, d, e]) => (ITEMS[w] = { w, r, d, e })));
+let T = null;
+const lq = (it, kind) => {
+  const pool = Object.values(ITEMS), others = shuffle(pool.filter(x => x.d !== it.d)).slice(0, 2);
+  return { kind, say: it.w, wkey: it.w, item: it, hint: `${it.r}${S.settings.textScript === 'romaji' ? '' : ' · ' + it.w}`,
+    opts: shuffle([it, ...others]).map(o => ({ html: `<span class="oe">${o.e}</span><span>${esc(o.d)}</span>`, ok: o.w === it.w, txt: true })), explain: `${it.e} <b>${it.r}</b> = ${esc(it.d)}` };
+};
+const TSTAGES = [['Entdecken', 'Nimm Bedeutung über Bild und Klang auf – noch ohne Test. Verstehen kommt vor Erinnern.'], ['Hören & verstehen', 'Ordne dem Klang eine Bedeutung zu. Raten ist erlaubt, Fehler kosten nichts.'], ['Wörter erkennen', 'Jetzt siehst du die Wörter – erkennst du sie wieder?']];
+const topicTop = () => `<div class="ltop"><button class="icon-btn" data-a="quit" aria-label="Beenden">✕</button><div class="bar"><i style="width:${T.stage / 3 * 100}%"></i></div><span class="chip">${T.t.emoji} ${T.t.title}</span></div>`;
+const topicTip = () => `<div class="tip" style="margin-bottom:14px"><span>💡</span><span><b>${TSTAGES[T.stage][0]}.</b> ${TSTAGES[T.stage][1]}</span></div>`;
+function startTopic(id) {
+  const t = TOPICS.find(x => x.id === id); if (!t) { location.hash = '#/read'; return; }
+  T = { t, stage: 0, i: 0, items: t.items.map(([w, r, d, e]) => ({ w, r, d, e })) }; renderTopic();
+}
+function renderTopic() {
+  const it = T.items[T.i], ts = S.settings.textScript;
+  view.innerHTML = `${topicTop()}${T.i === 0 ? topicTip() : ''}<div class="card disc"><span class="chip">${T.i + 1} / ${T.items.length}</span><div class="emo" style="font-size:5.5rem">${it.e}</div>
+    <div class="wordbig jp" style="font-size:2.6rem;font-weight:700">${ts === 'romaji' ? it.r : it.w}</div>${ts === 'both' ? `<div class="romaji">${it.r}</div>` : ''}<p class="hook"><b>${esc(it.d)}</b></p>
+    <button class="btn" data-a="say" data-t="${it.w}">🔊 Nochmal hören</button></div>
+    <div class="dotsrow">${T.items.map((_, j) => `<i class="${j <= T.i ? 'on' : ''}"></i>`).join('')}</div>
+    <button class="btn primary block" data-a="t-next">${T.i === T.items.length - 1 ? 'Zum Hören' : 'Weiter'}</button>`;
+  setTimeout(() => speak(it.w), 200);
+}
+function topicNext() {
+  if (T.stage === 0) { if (T.i < T.items.length - 1) { T.i++; return renderTopic(); } T.stage = 1; return startQuiz(shuffle(T.items.map(it => lq(it, 'lsound'))), topicNext, topicTop() + topicTip()); }
+  if (T.stage === 1) { T.stage = 2; return startQuiz(shuffle(T.items.map(it => lq(it, 'lword'))), topicNext, topicTop() + topicTip()); }
+  const t = T.t; S.topicsDone[t.id] = true; T.items.forEach(it => { if (!S.wsrs[it.w]) S.wsrs[it.w] = { box: 1, due: Date.now() + 18 * 36e5 }; });
+  markActivity('tnew'); const nt = nextTopic(), st = recommendedStory(); T = null;
+  view.innerHTML = `<div class="party card"><div class="art">${mochi({ acc: 'cheer', mood: 'cheer' }, 130)}</div><h1>Thema geschafft! 🎉</h1><p style="font-size:2.2rem">${t.emoji}</p>
+    <p>Diese Wörter kommen morgen sanft zur Wiederholung zurück. Wörter, die du schon kennst, erkennst du in Geschichten sofort wieder.</p></div>
+    ${nt ? `<a class="btn primary block" href="#/topic/${nt.id}">Weiter: ${nt.emoji} ${nt.title}</a><div style="height:10px"></div>` : ''}
+    <a class="btn block" href="#/read/${st.id}">🎧 Eine Geschichte hören</a><div style="height:10px"></div><a class="btn ghost block" href="#/home">Zurück zu Heute</a>`;
+}
+function startWordReview(free) {
+  const all = Object.keys(S.wsrs).map(w => ITEMS[w]).filter(Boolean);
+  if (!all.length) { view.innerHTML = `<div class="card party">${mochi({}, 110)}<h2>Noch nichts zu wiederholen</h2><p>Lerne zuerst ein Thema – dann tauchen die Wörter hier auf.</p><a class="btn primary" href="#/read">Zu den Themen</a></div>`; return; }
+  let items = dueWords();
+  if (!items.length) { if (!free) { view.innerHTML = `<div class="card party">${mochi({ mood: 'sleep' }, 110)}<h2>Alles frisch! 🌿</h2><p>Nichts ist fällig. Wie wäre es mit einer Geschichte?</p><a class="btn primary" href="#/read/${recommendedStory().id}">🎧 Geschichte hören</a> <a class="btn" href="#/wreview/free">Freies Üben</a> <a class="btn ghost" href="#/home">Zurück</a></div>`; return; } items = pick(all, 8); }
+  items = items.slice(0, 8); Q = null;
+  startQuiz(shuffle(items.map((it, i) => lq(it, i % 2 ? 'lword' : 'lsound'))), () => {
+    markActivity('trev'); view.innerHTML = `<div class="party card">${mochi({ acc: 'cheer', mood: 'cheer' }, 120)}<h1>Wiederholung fertig! 🌸</h1><p>Je müheloser du ein Wort verstehst, desto länger darf es ruhen.</p></div><a class="btn primary block" href="#/home">Zurück zu Heute</a>`;
+  }, `<div class="tip" style="margin-bottom:14px"><span>🔁</span><span>Sanfte Wiederholung: Wörter, die sitzen, kommen seltener. Hinweise sind immer frei.</span></div>`);
+  Q.onWResult = (w, ok) => rate(w, ok, 'wsrs');
+}
+
 /* ---------- Geschichten ---------- */
 let story = { token: 0, show: false };
 function stopStory() { story.token++; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
+const WORD_TEXT = w => (S.settings.textScript === 'romaji' ? w[1] : w[0]);
 function viewReadList() {
-  const ks = knownKana();
-  view.innerHTML = `<div class="head"><div><h1>Lesen &amp; Hören</h1><p class="sub">Kleine Geschichten – verständlicher Input</p></div></div>
-    <div class="tip"><span>🪜</span><span>Tippe auf Wörter für die Bedeutung. Wähle Geschichten, bei denen „Passt zu dir“ hoch ist – dann ist es genau ein kleiner Schritt (i + 1). Du musst nicht alles verstehen!</span></div><div style="height:14px"></div>
-    ${STORIES.map(s => { const r = Math.round(storyRatio(s, ks) * 100); return `<a class="scard" href="#/read/${s.id}"><span class="em">${s.emoji}</span><span class="grow"><b>${s.title}</b><br><span class="small muted">${s.scene}</span></span><span class="col" style="text-align:right">${S.storiesRead[s.id] ? '<span class="chip green">gelesen ✔</span><br>' : ''}<span class="chip ${r >= 80 ? 'green' : r >= 40 ? 'sun' : ''}">Passt zu dir: ${r}%</span></span></a>`; }).join('')}`;
+  const ks = knownKana(), kw = knownWordSet(), dw = dueWords().length;
+  view.innerHTML = `<div class="head"><div><h1>Sprache</h1><p class="sub">Verstehen, hören, lesen – unabhängig von der Schrift</p></div></div>
+    <div class="tip"><span>🪜</span><span>Du brauchst <b>keine Kana</b>: Alle Inhalte gibt es mit Romaji (Umschrift), Ton und Übersetzung. Wie Text angezeigt wird, stellst du in ⚙️ ein.</span></div>
+    <h3 class="sec">🗣️ Themen</h3>
+    ${dw ? `<a class="btn block sm" style="margin-bottom:10px" href="#/wreview">🔁 ${dw} Wörter wiederholen</a>` : ''}
+    <div class="topics">${TOPICS.map(t => `<a class="tcard ${S.topicsDone[t.id] ? 'done' : ''}" href="#/topic/${t.id}"><span class="em">${t.emoji}</span><b>${t.title}</b><span class="small muted">${S.topicsDone[t.id] ? '✔ gelernt' : t.items.length + ' Wörter'}</span></a>`).join('')}</div>
+    <h3 class="sec">📖 Geschichten</h3>
+    ${STORIES.map(s => { const wr = Math.round(storyWordRatio(s, kw) * 100), kr = Math.round(storyRatio(s, ks) * 100); return `<a class="scard" href="#/read/${s.id}"><span class="em">${s.emoji}</span><span class="grow"><b>${s.title}</b><br><span class="small muted">${s.scene}</span></span><span class="col" style="text-align:right">${S.storiesRead[s.id] ? '<span class="chip green">gelesen ✔</span><br>' : ''}<span class="chip ${wr >= 80 ? 'green' : wr >= 40 ? 'sun' : ''}">Wörter: ${wr}%</span>${S.tracks.script && ks.size ? `<br><span class="chip" style="margin-top:4px">Zeichen: ${kr}%</span>` : ''}</span></a>`; }).join('')}`;
 }
 function viewStory(id) {
   const s = STORIES.find(x => x.id === id); if (!s) { location.hash = '#/read'; return; }
-  const ks = knownKana(), r = Math.round(storyRatio(s, ks) * 100), av = { A: '🧑', B: '👩', N: '📖' };
+  const ks = knownKana(), r = Math.round(storyWordRatio(s) * 100), av = { A: '🧑', B: '👩', N: '📖' }, ts = S.settings.textScript;
   story.show = false;
-  view.innerHTML = `<div class="head"><a class="icon-btn" href="#/read" aria-label="Zurück" style="display:grid;place-items:center;text-decoration:none">←</a><div class="grow"><h2 style="margin:0">${s.emoji} ${s.title}</h2><p class="sub">Du erkennst ${r}% der Zeichen</p></div></div>
+  view.innerHTML = `<div class="head"><a class="icon-btn" href="#/read" aria-label="Zurück" style="display:grid;place-items:center;text-decoration:none">←</a><div class="grow"><h2 style="margin:0">${s.emoji} ${s.title}</h2><p class="sub">Du kennst ${r}% der Wörter${ks.size ? ` · ${Math.round(storyRatio(s, ks) * 100)}% der Zeichen` : ''}</p></div></div>
     <div class="row wrap" style="margin-bottom:6px"><button class="btn sm primary" data-a="story-play" id="sp">🔊 Alles anhören</button><button class="btn sm" data-a="story-de">🇩🇪 Übersetzung zeigen</button></div>
-    ${s.lines.map((l, i) => `<div class="line ${l.who}" id="ln${i}"><div class="av">${av[l.who]}</div><div class="bubble"><div class="jpl">${l.words.map(w => `<button class="w" data-a="word" data-jp="${w[0]}" data-ro="${esc(w[1])}" data-de="${esc(w[2])}">${w[0]}</button>`).join('')}${l.end}
+    ${s.lines.map((l, i) => `<div class="line ${l.who}" id="ln${i}"><div class="av">${av[l.who]}</div><div class="bubble"><div class="jpl">${l.words.map(w => `<button class="w" data-a="word" data-jp="${w[0]}" data-ro="${esc(w[1])}" data-de="${esc(w[2])}">${ts === 'romaji' ? esc(w[1]) : w[0]}</button>`).join('')}${ts === 'romaji' ? '' : l.end}
       <button class="icon-btn" style="width:34px;height:34px;font-size:.9rem;margin-left:4px" data-a="story-line" data-i="${i}" aria-label="Zeile anhören">🔊</button></div>
-      ${S.settings.romaji ? `<div class="ro">${l.words.map(w => esc(w[1])).join(' ')}</div>` : ''}<div class="de" hidden>${esc(l.de)}</div></div></div>`).join('')}
+      ${ts === 'kana' ? '' : ts === 'romaji' ? '' : `<div class="ro">${l.words.map(w => esc(w[1])).join(' ')}</div>`}<div class="de" hidden>${esc(l.de)}</div></div></div>`).join('')}
     <div class="gloss" id="gloss">👆 Tippe auf ein Wort</div>
     <div style="height:14px"></div><button class="btn primary block" data-a="story-done" data-id="${s.id}">Fertig – das hat Spaß gemacht ✔</button>`;
 }
@@ -317,7 +389,7 @@ function viewMethod() {
     <div class="card" style="padding:8px 14px 14px">${SCENES.acquire}<p>Mochi basiert auf der <b>Natural-Approach-Idee von Stephen Krashen</b> (Linguist, University of Southern California). Seine Theorie besteht aus fünf Hypothesen – dazu kommt die stille Phase. Tippe auf eine Karte, um zu sehen, <b>was Krashen sagt</b> und <b>wie die App es umsetzt</b>.</p></div>
     ${METHOD.map(m => `<details class="m"><summary><span class="ic">${m.ic}</span><span>${m.t}<br><small class="muted" style="font-weight:600">${m.h}</small></span></summary><div class="m-body"><div class="k"><b class="l">Krashen</b>${m.k}</div><div class="a"><b class="l">In Mochi</b>${m.a}</div></div></details>`).join('')}
     <div class="card" style="margin-top:18px"><h3>So läuft ein typischer Tag</h3><ol class="steps"><li><b>🎧 Hören &amp; Lesen (2–4 Min.)</b> – eine kurze Geschichte mit Bild-Kontext, Wort-Tipps und Übersetzung.</li><li><b>🌱 Neues entdecken (4–6 Min.)</b> – eine Gruppe Zeichen: Entdecken → Zuordnen → Hören → Wörter lesen.</li><li><b>🔁 Sanft wiederholen (2–3 Min.)</b> – Zeichen kehren in wachsenden Abständen zurück (1, 2, 4, 8, 16 Tage).</li></ol></div>
-    <div class="card"><h3>Was Mochi zusätzlich tut</h3><p><b>Merkbilder</b> (Dual Coding nach Allan Paivio: Wort + Bild) und <b>Spaced Repetition</b> (Ebbinghaus/Leitner) stammen nicht von Krashen. Sie unterstützen das Erinnern der Schriftzeichen und sind immer in Bedeutung eingebettet: Du siehst sofort echte Wörter, nicht nur Tabellen.</p></div>
+    <div class="card"><h3>Zwei getrennte Wege: Schrift &amp; Sprache</h3><p>Lesen und Schreiben sind eigene Fertigkeiten. Nach Krashen steht beim Spracherwerb das <b>Verstehen gesprochener und geschriebener Sprache</b> im Mittelpunkt – dafür musst du die Schrift nicht beherrschen. Deshalb kannst du in Mochi <b>die Schrift</b> (Hiragana &amp; Katakana) und <b>die Sprache</b> (Themen, Wörter, Geschichten mit Romaji, Ton und Übersetzung) <b>unabhängig voneinander</b> lernen – nur einen Weg, beide parallel oder später den anderen dazu. Wenn du beides lernst, verknüpft sich das von selbst: In Geschichten siehst du Wörter in Kana, sobald du die Zeichen kennst. Umschalten geht jederzeit unter ⚙️.</p></div><div class="card"><h3>Was Mochi zusätzlich tut</h3><p><b>Merkbilder</b> (Dual Coding nach Allan Paivio: Wort + Bild) und <b>Spaced Repetition</b> (Ebbinghaus/Leitner) stammen nicht von Krashen. Sie unterstützen das Erinnern der Schriftzeichen und sind immer in Bedeutung eingebettet: Du siehst sofort echte Wörter, nicht nur Tabellen.</p></div>
     <div class="card"><h3>Ehrliche Einordnung</h3><p>Krashens Hypothesen sind einflussreich, aber auch umstritten: Sie sind schwer exakt zu prüfen, und Forschende wie Merrill Swain betonen, dass auch eigenes Sprechen (Output) und Feedback helfen. Realistisch heißt das: Mochi bringt dich sanft in die Schrift und ins Leseverstehen. Für echte Sprachkompetenz brauchst du darüber hinaus viel <b>echten Input</b> (Kinderbücher, einfache Podcasts, Videos mit Untertiteln) und – wenn du Lust hast – Gespräche.</p></div>
     <div class="card flat"><h3>Quellen</h3><ul class="small muted"><li>S. Krashen (1982): <i>Principles and Practice in Second Language Acquisition</i></li><li>S. Krashen (1985): <i>The Input Hypothesis: Issues and Implications</i></li><li>S. Krashen &amp; T. Terrell (1983): <i>The Natural Approach</i></li><li>M. Swain (1985): Output Hypothesis · A. Paivio (1971): Dual Coding Theory</li></ul></div>
     <button class="btn block" data-a="onb-again">🎬 Einführung noch einmal ansehen</button>`;
@@ -325,13 +397,17 @@ function viewMethod() {
 
 /* ---------- Einstellungen ---------- */
 function viewSettings() {
-  const s = S.settings;
+  const s = S.settings, sel = (v, cur, l) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${l}</option>`;
   view.innerHTML = `<div class="head"><a class="icon-btn" href="#/home" aria-label="Zurück" style="display:grid;place-items:center;text-decoration:none">←</a><h1 class="grow" style="margin:0">Einstellungen</h1></div>
+    <div class="card"><h3>Was lernst du?</h3><p class="small muted">Schrift und Sprache sind zwei getrennte Wege. Schalte ein, was du gerade möchtest.</p>
+    <label class="set"><span>✍️ Schrift<br><small class="muted">Hiragana &amp; Katakana</small></span><input type="checkbox" data-a="set" data-key="track-script" ${S.tracks.script ? 'checked' : ''}></label>
+    <label class="set"><span>💬 Sprache<br><small class="muted">Themen, Wörter &amp; Geschichten</small></span><input type="checkbox" data-a="set" data-key="track-lang" ${S.tracks.lang ? 'checked' : ''}></label>
+    <label class="set"><span>Text in Wörtern &amp; Geschichten<br><small class="muted">Romaji = lateinische Umschrift</small></span><select data-a="set" data-key="textScript">${sel('romaji', s.textScript, 'nur Romaji')}${sel('both', s.textScript, 'Kana + Romaji')}${sel('kana', s.textScript, 'nur Kana')}</select></label></div>
     <div class="card"><label class="set"><span>Dein Name</span><input class="txt" id="nm" style="max-width:180px" maxlength="20" value="${esc(S.name)}"></label>
-    <label class="set"><span>Romaji anzeigen<br><small class="muted">Lateinische Umschrift als Stütze</small></span><input type="checkbox" data-a="set" data-key="romaji" ${s.romaji ? 'checked' : ''}></label>
+    <label class="set"><span>Romaji in Kana-Lektionen<br><small class="muted">Lautschrift als Stütze</small></span><input type="checkbox" data-a="set" data-key="romaji" ${s.romaji ? 'checked' : ''}></label>
     <label class="set"><span>Ton (japanische Stimme)<br><small class="muted">nutzt die Sprachausgabe deines Geräts</small></span><input type="checkbox" data-a="set" data-key="sound" ${s.sound ? 'checked' : ''}></label>
-    <label class="set"><span>Darstellung</span><select data-a="set" data-key="theme"><option value="auto" ${s.theme === 'auto' ? 'selected' : ''}>Automatisch</option><option value="light" ${s.theme === 'light' ? 'selected' : ''}>Hell</option><option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>Dunkel</option></select></label>
-    <label class="set"><span>Startschrift</span><select data-a="set" data-key="focus"><option value="hira" ${S.focus === 'hira' ? 'selected' : ''}>Hiragana</option><option value="kata" ${S.focus === 'kata' ? 'selected' : ''}>Katakana</option></select></label></div>
+    <label class="set"><span>Darstellung</span><select data-a="set" data-key="theme">${sel('auto', s.theme, 'Automatisch')}${sel('light', s.theme, 'Hell')}${sel('dark', s.theme, 'Dunkel')}</select></label>
+    <label class="set"><span>Startschrift</span><select data-a="set" data-key="focus">${sel('hira', S.focus, 'Hiragana')}${sel('kata', S.focus, 'Katakana')}</select></label></div>
     <p class="small muted">Alle Daten bleiben nur auf diesem Gerät (localStorage).</p>
     <button class="btn block" data-a="reset" style="color:var(--accent)">Fortschritt zurücksetzen</button>`;
 }
@@ -346,10 +422,12 @@ const A = {
   kscript: t => { kanaScript = t.dataset.v; viewKana(); }, kmode: t => { kanaMode = t.dataset.v; viewKana(); },
   'onb-next': () => viewOnboarding(onbStep + 1), 'onb-skip': () => viewOnboarding(ONB.length),
   'onb-focus': t => { S.focus = t.dataset.v; document.querySelectorAll('#focus button').forEach(b => b.classList.toggle('on', b === t)); },
-  'onb-done': () => { S.name = ($('#nm').value || '').trim(); S.onboarded = true; save(); location.hash = '#/home'; if (location.hash === '#/home') route(); },
+  'onb-track': t => { const on = [...document.querySelectorAll('#tracks button.on')]; if (t.classList.contains('on') && on.length === 1) return toast('Mindestens ein Weg bleibt aktiv 🙂'); t.classList.toggle('on'); $('#focusbox').hidden = !$('#tracks [data-v=script]').classList.contains('on'); },
+  't-next': topicNext,
+  'onb-done': () => { S.name = ($('#nm').value || '').trim(); S.tracks = { script: $('#tracks [data-v=script]').classList.contains('on'), lang: $('#tracks [data-v=lang]').classList.contains('on') }; S.settings.textScript = S.tracks.script ? 'both' : 'romaji'; S.onboarded = true; save(); location.hash = '#/home'; if (location.hash === '#/home') route(); },
   'onb-again': () => { S.onboarded = false; location.hash = '#/onboarding'; route(); },
   ans: t => answer(+t.dataset.i), qnext, hint: () => { const q = Q?.qs[Q.i]; if (q) { const fb = $('#fb'); fb.className = 'fb no'; fb.innerHTML = '💡 ' + q.hint; } },
-  quit: () => { stopStory(); const to = L ? '#/kana' : '#/home'; Q = null; L = null; location.hash = to; },
+  quit: () => { stopStory(); Q = null; L = null; T = null; location.hash = backTo; },
   'disc-next': () => { if (L.i < L.g.kana.length - 1) { L.i++; renderLesson(); } else stageNext(); },
   pair: t => pair(+t.dataset.side, t.dataset.k), 'stage-next': stageNext,
   word: t => { document.querySelectorAll('.w.on').forEach(e => e.classList.remove('on')); t.classList.add('on'); $('#gloss').innerHTML = `<span class="jp" style="font-size:1.2rem">${t.dataset.jp}</span> · ${t.dataset.ro} · <b>${t.dataset.de}</b>`; speak(t.dataset.jp); },
@@ -357,7 +435,7 @@ const A = {
   'story-play': t => { const id = location.hash.split('/')[2]; if (t.textContent.includes('Stopp')) { stopStory(); t.textContent = '🔊 Alles anhören'; document.querySelectorAll('.line').forEach(e => e.classList.remove('playing')); } else playStory(id); },
   'story-de': t => { story.show = !story.show; document.querySelectorAll('.bubble .de').forEach(e => (e.hidden = !story.show)); t.textContent = story.show ? '🇩🇪 Übersetzung verbergen' : '🇩🇪 Übersetzung zeigen'; },
   'story-done': t => { S.storiesRead[t.dataset.id] = true; markActivity('input'); toast('Schön! Wieder ein Stück verstanden 🌸'); location.hash = '#/home'; },
-  set: t => { const k = t.dataset.key; if (k === 'focus') S.focus = t.value; else S.settings[k] = t.type === 'checkbox' ? t.checked : t.value; save(); applyTheme(); },
+  set: t => { const k = t.dataset.key; if (k.startsWith('track-')) { S.tracks[k.slice(6)] = t.checked; if (!S.tracks.script && !S.tracks.lang) { S.tracks[k === 'track-script' ? 'lang' : 'script'] = true; toast('Mindestens ein Weg bleibt aktiv 🙂'); save(); return viewSettings(); } } else if (k === 'focus') S.focus = t.value; else S.settings[k] = t.type === 'checkbox' ? t.checked : t.value; save(); applyTheme(); },
   reset: () => { if (confirm('Wirklich allen Fortschritt löschen?')) { const nm = S.name; S = structuredClone(DEFAULTS); S.name = nm; S.onboarded = true; save(); toast('Zurückgesetzt – neu starten ist auch Lernen 🌱'); location.hash = '#/home'; route(); } },
 };
 document.addEventListener('click', e => { const t = e.target.closest('[data-a]'); if (!t || t.tagName === 'SELECT' || t.type === 'checkbox') return; A[t.dataset.a]?.(t, e); });

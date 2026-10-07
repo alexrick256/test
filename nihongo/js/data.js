@@ -343,3 +343,14 @@ export const METHOD = [
     k: 'Lernende sollen nicht zum Sprechen gezwungen werden. Sie sprechen, wenn sie bereit sind – nach ausreichend Input.',
     a: 'Jede Lektion beginnt mit Schauen und Hören. Sprechen und Schreiben bleiben freiwillig.' },
 ];
+
+// Sprach-Themen (unabhängig von der Schrift lernbar): [Japanisch, Romaji, Deutsch, Emoji]
+export const TOPICS = [
+  { id: 't1', title: 'Begrüßen & Danken', emoji: '👋', items: [['こんにちは', 'konnichiwa', 'Hallo', '👋'], ['おはよう', 'ohayou', 'Guten Morgen', '🌅'], ['こんばんは', 'konbanwa', 'Guten Abend', '🌆'], ['さようなら', 'sayounara', 'Tschüss', '🖐️'], ['ありがとう', 'arigatou', 'Danke', '🙏'], ['すみません', 'sumimasen', 'Entschuldigung', '🙇'], ['はい', 'hai', 'Ja', '✅'], ['いいえ', 'iie', 'Nein', '❌']] },
+  { id: 't2', title: 'Sich vorstellen', emoji: '🙋', items: [['わたし', 'watashi', 'ich', '🙋'], ['なまえ', 'namae', 'Name', '🏷️'], ['はじめまして', 'hajimemashite', 'Freut mich (Erstes Treffen)', '🤝'], ['よろしく', 'yoroshiku', 'Auf gute Zusammenarbeit', '😊'], ['です', 'desu', 'bin / ist', '🟰'], ['にほん', 'Nihon', 'Japan', '🇯🇵'], ['ドイツ', 'Doitsu', 'Deutschland', '🇩🇪'], ['ともだち', 'tomodachi', 'Freund / Freundin', '🧑‍🤝‍🧑']] },
+  { id: 't3', title: 'Essen & Trinken', emoji: '🍚', items: [['ごはん', 'gohan', 'Reis / Essen', '🍚'], ['みず', 'mizu', 'Wasser', '💧'], ['おちゃ', 'ocha', 'Tee', '🍵'], ['さかな', 'sakana', 'Fisch', '🐟'], ['にく', 'niku', 'Fleisch', '🥩'], ['やさい', 'yasai', 'Gemüse', '🥦'], ['おいしい', 'oishii', 'lecker', '😋'], ['いただきます', 'itadakimasu', 'Guten Appetit', '🍽️']] },
+  { id: 't4', title: 'Zahlen 1–8', emoji: '🔢', items: [['いち', 'ichi', 'eins', '1️⃣'], ['に', 'ni', 'zwei', '2️⃣'], ['さん', 'san', 'drei', '3️⃣'], ['よん', 'yon', 'vier', '4️⃣'], ['ご', 'go', 'fünf', '5️⃣'], ['ろく', 'roku', 'sechs', '6️⃣'], ['なな', 'nana', 'sieben', '7️⃣'], ['はち', 'hachi', 'acht', '8️⃣']] },
+  { id: 't5', title: 'Tiere', emoji: '🐾', items: [['ねこ', 'neko', 'Katze', '🐱'], ['いぬ', 'inu', 'Hund', '🐶'], ['とり', 'tori', 'Vogel', '🐦'], ['うま', 'uma', 'Pferd', '🐴'], ['うさぎ', 'usagi', 'Hase', '🐰'], ['さる', 'saru', 'Affe', '🐵'], ['ぞう', 'zou', 'Elefant', '🐘'], ['さかな', 'sakana', 'Fisch', '🐟']] },
+  { id: 't6', title: 'Unterwegs & Zuhause', emoji: '🚉', items: [['いえ', 'ie', 'Haus', '🏠'], ['がっこう', 'gakkou', 'Schule', '🏫'], ['えき', 'eki', 'Bahnhof', '🚉'], ['みせ', 'mise', 'Laden', '🏪'], ['くるま', 'kuruma', 'Auto', '🚗'], ['でんしゃ', 'densha', 'Zug', '🚆'], ['ほん', 'hon', 'Buch', '📖'], ['かさ', 'kasa', 'Regenschirm', '☂️']] },
+  { id: 't7', title: 'Natur & Wetter', emoji: '🌤️', items: [['あめ', 'ame', 'Regen', '🌧️'], ['ゆき', 'yuki', 'Schnee', '❄️'], ['かぜ', 'kaze', 'Wind', '💨'], ['やま', 'yama', 'Berg', '⛰️'], ['うみ', 'umi', 'Meer', '🌊'], ['そら', 'sora', 'Himmel', '🌤️'], ['つき', 'tsuki', 'Mond', '🌙'], ['はな', 'hana', 'Blume', '🌷']] },
+];
