@@ -8,14 +8,14 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pick = (a, n) => shuffle(a).slice(0, n);
 const todayStr = () => new Date().toLocaleDateString('sv');
-const DAY = 864e5, INTERVALS = [0, 1, 2, 4, 8, 16]; // Tage pro Leitner-Box
+const DAY = 864e5, INTERVALS = [0, 1, 3, 7, 14, 30, 60, 120]; // Tage je Box (1–7): nach dem Lernen +18 h, dann wachsende Abstände
 const view = $('#view');
 
 /* ---------- Zustand ---------- */
 const KEY = 'mochi-nihongo-v1';
-const EMPTY_DAY = () => ({ date: todayStr(), new: 0, kanji: 0, tnew: 0, input: 0, rev: 0, write: 0 });
+const EMPTY_DAY = () => ({ date: todayStr(), new: 0, kanji: 0, tnew: 0, input: 0, rev: 0, write: 0, pts: {}, seen: {} });
 const DEFAULTS = { onboarded: false, name: '', focus: 'hira', level: 'N5', goals: ['alltag'], goalMin: 10, tracks: { script: true, lang: true },
-  groupsDone: {}, srs: {}, wsrs: {}, ksrs: {}, topicsDone: {}, kanjiDone: {}, storiesRead: {}, time: {}, trace: {}, scriptTest: {}, seenLevel: 'N5', streak: { last: '', count: 0 },
+  groupsDone: {}, srs: {}, wsrs: {}, ksrs: {}, topicsDone: {}, kanjiDone: {}, storiesRead: {}, time: {}, trace: {}, scriptTest: {}, seenLevel: 'N5', lsrs: {}, hist: {}, weekDays: 5, streak: { last: '', count: 0 },
   day: { date: '', new: 0, kanji: 0, tnew: 0, input: 0, rev: 0 }, settings: { romaji: true, sound: true, speak: true, theme: 'auto', textScript: 'both' } };
 let S;
 try { S = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; S.settings = { ...DEFAULTS.settings, ...S.settings }; S.tracks = { ...DEFAULTS.tracks, ...S.tracks }; S.day = { ...EMPTY_DAY(), ...S.day }; } catch { S = structuredClone(DEFAULTS); }
@@ -35,8 +35,9 @@ const dueKanji = () => Object.entries(S.ksrs).filter(([, v]) => v.due <= Date.no
 const dueKana = () => Object.entries(S.srs).filter(([, v]) => v.due <= Date.now()).sort((a, b) => a[1].due - b[1].due).map(([k]) => KANA[k]).filter(Boolean);
 function rate(k, ok, st = 'srs') {
   const e = S[st][k] || { box: 1 };
-  e.box = ok ? Math.min(5, e.box + 1) : Math.max(1, e.box - 1);
-  e.due = Date.now() + INTERVALS[e.box] * DAY - (INTERVALS[e.box] ? 2 * 36e5 : 0); S[st][k] = e; save();
+  if (ok) { e.box = Math.min(7, e.box + 1); e.due = Date.now() + INTERVALS[e.box] * DAY - 2 * 36e5; }
+  else { e.box = Math.max(1, e.box - 2); e.due = Date.now() + 10 * 60 * 1000; } // Fehler: bald nochmal (Relearn)
+  S[st][k] = e; save();
 }
 const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2400); };
 
@@ -190,7 +191,7 @@ function mountWriter(box, ch, { mode = 'show', modes = true, onGraded } = {}) {
 function wCheck() {
   if (W.graded) return; if (!W.strokes.length) return toast('Zeichne zuerst das Zeichen 🙂');
   const g = gradeWriting(W.ch, W.strokes); W.graded = true;
-  S.trace[W.ch] = Math.max(S.trace[W.ch] || 0, g.pct); if (g.pct >= PASS) S.day.write = (S.day.write || 0) + 1; markActivity();
+  S.trace[W.ch] = Math.max(S.trace[W.ch] || 0, g.pct); markActivity(); if (g.pct >= PASS) { S.day.write = (S.day.write || 0) + 1; addPoint('schreiben', 'w:' + W.ch, W.ch); }
   const ref = refOf(W.ch); $('#wg').innerHTML = ref.map(r => `<path d="${r.d}" class="wgp"/>`).join(''); $('#wn').innerHTML = ref.map(r => wArrow(r.pts) + wNumber(r)).join('');
   [...$('#wu').children].forEach((el, i) => { const s = g.per[i]; el.setAttribute('class', 'wup ' + (!s ? 'bad' : s.score >= .7 ? 'good' : s.score >= .4 ? 'mid' : 'bad')); });
   const notes = []; if (g.nUser !== g.nRef) notes.push(`Du hast ${g.nUser} statt ${g.nRef} Striche gezeichnet.`);
@@ -231,13 +232,13 @@ function route() {
   const [, p1 = 'home', p2] = location.hash.split('/');
   if (!S.onboarded && p1 !== 'onboarding') { location.hash = '#/onboarding'; return; }
   rollDay();
-  const focus = ['onboarding', 'lesson', 'review', 'topic', 'wreview', 'kanji', 'kreview', 'stest', 'write'].includes(p1);
+  const focus = ['onboarding', 'lesson', 'review', 'topic', 'wreview', 'kanji', 'kreview', 'stest', 'write', 'skill'].includes(p1);
   backTo = ['topic', 'wreview'].includes(p1) ? '#/read' : ['lesson', 'kanji', 'kreview', 'stest', 'write'].includes(p1) ? '#/kana' : '#/home';
   document.body.classList.toggle('focus', focus);
-  const tab = { lesson: 'kana', kanji: 'kana', kreview: 'kana', topic: 'read', wreview: 'read', review: 'kana', stest: 'kana', write: 'kana' }[p1] || p1;
+  const tab = { lesson: 'kana', kanji: 'kana', kreview: 'kana', topic: 'read', wreview: 'read', review: 'kana', stest: 'kana', write: 'kana', skill: 'home' }[p1] || p1;
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   const R = { home: viewHome, kana: () => viewKana(), lesson: () => startLesson(p2), review: () => startReview(p2 === 'free'), topic: () => startTopic(p2), wreview: () => startWordReview(p2 === 'free'),
-    kanji: () => startKanji(p2), kreview: () => startKanjiReview(p2 === 'free'), stest: () => scriptTest(p2 || 'hira'), write: () => writePractice(p2 || 'hira'),
+    kanji: () => startKanji(p2), kreview: () => startKanjiReview(p2 === 'free'), stest: () => scriptTest(p2 || 'hira'), write: () => writePractice(p2 || 'hira'), skill: () => startSkill(p2),
     read: () => (p2 ? viewStory(p2) : viewReadList()), method: viewMethod, settings: viewSettings, onboarding: () => viewOnboarding(0) };
   (R[p1] || viewHome)(); view.scrollTo?.(0, 0);
 }
@@ -347,45 +348,40 @@ const ringText = (t, size, fs, dy = 0) => `<text x="${size / 2}" y="${size / 2 +
 const fmt = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 
 function nextAction() {
-  const T_ = S.tracks, d = S.day, g = nextGroup(), kg = nextKanjiGroup(), nt = nextTopic(), st = recommendedStory();
-  const dueK = dueKana().length, dueJ = dueKanji().length, dueW = dueWords().length;
-  const review = dueK ? '#/review' : dueJ ? '#/kreview' : dueW ? '#/wreview' : knownKana().size ? '#/review/free' : Object.keys(S.wsrs).length ? '#/wreview/free' : null;
-  const A_ = [];
-  if (T_.lang && !d.input && st) A_.push({ ic: '🎧', t: 'Geschichte hören', s: st.title, href: '#/read/' + st.id });
-  const kana = T_.script && !d.new && g && { ic: 'あ', t: 'Neue Kana', s: `${g.script === 'hira' ? 'Hiragana' : 'Katakana'} · ${g.title}`, href: '#/lesson/' + g.id };
-  const kanji = T_.script && !d.kanji && kg && { ic: '漢', t: 'Neue Kanji', s: `${kg.lvl} · Satz ${kg.n}`, href: '#/kanji/' + kg.id };
-  (S.goals.includes('jlpt') ? [kanji, kana] : [kana, kanji]).forEach(x => x && A_.push(x));
-  if (T_.lang && !d.tnew && nt) A_.push({ ic: '🗣️', t: 'Neues Thema', s: `${nt.emoji} ${nt.title}`, href: '#/topic/' + nt.id });
-  if (d.rev < 10 && review) A_.push({ ic: '🔁', t: 'Wiederholen', s: 'sanft & ohne Druck', href: review });
-  if (T_.script && (d.write || 0) < 3 && knownKana().size) A_.push({ ic: '✍️', t: 'Schreiben üben', s: 'Strichfolge & Note', href: '#/write/' + (knownKana().has(GROUPS[S.focus][0].kana[0].k) ? S.focus : 'hira') });
-  return A_[0] || { ic: '🌿', t: 'Freies Lernen', s: 'Alle Tagesaufgaben sind erledigt', href: review || '#/read' };
+  const T_ = S.tracks, d = S.day, g = nextGroup(), kg = nextKanjiGroup(), nt = nextTopic(), st = recommendedStory(), newOK = backlogCount() <= 25, A_ = [];
+  if (newOK && T_.lang && !d.input && st) A_.push({ ic: '🎧', t: 'Geschichte hören', s: st.title, href: '#/read/' + st.id });
+  if (newOK && T_.lang && !d.tnew && nt) A_.push({ ic: '🗣️', t: 'Neues Thema', s: `${nt.emoji} ${nt.title}`, href: '#/topic/' + nt.id });
+  if (newOK && T_.script && !(d.new + d.kanji)) {
+    const kana = g && { ic: 'あ', t: 'Neue Kana', s: `${g.script === 'hira' ? 'Hiragana' : 'Katakana'} · ${g.title}`, href: '#/lesson/' + g.id }, kanji = kg && { ic: '漢', t: 'Neue Kanji', s: `${kg.lvl} · Satz ${kg.n}`, href: '#/kanji/' + kg.id };
+    const first = (S.goals.includes('jlpt') ? [kanji, kana] : [kana, kanji]).find(Boolean); if (first) A_.push(first);
+  }
+  const weak = activeSkills().filter(k => skillFrac(k) < 1).sort((a, b) => skillFrac(a) - skillFrac(b))[0];
+  if (weak) A_.push({ ic: SKILLS[weak].ic, t: SKILLS[weak].n + ' üben', s: `${S.day.pts[weak] || 0}/${skillTargets()[weak]} Punkte heute`, href: '#/skill/' + weak });
+  return A_[0] || { ic: '🌿', t: 'Freies Lernen', s: 'Tagesziel erreicht – weiter, wie du magst', href: '#/read' };
 }
 
 function viewHome() {
-  const d = S.day, T_ = S.tracks, secs = S.time[todayStr()] || 0, goal = S.goalMin * 60, pct = Math.min(100, Math.round(secs / goal * 100));
-  const hr = new Date().getHours(), greet = hr < 11 ? 'Ohayou' : hr < 18 ? 'Konnichiwa' : 'Konbanwa', yest = new Date(Date.now() - DAY).toLocaleDateString('sv');
-  const week = [...Array(7)].map((_, k) => { const dt = new Date(Date.now() - (6 - k) * DAY); return { day: dt.toLocaleDateString('de', { weekday: 'narrow' }), s: S.time[dt.toLocaleDateString('sv')] || 0, today: k === 6 }; });
-  const g = nextGroup(), kg = nextKanjiGroup(), nt = nextTopic(), st = recommendedStory(), na = nextAction();
-  const cl = curLevel(), lp = lvlPct(cl), done = allDone(), li = lvIdx(cl), parts = lvlParts(cl);
-  const rev = dueKana().length ? '#/review' : dueKanji().length ? '#/kreview' : dueWords().length ? '#/wreview' : knownKana().size ? '#/review/free' : '#/read';
-  const tasks = [
-    ...(T_.script ? [{ ic: 'あ', n: 'Kana', v: d.new, goal: 1, href: g ? '#/lesson/' + g.id : '#/kana' }, { ic: '漢', n: 'Kanji', v: d.kanji, goal: 1, href: kg ? '#/kanji/' + kg.id : '#/kana' }, { ic: '✍️', n: 'Schreiben', v: d.write || 0, goal: 3, href: '#/write/' + S.focus }] : []),
-    ...(T_.lang ? [{ ic: '🗣️', n: 'Thema', v: d.tnew, goal: 1, href: nt ? '#/topic/' + nt.id : '#/read' }, { ic: '🎧', n: 'Story', v: d.input, goal: 1, href: '#/read/' + st.id }] : []),
-    { ic: '🔁', n: 'Üben', v: d.rev, goal: 10, href: rev },
-  ];
-  const streak = S.streak.last === todayStr() || S.streak.last === yest ? S.streak.count : 0;
+  const T_ = S.tracks, secs = S.time[todayStr()] || 0, dp = dailyPct(), tg = skillTargets(), wd = weekDates(), wGoal = S.weekDays || 5, wDone = wd.filter(x => S.hist[x]).length, wp = Math.min(100, Math.round(wDone / wGoal * 100));
+  const hr = new Date().getHours(), greet = hr < 11 ? 'Ohayou' : hr < 18 ? 'Konnichiwa' : 'Konbanwa', yest = new Date(Date.now() - DAY).toLocaleDateString('sv'), d = S.day;
+  const cl = curLevel(), lp = lvlPct(cl), done = allDone(), li = lvIdx(cl), na = nextAction(), backlog = backlogCount();
+  const streak = S.streak.last === todayStr() || S.streak.last === yest ? S.streak.count : 0, mic = canListen();
+  const sk = ['hoeren', 'lesen', 'sprechen', ...(T_.script ? ['schreiben'] : [])].map(k => {
+    const f = skillFrac(k), p = d.pts[k] || 0, off = k === 'sprechen' && !mic;
+    const r = ring(off ? 0 : f * 100, { size: 50, sw: 6, color: f >= 1 ? 'var(--green)' : 'var(--accent)', inner: `<text x="25" y="25" text-anchor="middle" dominant-baseline="central" style="font:700 19px var(--jp);fill:var(--ink)">${SKILLS[k].ic}</text>` });
+    return off ? `<span class="sk off" title="Spracherkennung nicht verfügbar">${r}<small>${SKILLS[k].n} <span class="muted">–</span></small></span>` : `<a class="sk ${f >= 1 ? 'done' : ''}" href="#/skill/${k}">${r}<small>${SKILLS[k].n} <span class="muted">${Math.min(p, tg[k])}/${tg[k]}</span></small></a>`;
+  }).join('');
+  const neu = [...(T_.lang ? [['Thema', d.tnew, 1], ['Geschichte', d.input, 1]] : []), ...(T_.script ? [['Zeichen', d.new + d.kanji, 1]] : [])];
   view.innerHTML = `<div class="dboard">
     <div class="head tight"><div class="hero">${mochi({ acc: 'wave' }, 52)}<div><p class="sub">${greet}${S.name ? ', ' + esc(S.name) : ''}!</p><h1>Dashboard</h1></div></div>
       <div class="row" style="gap:8px"><span class="chip sun">🔥 ${streak}</span><button class="icon-btn" data-a="go" data-to="settings" aria-label="Einstellungen">⚙️</button></div></div>
-    <div class="rings2">
-      <section class="rcard"><span class="small muted">${done ? 'Geschafft' : 'Aktuelle Stufe'}</span>${ring(lp, { size: 108, sw: 11, color: LVC[li], inner: ringText(done ? '🏆' : lp + '%', 108, done ? 34 : 26, -6) + (done ? '' : `<text x="54" y="72" text-anchor="middle" style="font:800 13px var(--ui);fill:var(--muted)">${cl}</text>`) })}
-        <b>${done ? 'N5–N1' : cl + ' · ' + LEVEL_INFO[cl]}</b><small class="muted">${done ? 'Alle Stufen bestanden' : li < 4 ? 'Danach: ' + LEVELS[li + 1] : 'Letzte Stufe'}</small></section>
-      <section class="rcard"><span class="small muted">Tagesziel · ${S.goalMin} Min.</span>${ring(pct, { size: 108, sw: 11, inner: ringText(pct + '%', 108, 26) })}
-        <b>${pct >= 100 ? 'Geschafft! 🎉' : 'Noch ' + (100 - pct) + ' %'}</b><small class="muted">${fmt(secs)} von ${S.goalMin}:00 Min.</small></section></div>
-    <div class="parts">${parts.map(p => `<span class="chip ${p.d >= p.t ? 'green' : ''}">${p.k} ${p.d}/${p.t}</span>`).join('')}</div>
-    <h3 class="sec">Heute <small class="muted">Aufgaben</small></h3>
-    <div class="tasks">${tasks.map(t => { const p = Math.min(100, t.v / t.goal * 100); return `<a class="tk ${p >= 100 ? 'done' : ''}" href="${t.href}">${ring(p, { size: 50, sw: 6, color: p >= 100 ? 'var(--green)' : 'var(--accent)', inner: `<text x="25" y="25" text-anchor="middle" dominant-baseline="central" style="font:700 ${/[a-z]/i.test(t.ic) ? 13 : 19}px var(--jp);fill:var(--ink)">${t.ic}</text>` })}<small>${t.n} <span class="muted">${Math.min(t.v, t.goal)}/${t.goal}</span></small></a>`; }).join('')}</div>
-    <div class="week" aria-label="Lernzeit der letzten 7 Tage">${week.map(w => `<span class="wb ${w.today ? 'today' : ''}"><i style="height:${Math.max(6, Math.min(100, w.s / goal * 100))}%" class="${w.s >= goal ? 'full' : ''}"></i><small>${w.day}</small></span>`).join('')}</div>
+    <div class="rings3">
+      <section class="rcard"><span class="small muted">${done ? 'Geschafft' : 'Stufe'}</span>${ring(lp, { size: 84, sw: 9, color: LVC[li], inner: ringText(done ? '🏆' : lp + '%', 84, done ? 28 : 19, done ? 0 : -5) + (done ? '' : `<text x="42" y="55" text-anchor="middle" style="font:800 11px var(--ui);fill:var(--muted)">${cl}</text>`) })}<b>${done ? 'N5–N1' : LEVEL_INFO[cl]}</b><small class="muted">${done ? 'alles bestanden' : li < 4 ? 'danach ' + LEVELS[li + 1] : 'letzte Stufe'}</small></section>
+      <section class="rcard"><span class="small muted">Täglich</span>${ring(dp, { size: 84, sw: 9, inner: ringText(dp + '%', 84, 20) })}<b>${dp >= 100 ? 'Geschafft 🎉' : 'Noch ' + (100 - dp) + ' %'}</b><small class="muted">${fmt(secs)} Min. aktiv</small></section>
+      <section class="rcard"><span class="small muted">Woche</span>${ring(wp, { size: 84, sw: 9, color: 'var(--violet)', inner: ringText(wp + '%', 84, 20) })}<b>${wDone} von ${wGoal} Tagen</b><span class="wdots" aria-label="Tage dieser Woche">${wd.map(x => `<i class="${S.hist[x] ? 'on' : ''} ${x === todayStr() ? 'today' : ''}"></i>`).join('')}</span></section></div>
+    <h3 class="sec">Heute üben <small class="muted">Punkte nur für richtige Antworten</small></h3>
+    <div class="skills">${sk}</div>
+    <div class="parts">${neu.map(([n, v, g]) => `<span class="chip ${v >= g ? 'green' : ''}">Neu · ${n} ${Math.min(v, g)}/${g}</span>`).join('')}${backlog ? `<span class="chip ${backlog > 25 ? 'red' : 'sun'}">${backlog} fällig</span>` : ''}</div>
+    ${backlog > 25 ? '<p class="small muted" style="text-align:center;margin:6px 0 0">Viel Wiederholung offen – Neues pausiert, bis es weniger ist.</p>' : ''}
     <a class="btn primary block go" href="${na.href}"><span class="goic">${na.ic}</span><span class="gotx"><b>Weiterlernen: ${na.t}</b><small>${na.s}</small></span><span>▶</span></a></div>`;
 }
 
@@ -411,12 +407,12 @@ function viewKana() {
     body = kanaMode === 'lessons'
       ? `${dj ? `<a class="btn block sm" style="margin-bottom:10px" href="#/kreview">🔁 ${dj} Kanji wiederholen</a>` : ''}
         ${gs.map(g => `<button class="gcard ${S.kanjiDone[g.id] ? 'done' : ''} ${nkg && nkg.id === g.id ? 'next' : ''}" data-a="go" data-to="kanji/${g.id}"><span class="num">${S.kanjiDone[g.id] ? '✔' : g.n}</span><span class="grow"><b>Satz ${g.n}</b><br><span class="glyphs">${g.items.map(k => k.k).join(' ')}</span></span>${nkg && nkg.id === g.id ? '<span class="chip red">empfohlen</span>' : S.kanjiDone[g.id] ? '<span class="chip green">gelernt</span>' : ''}</button>`).join('')}`
-      : `<div class="chart">${KANJI.filter(k => k.lvl === kanjiLvl).map(k => { const e = S.ksrs[k.k]; return `<button class="tile ${e ? 'k' + e.box : 'lock'}" data-a="kanjiinfo" data-k="${k.k}"><span class="g">${k.k}</span><span class="r">${esc(k.de.split(' / ')[0])}</span></button>`; }).join('')}</div>`;
+      : `<div class="chart">${KANJI.filter(k => k.lvl === kanjiLvl).map(k => { const e = S.ksrs[k.k]; return `<button class="tile ${e ? 'k' + Math.min(5, e.box) : 'lock'}" data-a="kanjiinfo" data-k="${k.k}"><span class="g">${k.k}</span><span class="r">${esc(k.de.split(' / ')[0])}</span></button>`; }).join('')}</div>`;
   } else {
     const gs = GROUPS[kanaScript];
     body = kanaMode === 'lessons' ? gs.map(g => `<button class="gcard ${S.groupsDone[g.id] ? 'done' : ''} ${nxt && nxt.id === g.id ? 'next' : ''}" data-a="go" data-to="lesson/${g.id}"><span class="num">${S.groupsDone[g.id] ? '✔' : g.n}</span>
         <span class="grow"><b>${g.title}</b><br><span class="glyphs">${g.kana.map(k => k.k).join(' ')}</span></span>${nxt && nxt.id === g.id ? '<span class="chip red">empfohlen</span>' : S.groupsDone[g.id] ? '<span class="chip green">gelernt</span>' : ''}</button>`).join('')
-      : `<div class="chart">${gs.flatMap(g => g.kana).map(k => { const e = S.srs[k.k]; return `<button class="tile ${e ? 'k' + e.box : 'lock'}" data-a="kana" data-k="${k.k}"><span class="g">${k.k}</span><span class="r">${k.r}</span></button>`; }).join('')}</div>`;
+      : `<div class="chart">${gs.flatMap(g => g.kana).map(k => { const e = S.srs[k.k]; return `<button class="tile ${e ? 'k' + Math.min(5, e.box) : 'lock'}" data-a="kana" data-k="${k.k}"><span class="g">${k.k}</span><span class="r">${k.r}</span></button>`; }).join('')}</div>`;
   }
   view.innerHTML = `<div class="head tight"><div><h1>Schrift</h1><p class="sub">Kana &amp; Kanji – unabhängig von der Sprache</p></div></div>
     <div class="seg" role="tablist"><button data-a="kscript" data-v="hira" class="${kanaScript === 'hira' ? 'on' : ''}"><span class="jp">あ</span> Hiragana</button><button data-a="kscript" data-v="kata" class="${kanaScript === 'kata' ? 'on' : ''}"><span class="jp">ア</span> Katakana</button><button data-a="kscript" data-v="kanji" class="${isK ? 'on' : ''}"><span class="jp">漢</span> Kanji</button></div>
@@ -456,7 +452,7 @@ function writePractice(sc, mode = 'trace') {
 }
 function writeChars(chars, mode = 'trace') {
   document.body.classList.add('focus');
-  startWrite(chars, { mode, onDone: res => showResult({ pct: res.pct, n: 0, right: 0, rn: 0, sn: 0 }, { note: 'Schreibübung', pass: () => (location.hash = '#/kana'), passLabel: 'Fertig', redo: () => writeChars(chars, mode), redoLabel: 'Nochmal schreiben' }) });
+  startWrite(chars, { mode, onDone: res => showResult({ pct: res.pct, n: 0, right: 0, rn: 0, sn: 0 }, { note: 'Schreibübung', pass: () => (location.hash = backTo), passLabel: 'Fertig', redo: () => writeChars(chars, mode), redoLabel: 'Nochmal schreiben' }) });
 }
 
 /* ---------- Quiz-Engine (ohne Zeitdruck, ohne Strafen) ---------- */
@@ -493,6 +489,7 @@ function promptHtml(q) {
     case 'kpick': return `<div class="wordbig" style="font-family:var(--ui);font-size:1.7rem">${esc(q.big)}</div><p class="muted small">Welches Zeichen ist das?</p>`;
     case 'kword': return `${big(q.big)}${hear}<p class="muted small" style="margin-top:8px">Was bedeutet das Wort?</p>`;
     case 'sline': return `<div class="wordbig" style="font-size:1.45rem;line-height:1.5">${ts === 'romaji' ? esc(q.romaji) : q.big}</div>${ts === 'both' ? `<div class="muted small">${esc(q.romaji)}</div>` : ''}${hear}<p class="muted small" style="margin-top:8px">Was bedeutet der Satz?</p>`;
+    case 'shear': return `${hearBig}<p class="muted small" style="margin-top:10px">Was bedeutet der Satz, den du hörst?</p>`;
     case 'sword': return `${big(ts === 'romaji' ? q.ro : q.big, ts === 'both' ? `<div class="muted">${esc(q.ro)}</div>` : '')}${hear}<p class="muted small" style="margin-top:8px">Was bedeutet das Wort?</p>`;
     default: return `<div class="glyph">${q.big}</div><p class="muted small">Wie klingt dieses Zeichen?</p>`;
   }
@@ -520,7 +517,7 @@ async function recordSpeech() {
   mic.textContent = '🎙️ Ich höre zu …'; mic.classList.add('rec'); fb.className = 'fb'; fb.textContent = 'Sprich jetzt …';
   try {
     const alts = await listen(Q.ctl), pct = speechScore(q.target, alts); if (!Q) return;
-    Q.ans = true; Q.sn++; Q.spts += pct / 100; fb.className = 'fb ' + (pct >= PASS ? 'ok' : 'no');
+    Q.ans = true; Q.sn++; Q.spts += pct / 100; if (pct >= PASS) addPoint('sprechen', 'sp:' + q.target.w, q.target.w); fb.className = 'fb ' + (pct >= PASS ? 'ok' : 'no');
     fb.innerHTML = `Erkannt: <b>${esc(alts[0])}</b><br>Aussprache: ${gradeHtml(pct)}`; mic.textContent = '🎤 Aufgenommen'; mic.disabled = true; $('#nxt').style.visibility = 'visible';
   } catch (e) {
     if (!Q) return; mic.textContent = '🎤 Nochmal'; fb.className = 'fb no';
@@ -535,7 +532,8 @@ function answer(i) {
   else { fb.className = 'fb no'; fb.innerHTML = `Fast! 🌱 ${q.explain}.<br><span class="small muted">Kein Problem – das kommt gleich nochmal vorbei.</span>`; if (!q.retry) Q.qs.splice(Math.min(Q.qs.length, Q.i + 3), 0, { ...q, retry: true, opts: shuffle(q.opts) }); }
   if (!q.retry) {
     if (Q.graded) { if (q.review) { Q.rn++; if (ok) Q.rpts++; } else { Q.n++; if (ok) Q.pts++; } }
-    if (q.kana) Q.onResult?.(q.kana, ok); if (q.wkey) Q.onWResult?.(q.wkey, ok); if (q.kkey) Q.onKResult?.(q.kkey, ok);
+    if (q.kana) Q.onResult?.(q.kana, ok); if (q.wkey) Q.onWResult?.(q.wkey, ok); if (q.kkey) Q.onKResult?.(q.kkey, ok); if (q.lkey) Q.onLResult?.(q.lkey, ok);
+    if (ok) { const sk = HEAR.includes(q.kind) ? 'hoeren' : READ.includes(q.kind) ? 'lesen' : null, item = q.kana || q.wkey || q.kkey || q.lkey || q.say; if (sk) addPoint(sk, q.kind + ':' + item, item); }
     if (Q.isRev) { S.day.rev++; save(); }
   }
   speak(q.say);
@@ -552,6 +550,7 @@ function runTest({ core, review = [], speak: sp = [], top = '', pass, redo, rele
   Q.onResult = (k, ok) => { if (S.srs[k]) rate(k, ok); };
   Q.onWResult = (w, ok) => { if (S.wsrs[w]) rate(w, ok, 'wsrs'); };
   Q.onKResult = (k, ok) => { if (S.ksrs[k]) rate(k, ok, 'ksrs'); };
+  Q.onLResult = (k, ok) => { if (S.lsrs[k]) rate(k, ok, 'lsrs'); };
 }
 function showResult(res, o) {
   const pass = res.pct >= PASS; RES = { o, res }; document.body.classList.add('focus');
@@ -615,6 +614,75 @@ function finishLesson() {
     ${nxt && nxt.id !== g.id ? `<a class="btn primary block" href="#/lesson/${nxt.id}">Weiter: ${nxt.title}</a><div style="height:10px"></div>` : ''}
     <a class="btn ghost block" href="#/home">Zurück zum Dashboard</a>`;
   L = null;
+}
+
+/* ---------- Fertigkeiten: Hören, Lesen, Sprechen, Schreiben ---------- */
+const SKILLS = { hoeren: { n: 'Hören', ic: '🎧' }, lesen: { n: 'Lesen', ic: '📖' }, sprechen: { n: 'Sprechen', ic: '🎤' }, schreiben: { n: 'Schreiben', ic: '✍️' } };
+const HEAR = ['sound', 'lsound', 'shear'], READ = ['read', 'pic', 'word', 'lword', 'kmean', 'kpick', 'kword', 'sline', 'sword'];
+const LINES = {}; STORIES.forEach(s => s.lines.forEach((l, i) => { l.key = `${s.id}:${i}`; LINES[l.key] = l; }));
+function skillTargets() { const f = S.goalMin / 10; return { hoeren: Math.max(4, Math.round(10 * f)), lesen: Math.max(4, Math.round(10 * f)), sprechen: Math.max(2, Math.round(3 * f)), schreiben: Math.max(2, Math.round(4 * f)) }; }
+const activeSkills = () => ['hoeren', 'lesen', ...(canListen() ? ['sprechen'] : []), ...(S.tracks.script ? ['schreiben'] : [])];
+const skillFrac = k => Math.min(1, (S.day.pts[k] || 0) / skillTargets()[k]);
+const dailyPct = () => { const a = activeSkills(); return Math.round(a.reduce((s, k) => s + skillFrac(k), 0) / a.length * 100); };
+// Punkte gibt es nur für richtige Leistungen: pro Aufgabenart und Inhalt höchstens einmal am Tag
+function addPoint(skill, kindKey, itemKey) {
+  rollDay(); const id = skill + '|' + kindKey; if (S.day.seen[id]) return;
+  S.day.seen[id] = 1; S.day.seen[skill + '|item|' + itemKey] = 1; S.day.pts[skill] = (S.day.pts[skill] || 0) + 1; bumpStreak();
+  if (!S.hist[todayStr()] && dailyPct() >= 100) { S.hist[todayStr()] = 1; toast('Tagesziel geschafft! 🎉'); }
+  save();
+}
+function weekDates() { const d = new Date(), dow = (d.getDay() + 6) % 7; return [...Array(7)].map((_, i) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow + i).toLocaleDateString('sv')); }
+const dueLines = () => Object.entries(S.lsrs).filter(([, v]) => v.due <= Date.now()).map(([k]) => LINES[k]).filter(Boolean);
+const backlogCount = () => dueKana().length + dueKanji().length + dueWords().length + dueLines().length;
+
+function skillCands(sk) {
+  const out = [], now = Date.now(), add = (t, o, key, store) => out.push({ t, o, key, due: store[key] ? store[key].due : now + DAY * .5, seen: !!S.day.seen[sk + '|item|' + key] });
+  [...knownKana()].forEach(c => add('kana', KANA[c], c, S.srs));
+  const words = new Map(); Object.keys(S.wsrs).forEach(w => ITEMS[w] && words.set(w, ITEMS[w])); knownWords().forEach(w => !words.has(w.w) && words.set(w.w, w));
+  words.forEach((o, w) => add('word', o, w, S.wsrs));
+  Object.keys(S.ksrs).forEach(k => KANJI_MAP[k] && add('kanji', KANJI_MAP[k], k, S.ksrs));
+  Object.keys(S.lsrs).forEach(k => LINES[k] && add('line', LINES[k], k, S.lsrs));
+  return out;
+}
+function pickMixed(c, n) {
+  const g = {}; c.forEach(x => (g[x.t] ||= []).push(x));
+  Object.values(g).forEach(a => a.sort((a, b) => a.seen - b.seen || a.due - b.due || Math.random() - .5));
+  const keys = Object.keys(g), out = []; let i = 0;
+  while (out.length < n && keys.some(k => g[k].length)) { const k = keys[i++ % keys.length]; if (g[k].length) out.push(g[k].shift()); }
+  return out;
+}
+const kanjiHear = k => ({ ...lq({ w: k.ex.w, r: k.ex.r, d: k.ex.d, e: '📝' }, 'lsound'), wkey: undefined, kkey: k.k });
+const qLineAudio = (line, all) => ({ ...qLine(line, all), kind: 'shear' });
+const lineTarget = l => ({ w: lineText(l), r: l.words.map(w => w[1]).join(' '), d: l.de });
+function emptySkill(msg) { document.body.classList.add('focus'); view.innerHTML = `<div class="party card">${mochi({ mood: 'sleep' }, 100)}<h2>Noch zu wenig Stoff</h2><p>${msg}</p></div><a class="btn primary block" href="#/home">Zurück zum Dashboard</a>`; }
+function startSkill(sk) {
+  if (!SKILLS[sk]) { location.hash = '#/home'; return; }
+  const need = Math.max(0, skillTargets()[sk] - (S.day.pts[sk] || 0));
+  if (sk === 'schreiben') return writeDaily(need);
+  if (sk === 'sprechen') {
+    if (!canListen()) return emptySkill('Sprechen braucht die Spracherkennung deines Browsers (Chrome, Edge oder Safari über HTTPS) und ein erlaubtes Mikrofon. Hier ist sie nicht verfügbar, deshalb zählt Sprechen heute nicht.');
+    const c = skillCands(sk).filter(x => x.t !== 'kana' && (x.t !== 'line' || lineText(x.o).length <= 14)); if (c.length < 3) return emptySkill('Lerne zuerst ein Thema, damit du Wörter zum Nachsprechen hast.');
+    const qs = pickMixed(c, Math.min(8, Math.max(3, need + 2))).map(x => qSpeak(x.t === 'word' ? { w: x.o.w, r: x.o.r, d: x.o.d } : x.t === 'kanji' ? { w: x.o.ex.w, r: x.o.ex.r, d: x.o.ex.d } : lineTarget(x.o)));
+    Q = null; startQuiz(qs, () => skillDone(sk), '<div class="tip"><span>🎤</span><span>Sprich die Wörter nach. Punkte gibt es ab Note 3, eine Aufgabe kannst du jederzeit überspringen.</span></div>'); return;
+  }
+  const c = skillCands(sk); if (c.length < 3) return emptySkill('Lerne zuerst eine Kana-Gruppe oder ein Thema – dann hast du Stoff zum Üben.');
+  const all = Object.values(LINES), picks = pickMixed(c, Math.min(12, Math.max(6, need + 4)));
+  const qs = picks.map((x, i) => (sk === 'hoeren'
+    ? (x.t === 'kana' ? qSound(x.o) : x.t === 'word' ? lq(x.o, 'lsound') : x.t === 'kanji' ? kanjiHear(x.o) : qLineAudio(x.o, all))
+    : (x.t === 'kana' ? (i % 2 ? qRead(x.o) : qPic(x.o)) : x.t === 'word' ? lq(x.o, 'lword') : x.t === 'kanji' ? [qKMean, qKPick, qKWord][i % 3](x.o) : qLine(x.o, all))));
+  Q = null; startQuiz(qs, () => skillDone(sk), `<div class="tip"><span>${SKILLS[sk].ic}</span><span>${sk === 'hoeren' ? 'Nur hören, nichts lesen: Zuerst kommt das, was bald wieder fällig ist.' : 'Lesen ohne Ton: Zuerst kommt das, was bald wieder fällig ist.'} Punkte gibt es für richtige Antworten beim ersten Versuch.</span></div>`);
+  Q.onResult = (k, ok) => { if (S.srs[k]) rate(k, ok); }; Q.onWResult = (w, ok) => { if (S.wsrs[w]) rate(w, ok, 'wsrs'); }; Q.onKResult = (k, ok) => { if (S.ksrs[k]) rate(k, ok, 'ksrs'); }; Q.onLResult = (k, ok) => { if (S.lsrs[k]) rate(k, ok, 'lsrs'); };
+}
+function writeDaily(need) {
+  const pool = [...knownKana(), ...Object.keys(S.ksrs)]; if (!pool.length) return emptySkill('Lerne zuerst ein paar Zeichen, dann kannst du sie schreiben.');
+  const chars = [...pool].sort((a, b) => (S.day.seen['schreiben|item|' + a] ? 1 : 0) - (S.day.seen['schreiben|item|' + b] ? 1 : 0) || (S.trace[a] ?? -1) - (S.trace[b] ?? -1) || Math.random() - .5).slice(0, Math.min(6, Math.max(3, need + 1)));
+  writeChars(chars, 'trace');
+}
+function skillDone(sk) {
+  const t = skillTargets()[sk], p = S.day.pts[sk] || 0; document.body.classList.add('focus'); markActivity();
+  view.innerHTML = `<div class="party card"><div class="art">${ring(Math.min(100, p / t * 100), { size: 104, sw: 10, color: 'var(--green)', inner: ringText(Math.min(p, t) + '/' + t, 104, 22) })}</div>
+    <h2>${SKILLS[sk].ic} ${SKILLS[sk].n} ${p >= t ? 'geschafft! 🎉' : '– gut gemacht'}</h2><p>${p >= t ? 'Das Tagesziel für diese Fertigkeit ist erreicht.' : `Noch ${t - p} Punkte bis zum Tagesziel. Punkte gibt es nur für richtige Leistungen, nicht fürs Antippen.`}</p></div>
+    <button class="btn primary block" data-a="skill-again" data-v="${sk}">Noch eine Runde</button><div style="height:10px"></div><a class="btn ghost block" href="#/home">Zurück zum Dashboard</a>`;
 }
 
 /* ---------- Wiederholung (Leitner) ---------- */
@@ -787,7 +855,7 @@ async function playStory(id) {
 }
 
 const qLine = (line, all) => { const others = shuffle(all.filter(l => l.de !== line.de)).slice(0, 2);
-  return { kind: 'sline', big: lineText(line), romaji: line.words.map(w => w[1]).join(' '), say: lineText(line), hint: line.words.map(w => `${w[0]} = ${w[2]}`).join(' · '),
+  return { kind: 'sline', lkey: line.key, big: lineText(line), romaji: line.words.map(w => w[1]).join(' '), say: lineText(line), hint: line.words.map(w => `${w[0]} = ${w[2]}`).join(' · '),
     opts: shuffle([line, ...others]).map(o => ({ html: `<span>${esc(o.de)}</span>`, ok: o === line, txt: true })), explain: esc(line.de) }; };
 const qSWord = (w, pool) => { const others = shuffle(pool.filter(x => x[2] !== w[2])).slice(0, 2);
   return { kind: 'sword', big: w[0], ro: w[1], say: w[0], hint: `${w[1]}`, opts: shuffle([w, ...others]).map(o => ({ html: `<span>${esc(o[2])}</span>`, ok: o === w, txt: true })), explain: `<b>${w[0]}</b> (${w[1]}) = ${esc(w[2])}` }; };
@@ -801,7 +869,7 @@ function storyTest(id) {
   runTest({ core, review: rev, speak: sp, pass: () => storyFinish(id), redo: () => storyTest(id), relearn: () => viewStory(id) });
 }
 function storyFinish(id) {
-  S.storiesRead[id] = true; markActivity('input'); const st = recommendedStory(), nt = nextTopic(), note = levelNote(); document.body.classList.add('focus');
+  S.storiesRead[id] = true; STORIES.find(x => x.id === id).lines.forEach(l => { if (!S.lsrs[l.key]) S.lsrs[l.key] = { box: 1, due: Date.now() + 18 * 36e5 }; }); markActivity('input'); const st = recommendedStory(), nt = nextTopic(), note = levelNote(); document.body.classList.add('focus');
   view.innerHTML = `<div class="party card"><div class="art">${mochi({ acc: 'cheer', mood: 'cheer' }, 110)}</div>${note}<h1>Geschichte verstanden! 🎉</h1><p>Wieder ein Stück Japanisch ohne Büffeln erworben.</p></div>
     ${nt ? `<a class="btn primary block" href="#/topic/${nt.id}">Weiter: ${nt.emoji} ${nt.title}</a><div style="height:10px"></div>` : ''}
     <a class="btn block" href="#/read/${st.id}">🎧 Nächste Geschichte</a><div style="height:10px"></div><a class="btn ghost block" href="#/home">Zurück zum Dashboard</a>`;
@@ -812,10 +880,11 @@ function viewMethod() {
   view.innerHTML = `<div class="head"><div><h1>Die Methode</h1><p class="sub">Warum du hier ohne Pauken lernst</p></div></div>
     <div class="card" style="padding:8px 14px 14px">${SCENES.acquire}<p>Mochi basiert auf der <b>Natural-Approach-Idee von Stephen Krashen</b> (Linguist, University of Southern California). Seine Theorie besteht aus fünf Hypothesen – dazu kommt die stille Phase. Tippe auf eine Karte, um zu sehen, <b>was Krashen sagt</b> und <b>wie die App es umsetzt</b>.</p></div>
     ${METHOD.map(m => `<details class="m"><summary><span class="ic">${m.ic}</span><span>${m.t}<br><small class="muted" style="font-weight:600">${m.h}</small></span></summary><div class="m-body"><div class="k"><b class="l">Krashen</b>${m.k}</div><div class="a"><b class="l">In Mochi</b>${m.a}</div></div></details>`).join('')}
-    <div class="card" style="margin-top:18px"><h3>So läuft ein typischer Tag</h3><ol class="steps"><li><b>🎧 Hören &amp; Lesen (2–4 Min.)</b> – eine kurze Geschichte mit Bild-Kontext, Wort-Tipps und Übersetzung.</li><li><b>🌱 Neues entdecken (4–6 Min.)</b> – eine Gruppe Zeichen: Entdecken → Zuordnen → Hören → Wörter lesen.</li><li><b>🔁 Sanft wiederholen (2–3 Min.)</b> – Zeichen kehren in wachsenden Abständen zurück (1, 2, 4, 8, 16 Tage).</li></ol></div>
+    <div class="card" style="margin-top:18px"><h3>So läuft ein Tag</h3><p>Der <b>Tagesring</b> besteht aus vier Fertigkeiten: 🎧 Hören, 📖 Lesen, 🎤 Sprechen und ✍️ Schreiben. Du kannst sie getrennt voneinander üben. Jede Fertigkeit gibt Punkte <b>nur für richtige Leistungen</b> (richtige Antwort beim ersten Versuch, Aussprache oder Schrift ab Note 3). Dasselbe Wort zählt pro Aufgabenart nur einmal am Tag, Antippen allein füllt also keinen Ring. Der <b>Wochenring</b> zählt die Tage, an denen du den Tagesring geschlossen hast (Standard: 5 von 7).</p></div>
+    <div class="card"><h3>Wie viel Neues, wann Wiederholung?</h3><ul class="small"><li><b>Neues pro Tag:</b> ein Thema (8 Wörter), ein Zeichensatz (5–10 Zeichen) und eine Geschichte (ca. 5 Sätze). Für eine feste Zahl gibt es keinen Konsens in der Forschung; Quellen nennen etwa 10–20 neue Wörter pro Tag. Entscheidend ist, dass die Wiederholungen nicht überhandnehmen. Sind mehr als 25 Einträge fällig, pausiert Mochi Neues.</li><li><b>Abstände:</b> nach dem Lernen und dem Test kommt die erste Wiederholung nach etwa 18 Stunden, dann nach 3, 7, 14, 30, 60 und 120 Tagen. Ein Fehler holt den Eintrag schon nach 10 Minuten zurück. Zu kurze Abstände schaden mehr als etwas zu lange (Cepeda et al. 2008).</li><li><b>Abfragen statt Nachlesen:</b> Sich selbst abzufragen festigt Vokabeln deutlich besser als erneutes Lesen (Karpicke &amp; Roediger 2008).</li><li><b>Sätze:</b> Jede bestandene Geschichte kommt mit ihren Sätzen in dieselbe Wiederholung und taucht in Hören und Lesen wieder auf.</li></ul></div>
     <div class="card"><h3>Erst lernen, dann Test</h3><p>Neues siehst und hörst du zuerst ohne Druck. Danach folgt eine Abfrage mit Note (1 bis 6). Dazu kommen immer ein paar Wiederholungen von früher, damit das Gelernte hängen bleibt. Erst ab <b>Note 3</b> zählt der Fortschritt, und erst wenn eine Stufe komplett bestanden ist, wird die nächste freigeschaltet (N5 → N1). Schreiben und Aussprache werden separat benotet und blockieren nichts.</p></div><div class="card"><h3>N5 bis N1</h3><p>Die Inhalte folgen den fünf JLPT-Stufen. Die Prozentwerte im Dashboard zeigen, wie viel der <b>in Mochi enthaltenen</b> Themen, Geschichten, Kanji und Kana einer Stufe du geschafft hast. Das ist eine kuratierte Auswahl und kein vollständiger Prüfungswortschatz: Für N1 braucht man über 2.000 Kanji, hier sind es die häufigsten Alltags- und Einstiegszeichen. Mehr Stoff lässt sich einfach in <code>js/data.js</code> ergänzen.</p></div><div class="card"><h3>Zwei getrennte Wege: Schrift &amp; Sprache</h3><p>Lesen und Schreiben sind eigene Fertigkeiten. Nach Krashen steht beim Spracherwerb das <b>Verstehen gesprochener und geschriebener Sprache</b> im Mittelpunkt – dafür musst du die Schrift nicht beherrschen. Deshalb kannst du in Mochi <b>die Schrift</b> (Hiragana &amp; Katakana) und <b>die Sprache</b> (Themen, Wörter, Geschichten mit Romaji, Ton und Übersetzung) <b>unabhängig voneinander</b> lernen – nur einen Weg, beide parallel oder später den anderen dazu. Wenn du beides lernst, verknüpft sich das von selbst: In Geschichten siehst du Wörter in Kana, sobald du die Zeichen kennst. Umschalten geht jederzeit unter ⚙️.</p></div><div class="card"><h3>Was Mochi zusätzlich tut</h3><p><b>Merkbilder</b> (Dual Coding nach Allan Paivio: Wort + Bild) und <b>Spaced Repetition</b> (Ebbinghaus/Leitner) stammen nicht von Krashen. Sie unterstützen das Erinnern der Schriftzeichen und sind immer in Bedeutung eingebettet: Du siehst sofort echte Wörter, nicht nur Tabellen.</p></div>
     <div class="card"><h3>Ehrliche Einordnung</h3><p>Krashens Hypothesen sind einflussreich, aber auch umstritten: Sie sind schwer exakt zu prüfen, und Forschende wie Merrill Swain betonen, dass auch eigenes Sprechen (Output) und Feedback helfen. Realistisch heißt das: Mochi bringt dich sanft in die Schrift und ins Leseverstehen. Für echte Sprachkompetenz brauchst du darüber hinaus viel <b>echten Input</b> (Kinderbücher, einfache Podcasts, Videos mit Untertiteln) und – wenn du Lust hast – Gespräche.</p></div>
-    <div class="card flat"><h3>Quellen</h3><ul class="small muted"><li>S. Krashen (1982): <i>Principles and Practice in Second Language Acquisition</i></li><li>S. Krashen (1985): <i>The Input Hypothesis: Issues and Implications</i></li><li>S. Krashen &amp; T. Terrell (1983): <i>The Natural Approach</i></li><li>M. Swain (1985): Output Hypothesis · A. Paivio (1971): Dual Coding Theory</li><li>Strichdaten: <a href="https://kanjivg.tagaini.net" target="_blank" rel="noopener">KanjiVG</a> © Ulrich Apel, Lizenz CC BY-SA 3.0</li></ul></div>
+    <div class="card flat"><h3>Quellen</h3><ul class="small muted"><li>S. Krashen (1982): <i>Principles and Practice in Second Language Acquisition</i></li><li>S. Krashen (1985): <i>The Input Hypothesis: Issues and Implications</i></li><li>S. Krashen &amp; T. Terrell (1983): <i>The Natural Approach</i></li><li>N. Cepeda et al. (2008): <i>Spacing effects in learning</i>, Psychological Science · J. Karpicke &amp; H. Roediger (2008): <i>The critical importance of retrieval for learning</i>, Science · P. Pimsleur (1967): <i>A memory schedule</i></li><li>M. Swain (1985): Output Hypothesis · A. Paivio (1971): Dual Coding Theory</li><li>Strichdaten: <a href="https://kanjivg.tagaini.net" target="_blank" rel="noopener">KanjiVG</a> © Ulrich Apel, Lizenz CC BY-SA 3.0</li></ul></div>
     <button class="btn block" data-a="onb-again">🎬 Einführung noch einmal ansehen</button>`;
 }
 
@@ -824,7 +893,8 @@ function viewSettings() {
   const s = S.settings, sel = (v, cur, l) => `<option value="${v}" ${String(cur) === String(v) ? 'selected' : ''}>${l}</option>`;
   view.innerHTML = `<div class="head tight"><a class="icon-btn" href="#/home" aria-label="Zurück" style="display:grid;place-items:center;text-decoration:none">←</a><h1 class="grow" style="margin:0">Einstellungen</h1></div>
     <div class="card"><h3>Lernen</h3>
-    <label class="set"><span>Tagesziel</span><select data-a="set" data-key="goalMin">${[5, 10, 15, 20, 30].map(m => sel(m, S.goalMin, m + ' Min.')).join('')}</select></label>
+    <label class="set"><span>Tagesumfang<br><small class="muted">Aufgaben für etwa so viele Minuten</small></span><select data-a="set" data-key="goalMin">${[5, 10, 15, 20, 30].map(m => sel(m, S.goalMin, m + ' Min.')).join('')}</select></label>
+    <label class="set"><span>Wochenziel<br><small class="muted">Tage mit geschlossenem Tagesring</small></span><select data-a="set" data-key="weekDays">${[3, 4, 5, 6, 7].map(n => sel(n, S.weekDays || 5, n + ' Tage')).join('')}</select></label>
     <label class="set"><span>Mein Niveau<br><small class="muted">Startpunkt für Empfehlungen</small></span><select data-a="set" data-key="level">${LEVELS.map(l => sel(l, S.level, `${l} · ${LEVEL_INFO[l]}`)).join('')}</select></label>
     <label class="set"><span>✍️ Schrift<br><small class="muted">Kana &amp; Kanji</small></span><input type="checkbox" data-a="set" data-key="track-script" ${S.tracks.script ? 'checked' : ''}></label>
     <label class="set"><span>💬 Sprache<br><small class="muted">Themen, Wörter &amp; Geschichten</small></span><input type="checkbox" data-a="set" data-key="track-lang" ${S.tracks.lang ? 'checked' : ''}></label>
@@ -852,7 +922,7 @@ const A = {
   'w-clear': () => wSetMode(W.mode), 'w-check': wCheck, 'w-next': writeNext,
   'write-chars': t => writeChars([...t.dataset.c]),
   'res-pass': () => RES.o.pass(RES.res), 'res-redo': () => RES.o.redo(), 'res-relearn': () => RES.o.relearn(),
-  'sp-rec': recordSpeech, 'sp-skip': () => { Q.ctl?.stop?.(); Q.ans = true; qnext(); },
+  'skill-again': t => startSkill(t.dataset.v), 'sp-rec': recordSpeech, 'sp-skip': () => { Q.ctl?.stop?.(); Q.ans = true; qnext(); },
   stest: t => scriptTest(t.dataset.v), wprac: t => writePractice(t.dataset.v), 'story-test': t => storyTest(t.dataset.id),
   lvlock: () => toast(`Schließe zuerst ${curLevel()} ab 🔒`),
   kscript: t => { kanaScript = t.dataset.v; viewKana(); }, kmode: t => { kanaMode = t.dataset.v; viewKana(); },
@@ -887,7 +957,7 @@ const A = {
   set: t => {
     const k = t.dataset.key, v = t.type === 'checkbox' ? t.checked : t.value;
     if (k.startsWith('track-')) { S.tracks[k.slice(6)] = v; if (!S.tracks.script && !S.tracks.lang) { S.tracks[k === 'track-script' ? 'lang' : 'script'] = true; toast('Mindestens ein Weg bleibt aktiv 🙂'); save(); return viewSettings(); } }
-    else if (k === 'focus' || k === 'level') S[k] = v; else if (k === 'goalMin') S.goalMin = +v; else S.settings[k] = v;
+    else if (k === 'focus' || k === 'level') S[k] = v; else if (k === 'goalMin') S.goalMin = +v; else if (k === 'weekDays') S.weekDays = +v; else S.settings[k] = v;
     if (k === 'level') { kanjiLvl = langLvl = null; }
     save(); applyTheme();
   },
@@ -912,6 +982,6 @@ setInterval(() => {
 addEventListener('pagehide', save);
 
 /* ---------- Start ---------- */
-if (location.search.includes('debug')) window.__mochi = { Q: () => Q, S: () => S, refOf, curLevel, lvlPct };
+if (location.search.includes('debug')) window.__mochi = { Q: () => Q, S: () => S, WS: () => WS, refOf, curLevel, lvlPct };
 applyTheme(); route();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});

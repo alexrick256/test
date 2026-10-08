@@ -206,3 +206,10 @@ body.focus #view{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
 .wfb{min-height:42px;text-align:center;font-size:.88rem;line-height:1.3}
 [hidden]{display:none!important}
 @media (max-height:700px){.rcard svg.ring{width:90px;height:90px}.rcard{padding:6px}.parts{display:none}.dboard .week{margin-top:6px}}
+
+/* Dashboard: drei Ringe & Fertigkeiten */
+.rings3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rings3 .rcard{padding:8px 4px}.rings3 .rcard b{font-size:.82rem}.rings3 .rcard small{font-size:.68rem}
+.wdots{display:flex;gap:3px;margin-top:2px}.wdots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.wdots i.on{background:var(--green)}.wdots i.today{outline:2px solid var(--accent);outline-offset:1px}
+.skills{display:flex;justify-content:space-around;gap:4px}.sk{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:inherit}.sk small{font-size:.72rem;font-weight:700;text-align:center;line-height:1.1}.sk.off{opacity:.45}
+@media (max-height:700px){.rings3 svg.ring{width:70px;height:70px}}
