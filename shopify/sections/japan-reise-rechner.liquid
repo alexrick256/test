@@ -1,0 +1,588 @@
+{%- comment -%}
+  Japan Reiserechner – Shopify Section (Online Store 2.0)
+  Datei nach "sections/japan-reise-rechner.liquid" kopieren, danach im Theme-Editor
+  über "Abschnitt hinzufügen → Japan Reiserechner" auf jeder Seite einbinden.
+  Keine externen Abhängigkeiten, keine App nötig.
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign cur = s.currency | default: 'EUR'
+  assign rate = s.jpy_rate | default: 170
+-%}
+
+<section
+  id="jrc-{{ section.id }}"
+  class="jrc"
+  data-jrc
+  data-currency="{{ cur }}"
+  data-rate="{{ rate }}"
+  data-cta-label="{{ s.cta_label | escape }}"
+  data-cta-url="{{ s.cta_url }}"
+  style="
+    --jrc-accent: {{ s.accent }};
+    --jrc-bg: {{ s.background }};
+    --jrc-text: {{ s.text }};
+    --jrc-card: {{ s.card }};
+    --jrc-radius: {{ s.radius }}px;
+    --jrc-pt: {{ s.padding_top }}px;
+    --jrc-pb: {{ s.padding_bottom }}px;
+  "
+>
+  <div class="jrc__wrap">
+    <header class="jrc__head">
+      {%- if s.eyebrow != blank -%}<p class="jrc__eyebrow">{{ s.eyebrow }}</p>{%- endif -%}
+      {%- if s.heading != blank -%}<h2 class="jrc__title">{{ s.heading }}</h2>{%- endif -%}
+      {%- if s.subheading != blank -%}<p class="jrc__sub">{{ s.subheading }}</p>{%- endif -%}
+    </header>
+
+    <div class="jrc__app" data-jrc-app>
+      <noscript><p>Für den Reiserechner wird JavaScript benötigt.</p></noscript>
+    </div>
+
+    {%- if s.disclaimer != blank -%}
+      <div class="jrc__disclaimer">{{ s.disclaimer }}</div>
+    {%- endif -%}
+  </div>
+</section>
+
+{% stylesheet %}
+.jrc{--jrc-ink:color-mix(in srgb,var(--jrc-text) 62%,transparent);--jrc-line:color-mix(in srgb,var(--jrc-text) 12%,transparent);--jrc-soft:color-mix(in srgb,var(--jrc-text) 5%,transparent);background:var(--jrc-bg);color:var(--jrc-text);padding:var(--jrc-pt) 0 var(--jrc-pb);font-family:inherit;line-height:1.5}
+.jrc *,.jrc *::before,.jrc *::after{box-sizing:border-box}
+.jrc__wrap{max-width:1200px;margin:0 auto;padding:0 16px}
+.jrc__head{text-align:center;max-width:680px;margin:0 auto 40px}
+.jrc__eyebrow{display:inline-block;margin:0 0 12px;padding:4px 14px;border-radius:999px;background:color-mix(in srgb,var(--jrc-accent) 12%,transparent);color:var(--jrc-accent);font-size:.8rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.jrc__title{margin:0 0 12px;font-size:clamp(1.9rem,4.5vw,3rem);line-height:1.1;letter-spacing:-.02em}
+.jrc__sub{margin:0;color:var(--jrc-ink);font-size:1.05rem}
+.jrc__grid{display:grid;gap:24px;grid-template-columns:1fr}
+@media(min-width:960px){.jrc__grid{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);align-items:start}.jrc__result{position:sticky;top:24px}}
+.jrc__form{display:grid;gap:16px}
+.jrc__card{background:var(--jrc-card);border:1px solid var(--jrc-line);border-radius:var(--jrc-radius);padding:22px;box-shadow:0 1px 2px rgba(0,0,0,.03),0 8px 24px -12px rgba(0,0,0,.08)}
+.jrc__card h3{display:flex;align-items:center;gap:10px;margin:0 0 14px;font-size:1rem;font-weight:700}
+.jrc__num{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--jrc-accent);color:#fff;font-size:.75rem;font-weight:700}
+.jrc__hint{margin:-6px 0 14px;color:var(--jrc-ink);font-size:.85rem}
+.jrc__row{display:grid;gap:16px;grid-template-columns:1fr 1fr}
+@media(max-width:520px){.jrc__row{grid-template-columns:1fr}}
+.jrc__label{display:block;margin-bottom:6px;font-size:.85rem;font-weight:600}
+.jrc__stepper{display:flex;align-items:center;border:1px solid var(--jrc-line);border-radius:calc(var(--jrc-radius)*.6);overflow:hidden;background:var(--jrc-card)}
+.jrc__stepper button{width:44px;height:44px;border:0;background:var(--jrc-soft);color:inherit;font-size:1.3rem;cursor:pointer;transition:background .15s}
+.jrc__stepper button:hover{background:color-mix(in srgb,var(--jrc-accent) 14%,transparent)}
+.jrc__stepper input{flex:1;min-width:0;height:44px;border:0;background:transparent;color:inherit;text-align:center;font:inherit;font-weight:700;font-size:1.05rem;-moz-appearance:textfield}
+.jrc__stepper input::-webkit-outer-spin-button,.jrc__stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.jrc__input{width:100%;height:44px;padding:0 14px;border:1px solid var(--jrc-line);border-radius:calc(var(--jrc-radius)*.6);background:var(--jrc-card);color:inherit;font:inherit;font-weight:600}
+.jrc input:focus-visible,.jrc button:focus-visible,.jrc summary:focus-visible,.jrc__opt:has(input:focus-visible){outline:2px solid var(--jrc-accent);outline-offset:2px}
+.jrc__opts{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.jrc__opt{position:relative;display:flex;flex-direction:column;gap:2px;padding:14px;border:1.5px solid var(--jrc-line);border-radius:calc(var(--jrc-radius)*.7);cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
+.jrc__opt:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--jrc-accent) 45%,transparent)}
+.jrc__opt input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.jrc__opt:has(input:checked){border-color:var(--jrc-accent);background:color-mix(in srgb,var(--jrc-accent) 8%,transparent)}
+.jrc__opt-ico{font-size:1.4rem;line-height:1}
+.jrc__opt-name{font-weight:700;font-size:.95rem}
+.jrc__opt-sub{color:var(--jrc-ink);font-size:.78rem;line-height:1.35}
+.jrc__chips{display:flex;flex-wrap:wrap;gap:8px}
+.jrc__chip{position:relative;display:inline-flex;align-items:baseline;gap:6px;padding:9px 16px;border:1.5px solid var(--jrc-line);border-radius:999px;cursor:pointer;font-weight:600;font-size:.9rem;transition:all .15s}
+.jrc__chip small{color:var(--jrc-ink);font-size:.75rem;font-weight:500}
+.jrc__chip input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.jrc__chip:has(input:checked){background:var(--jrc-accent);border-color:var(--jrc-accent);color:#fff}
+.jrc__chip:has(input:checked) small{color:rgba(255,255,255,.8)}
+.jrc__chip:has(input:focus-visible){outline:2px solid var(--jrc-accent);outline-offset:2px}
+.jrc__seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:4px;border-radius:calc(var(--jrc-radius)*.7);background:var(--jrc-soft)}
+.jrc__seg label{position:relative;display:grid;place-items:center;padding:10px 6px;border-radius:calc(var(--jrc-radius)*.5);cursor:pointer;font-size:.85rem;font-weight:600;text-align:center;transition:all .15s}
+.jrc__seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.jrc__seg label:has(input:checked){background:var(--jrc-card);box-shadow:0 1px 4px rgba(0,0,0,.12);color:var(--jrc-accent)}
+.jrc__seg label:has(input:focus-visible){outline:2px solid var(--jrc-accent)}
+.jrc__toggles{display:grid;gap:4px}
+.jrc__toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--jrc-line);cursor:pointer}
+.jrc__toggle:last-child{border-bottom:0}
+.jrc__toggle span small{display:block;color:var(--jrc-ink);font-size:.78rem}
+.jrc__switch{position:relative;flex:none;width:44px;height:26px}
+.jrc__switch input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;z-index:1}
+.jrc__switch i{position:absolute;inset:0;border-radius:999px;background:color-mix(in srgb,var(--jrc-text) 22%,transparent);transition:background .2s}
+.jrc__switch i::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.jrc__switch input:checked+i{background:var(--jrc-accent)}
+.jrc__switch input:checked+i::after{transform:translateX(18px)}
+.jrc__switch input:focus-visible+i{outline:2px solid var(--jrc-accent);outline-offset:2px}
+.jrc__range{width:100%;accent-color:var(--jrc-accent)}
+.jrc__rangeval{float:right;font-weight:700;color:var(--jrc-accent)}
+.jrc__adv summary{cursor:pointer;font-weight:600;font-size:.9rem;list-style:none}
+.jrc__adv summary::before{content:"＋ "}
+.jrc__adv[open] summary::before{content:"－ "}
+.jrc__adv .jrc__row{margin-top:14px}
+.jrc__result .jrc__card{background:var(--jrc-text);color:var(--jrc-bg);border-color:transparent}
+.jrc__result .jrc__label,.jrc__result .jrc__muted{color:color-mix(in srgb,var(--jrc-bg) 65%,transparent)}
+.jrc__total-lbl{font-size:.85rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--jrc-bg) 65%,transparent)}
+.jrc__total{margin:4px 0 2px;font-size:clamp(2.4rem,6vw,3.4rem);font-weight:800;letter-spacing:-.03em;line-height:1.05;font-variant-numeric:tabular-nums}
+.jrc__range-txt{font-size:.85rem;color:color-mix(in srgb,var(--jrc-bg) 65%,transparent)}
+.jrc__kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}
+.jrc__kpi{padding:12px 14px;border-radius:calc(var(--jrc-radius)*.6);background:color-mix(in srgb,var(--jrc-bg) 10%,transparent)}
+.jrc__kpi b{display:block;font-size:1.15rem;font-variant-numeric:tabular-nums}
+.jrc__kpi span{font-size:.78rem;color:color-mix(in srgb,var(--jrc-bg) 65%,transparent)}
+.jrc__chart{display:grid;grid-template-columns:132px 1fr;gap:16px;align-items:center}
+@media(max-width:420px){.jrc__chart{grid-template-columns:1fr;justify-items:center}}
+.jrc__donut{width:132px;height:132px;transform:rotate(-90deg)}
+.jrc__donut circle{fill:none;stroke-width:5;transition:stroke-dasharray .6s cubic-bezier(.2,.8,.2,1),stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1)}
+.jrc__legend{list-style:none;margin:0;padding:0;display:grid;gap:7px;width:100%}
+.jrc__legend li{display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:8px;font-size:.85rem}
+.jrc__legend i{width:10px;height:10px;border-radius:3px}
+.jrc__legend b{font-variant-numeric:tabular-nums;font-weight:600}
+.jrc__tips{margin:18px 0 0;padding:14px 16px;border-radius:calc(var(--jrc-radius)*.6);background:color-mix(in srgb,var(--jrc-bg) 10%,transparent);font-size:.85rem;display:grid;gap:8px;list-style:none}
+.jrc__actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.jrc__btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border:1.5px solid color-mix(in srgb,var(--jrc-bg) 35%,transparent);border-radius:999px;background:transparent;color:inherit;font:inherit;font-weight:700;font-size:.9rem;text-decoration:none;cursor:pointer;transition:transform .15s,background .15s}
+.jrc__btn:hover{transform:translateY(-1px);background:color-mix(in srgb,var(--jrc-bg) 12%,transparent)}
+.jrc__btn--primary{flex:1 1 100%;background:var(--jrc-accent);border-color:var(--jrc-accent);color:#fff}
+.jrc__btn--primary:hover{background:var(--jrc-accent);filter:brightness(1.08)}
+.jrc__btn--sm{flex:1;padding:10px 14px}
+.jrc__disclaimer{max-width:760px;margin:28px auto 0;color:var(--jrc-ink);font-size:.8rem;text-align:center}
+.jrc__disclaimer p{margin:0}
+.jrc__bar{display:none}
+@media(max-width:959px){.jrc__bar{display:flex;position:sticky;bottom:12px;z-index:5;margin-top:16px;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-radius:999px;background:var(--jrc-text);color:var(--jrc-bg);box-shadow:0 10px 30px -8px rgba(0,0,0,.4)}.jrc__bar b{font-size:1.15rem;font-variant-numeric:tabular-nums}.jrc__bar button{padding:8px 16px;border:0;border-radius:999px;background:var(--jrc-accent);color:#fff;font:inherit;font-weight:700;cursor:pointer}}
+.jrc__toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);padding:10px 18px;border-radius:999px;background:#111;color:#fff;font-size:.85rem;opacity:0;pointer-events:none;transition:all .25s;z-index:100}
+.jrc__toast.is-on{opacity:1;transform:translate(-50%,0)}
+@media(prefers-reduced-motion:reduce){.jrc *{transition:none!important}}
+@media print{.jrc__form,.jrc__actions,.jrc__bar{display:none!important}.jrc__grid{display:block}.jrc__result{position:static}}
+{% endstylesheet %}
+
+{% javascript %}
+(function () {
+  'use strict';
+
+  /* ---------- Preis- & Kostenmodell (alle Yen-Werte pro Person, falls nicht anders angegeben) ---------- */
+  var SEASONS = [
+    { id: 'spring', name: 'Frühling', sub: 'Kirschblüte · Mär–Mai', icon: '🌸', acc: 1.25, flight: 1100,
+      tip: 'Kirschblüte = Hochsaison: Unterkünfte 3–6 Monate im Voraus buchen.' },
+    { id: 'summer', name: 'Sommer', sub: 'Heiß & feucht · Jun–Aug', icon: '☀️', acc: 1.05, flight: 1150,
+      tip: 'Im Juli/August sind Festivals (Matsuri) ein Highlight, aber plane Hitze und Luftfeuchtigkeit ein.' },
+    { id: 'autumn', name: 'Herbst', sub: 'Laubfärbung · Sep–Nov', icon: '🍁', acc: 1.2, flight: 1000,
+      tip: 'Die Laubfärbung (Koyo) in Kyoto ist Ende November am schönsten – früh buchen.' },
+    { id: 'winter', name: 'Winter', sub: 'Ruhig & günstig · Dez–Feb', icon: '❄️', acc: 0.92, flight: 850,
+      tip: 'Winter ist günstig und klar – ideal für Onsen, Schnee und Skifahren in Hokkaido/Nagano.' }
+  ];
+  var STYLES = [
+    { id: 'budget', name: 'Budget', sub: 'Hostel & Business-Hotel', icon: '🎒', bed: 4500, food: 3500, local: 1, green: false },
+    { id: 'comfort', name: 'Komfort', sub: 'Hotel & Ryokan-Nacht', icon: '🏨', bed: 9500, food: 7500, local: 1.25, green: false },
+    { id: 'luxury', name: 'Luxus', sub: '5★, Kaiseki & Green Car', icon: '✨', bed: 26000, food: 18000, local: 2.4, green: true }
+  ];
+  /* fare = Hin- und Rückfahrt ab Tokyo (Yen); jr = mit JR Pass abgedeckt; acc = Preisfaktor Unterkunft */
+  var CITIES = [
+    { id: 'tokyo', name: 'Tokyo', jp: '東京', acc: 1.1, fare: 0, jr: true },
+    { id: 'kyoto', name: 'Kyoto', jp: '京都', acc: 1.1, fare: 28000, jr: true },
+    { id: 'osaka', name: 'Osaka', jp: '大阪', acc: 0.95, fare: 29000, jr: true },
+    { id: 'hiroshima', name: 'Hiroshima', jp: '広島', acc: 0.9, fare: 39000, jr: true },
+    { id: 'hakone', name: 'Hakone / Fuji', jp: '箱根', acc: 1.3, fare: 6100, jr: false },
+    { id: 'sapporo', name: 'Sapporo', jp: '札幌', acc: 0.95, fare: 36000, jr: false },
+    { id: 'okinawa', name: 'Okinawa', jp: '沖縄', acc: 1.0, fare: 50000, jr: false }
+  ];
+  var ACTIVITY = [
+    { id: 'relaxed', name: 'Entspannt', yen: 1500 },
+    { id: 'normal', name: 'Ausgewogen', yen: 3500 },
+    { id: 'intense', name: 'Intensiv', yen: 6500 }
+  ];
+  /* JR Pass (Stand 2023 – bei Preisänderungen hier anpassen): Tage → [Ordinary, Green] */
+  var JR_PASS = { 7: [50000, 70000], 14: [80000, 110000], 21: [100000, 140000] };
+  var AIRPORT_TRANSFER = 6000;   // Hin & zurück pro Person (z. B. Narita Express / Limousine Bus)
+  var TICKET_YEN = 8500;         // Disney / USJ / teamLab o. Ä.
+  var ESIM_YEN_DAY = 450;        // pro Gerät, 1 Gerät je 2 Personen
+  var INSURANCE_DAY = 450;       // Reiseversicherung pro Person und Tag
+  var PALETTE = ['#4f46e5', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#a855f7', '#84cc16', '#ec4899', '#94a3b8'];
+
+  function byId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return list[0]; }
+  function clamp(n, lo, hi) { n = Number(n); if (isNaN(n)) n = lo; return Math.min(hi, Math.max(lo, n)); }
+
+  /* ---------- Berechnung ---------- */
+  function calculate(st, rate) {
+    var n = st.travelers, days = st.days, nights = Math.max(1, days - 1);
+    var season = byId(SEASONS, st.season), style = byId(STYLES, st.style);
+    var cities = CITIES.filter(function (c) { return st.cities.indexOf(c.id) > -1; });
+    if (!cities.length) cities = [CITIES[0]];
+
+    var accAvg = cities.reduce(function (s, c) { return s + c.acc; }, 0) / cities.length;
+    var perBed = style.bed * season.acc * accAvg;
+    var rooms = Math.ceil(n / 2);
+    var accYen = n === 1 ? perBed * 1.6 * nights : rooms * 2 * perBed * nights;
+    if (n > 1 && n % 2 === 1) accYen -= perBed * 0.4 * nights; // ungerade Gruppe: Einzelzimmer-Aufschlag
+
+    var foodYen = style.food * days * n;
+    var localYen = (900 * style.local * days + AIRPORT_TRANSFER) * n;
+    var actYen = byId(ACTIVITY, st.activity).yen * days * n + st.tickets * TICKET_YEN * n;
+
+    /* Fernverkehr: Einzeltickets vs. JR Pass */
+    var jrCities = cities.filter(function (c) { return c.jr; });
+    var other = cities.filter(function (c) { return !c.jr; });
+    var otherYen = other.reduce(function (s, c) { return s + c.fare; }, 0);
+    var far = jrCities.reduce(function (m, c) { return Math.max(m, c.fare); }, 0);
+    var g = style.green ? 1.3 : 1;
+    var singleJr = far * g;
+    var tier = days <= 9 ? 7 : days <= 16 ? 14 : 21;
+    var pass = JR_PASS[tier][style.green ? 1 : 0];
+    var useRail = st.rail === 'auto' ? (pass < singleJr ? 'pass' : 'single') : st.rail;
+    var railYen = ((useRail === 'pass' ? pass : singleJr) + otherYen) * n;
+    var saving = (singleJr - pass) * n; // >0: Pass günstiger
+
+    var extrasYen = 0;
+    if (st.esim) extrasYen += Math.ceil(n / 2) * ESIM_YEN_DAY * days;
+    if (st.insurance) extrasYen += Math.max(5000, INSURANCE_DAY * days) * n;
+    var shopYen = st.souvenirs * rate * n;
+
+    var flightYen = st.flight * rate * n;
+    var parts = [
+      { k: 'flight', name: 'Flüge', yen: flightYen },
+      { k: 'acc', name: 'Unterkunft', yen: accYen },
+      { k: 'food', name: 'Essen & Trinken', yen: foodYen },
+      { k: 'rail', name: useRail === 'pass' ? 'Fernverkehr (JR Pass)' : 'Fernverkehr (Shinkansen etc.)', yen: railYen },
+      { k: 'local', name: 'Nahverkehr & Transfer', yen: localYen },
+      { k: 'act', name: 'Erlebnisse & Eintritte', yen: actYen },
+      { k: 'extra', name: 'eSIM & Versicherung', yen: extrasYen },
+      { k: 'shop', name: 'Shopping', yen: shopYen }
+    ];
+    var sub = parts.reduce(function (s, p) { return s + p.yen; }, 0);
+    if (st.buffer) parts.push({ k: 'buffer', name: 'Puffer (10 %)', yen: sub * 0.1 });
+    var total = parts.reduce(function (s, p) { return s + p.yen; }, 0);
+    return { parts: parts, totalYen: total, useRail: useRail, saving: saving, tier: tier,
+      singleJr: singleJr * n, pass: pass * n, season: season, cities: cities };
+  }
+
+  /* ---------- Hilfsfunktionen für DOM ---------- */
+  function h(tag, attrs, kids) {
+    var el = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'class') el.className = attrs[k];
+      else if (k === 'text') el.textContent = attrs[k];
+      else if (k === 'html') el.innerHTML = attrs[k];
+      else if (attrs[k] !== false && attrs[k] != null) el.setAttribute(k, attrs[k] === true ? '' : attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c) el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return el;
+  }
+
+  function init(root) {
+    if (root.__jrc) return;
+    root.__jrc = true;
+    var app = root.querySelector('[data-jrc-app]');
+    var currency = root.getAttribute('data-currency') || 'EUR';
+    var cfgRate = parseFloat(root.getAttribute('data-rate')) || 170;
+    var uid = root.id;
+    var fmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: currency, maximumFractionDigits: 0 });
+    var fmtYen = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
+    var KEY = 'jrc-state-v1';
+
+    var st = { travelers: 2, days: 14, season: 'spring', style: 'comfort', cities: ['tokyo', 'kyoto', 'osaka'],
+      rail: 'auto', activity: 'normal', tickets: 1, flight: SEASONS[0].flight, flightTouched: false,
+      esim: true, insurance: true, souvenirs: 300, buffer: true, rate: cfgRate };
+
+    /* gespeicherten Zustand oder geteilten Link laden */
+    try {
+      var raw = null;
+      var m = /[#&?]jrc=([^&]+)/.exec(location.hash + location.search);
+      if (m) raw = decodeURIComponent(m[1]);
+      else raw = localStorage.getItem(KEY);
+      if (raw) {
+        var saved = JSON.parse(raw);
+        Object.keys(st).forEach(function (k) { if (saved[k] !== undefined && typeof saved[k] === typeof st[k]) st[k] = saved[k]; });
+      }
+    } catch (e) {}
+    function sanitize() {
+      st.travelers = Math.round(clamp(st.travelers, 1, 12));
+      st.days = Math.round(clamp(st.days, 3, 60));
+      st.tickets = Math.round(clamp(st.tickets, 0, 6));
+      st.flight = clamp(st.flight, 0, 10000);
+      st.souvenirs = clamp(st.souvenirs, 0, 3000);
+      st.rate = clamp(st.rate, 50, 500);
+      st.cities = (Array.isArray(st.cities) ? st.cities : []).filter(function (id) { return CITIES.some(function (c) { return c.id === id; }); });
+      if (!st.cities.length) st.cities = ['tokyo'];
+    }
+    sanitize();
+
+    /* ----- Formular ----- */
+    function radioGroup(name, list, render) {
+      return list.map(function (it) {
+        var inp = h('input', { type: 'radio', name: uid + '-' + name, value: it.id, checked: st[name] === it.id });
+        inp.addEventListener('change', function () {
+          st[name] = it.id;
+          if (name === 'season' && !st.flightTouched) { st.flight = byId(SEASONS, it.id).flight; flightInput.value = st.flight; }
+          update();
+        });
+        return render(it, inp);
+      });
+    }
+    function card(num, title, hint, body) {
+      return h('div', { class: 'jrc__card' }, [
+        h('h3', null, [h('span', { class: 'jrc__num', text: num }), title]),
+        hint ? h('p', { class: 'jrc__hint', text: hint }) : null
+      ].concat(body));
+    }
+    function stepper(key, min, max, label) {
+      var input = h('input', { type: 'number', inputmode: 'numeric', min: min, max: max, value: st[key], id: uid + '-' + key, 'aria-label': label });
+      function set(v) { st[key] = Math.round(clamp(v, min, max)); input.value = st[key]; update(); }
+      var minus = h('button', { type: 'button', 'aria-label': label + ' verringern', text: '−' });
+      var plus = h('button', { type: 'button', 'aria-label': label + ' erhöhen', text: '+' });
+      minus.addEventListener('click', function () { set(st[key] - 1); });
+      plus.addEventListener('click', function () { set(st[key] + 1); });
+      input.addEventListener('input', function () { if (input.value !== '') { st[key] = Math.round(clamp(input.value, min, max)); update(); } });
+      input.addEventListener('blur', function () { input.value = st[key]; });
+      return h('div', { class: 'jrc__stepper' }, [minus, input, plus]);
+    }
+    function toggle(key, title, sub) {
+      var inp = h('input', { type: 'checkbox', checked: !!st[key] });
+      inp.addEventListener('change', function () { st[key] = inp.checked; update(); });
+      return h('label', { class: 'jrc__toggle' }, [
+        h('span', null, [title, h('small', { text: sub })]),
+        h('span', { class: 'jrc__switch' }, [inp, h('i')])
+      ]);
+    }
+
+    var flightInput = h('input', { type: 'number', class: 'jrc__input', min: 0, max: 10000, step: 10, value: st.flight, id: uid + '-flight' });
+    flightInput.addEventListener('input', function () { st.flight = clamp(flightInput.value, 0, 10000); st.flightTouched = true; update(); });
+
+    var rateInput = h('input', { type: 'number', class: 'jrc__input', min: 50, max: 500, step: 0.5, value: st.rate, id: uid + '-rate' });
+    rateInput.addEventListener('input', function () { st.rate = clamp(rateInput.value, 50, 500); update(); });
+
+    var souvVal = h('span', { class: 'jrc__rangeval' });
+    var souv = h('input', { type: 'range', class: 'jrc__range', min: 0, max: 2000, step: 50, value: st.souvenirs, id: uid + '-souv' });
+    souv.addEventListener('input', function () { st.souvenirs = Number(souv.value); update(); });
+
+    var form = h('div', { class: 'jrc__form' }, [
+      card('1', 'Wer reist wie lange?', null, [h('div', { class: 'jrc__row' }, [
+        h('div', null, [h('label', { class: 'jrc__label', for: uid + '-travelers', text: 'Reisende' }), stepper('travelers', 1, 12, 'Reisende')]),
+        h('div', null, [h('label', { class: 'jrc__label', for: uid + '-days', text: 'Tage in Japan' }), stepper('days', 3, 60, 'Tage')])
+      ])]),
+      card('2', 'Reisezeit', 'Beeinflusst Unterkunftspreise und Flüge.', [h('div', { class: 'jrc__opts' },
+        radioGroup('season', SEASONS, function (s, inp) {
+          return h('label', { class: 'jrc__opt' }, [inp, h('span', { class: 'jrc__opt-ico', text: s.icon }), h('span', { class: 'jrc__opt-name', text: s.name }), h('span', { class: 'jrc__opt-sub', text: s.sub })]);
+        }))]),
+      card('3', 'Reisestil', 'Unterkunft, Essen und Komfort.', [h('div', { class: 'jrc__opts' },
+        radioGroup('style', STYLES, function (s, inp) {
+          return h('label', { class: 'jrc__opt' }, [inp, h('span', { class: 'jrc__opt-ico', text: s.icon }), h('span', { class: 'jrc__opt-name', text: s.name }), h('span', { class: 'jrc__opt-sub', text: s.sub })]);
+        }))]),
+      card('4', 'Reiseziele', 'Wähle alle Stationen deiner Route.', [h('div', { class: 'jrc__chips' },
+        CITIES.map(function (c) {
+          var inp = h('input', { type: 'checkbox', value: c.id, checked: st.cities.indexOf(c.id) > -1 });
+          inp.addEventListener('change', function () {
+            st.cities = st.cities.filter(function (x) { return x !== c.id; });
+            if (inp.checked) st.cities.push(c.id);
+            if (!st.cities.length) { st.cities = [c.id]; inp.checked = true; }
+            update();
+          });
+          return h('label', { class: 'jrc__chip' }, [inp, c.name, h('small', { text: c.jp })]);
+        }))]),
+      card('5', 'Fortbewegung & Erlebnisse', null, [
+        h('span', { class: 'jrc__label', text: 'Fernverkehr' }),
+        h('div', { class: 'jrc__seg', role: 'radiogroup', 'aria-label': 'Fernverkehr' },
+          radioGroup('rail', [{ id: 'auto', name: 'Automatisch günstigste' }, { id: 'single', name: 'Einzeltickets' }, { id: 'pass', name: 'JR Pass' }],
+            function (o, inp) { return h('label', null, [inp, o.name]); })),
+        h('div', { style: 'height:16px' }),
+        h('span', { class: 'jrc__label', text: 'Aktivitäten-Tempo' }),
+        h('div', { class: 'jrc__seg', role: 'radiogroup', 'aria-label': 'Aktivitäten-Tempo' },
+          radioGroup('activity', ACTIVITY, function (o, inp) { return h('label', null, [inp, o.name]); })),
+        h('div', { style: 'height:16px' }),
+        h('label', { class: 'jrc__label', for: uid + '-tickets', text: 'Freizeitpark-/Event-Tickets pro Person (Disney, USJ, teamLab …)' }),
+        stepper('tickets', 0, 6, 'Tickets')
+      ]),
+      card('6', 'Flüge, Extras & Shopping', null, [
+        h('label', { class: 'jrc__label', for: uid + '-flight', text: 'Flugpreis pro Person (Hin & zurück, in ' + currency + ')' }),
+        flightInput,
+        h('div', { style: 'height:16px' }),
+        h('div', { class: 'jrc__toggles' }, [
+          toggle('esim', 'eSIM / Pocket-WiFi', 'Mobiles Internet – ein Gerät je 2 Personen'),
+          toggle('insurance', 'Auslandskrankenversicherung', 'Empfohlen für Japan'),
+          toggle('buffer', '10 % Sicherheitspuffer', 'Für Unvorhergesehenes & Spontankäufe')
+        ]),
+        h('div', { style: 'height:12px' }),
+        h('label', { class: 'jrc__label', for: uid + '-souv' }, ['Shopping & Souvenirs pro Person ', souvVal]),
+        souv,
+        h('div', { style: 'height:14px' }),
+        h('details', { class: 'jrc__adv' }, [
+          h('summary', { text: 'Erweitert: Wechselkurs' }),
+          h('div', { class: 'jrc__row' }, [h('div', null, [
+            h('label', { class: 'jrc__label', for: uid + '-rate', text: '¥ pro 1 ' + currency }), rateInput
+          ])])
+        ])
+      ])
+    ]);
+
+    /* ----- Ergebnis ----- */
+    var totalEl = h('div', { class: 'jrc__total', 'aria-live': 'polite' });
+    var rangeEl = h('div', { class: 'jrc__range-txt' });
+    var kpiPP = h('b'), kpiDay = h('b'), kpiYen = h('b'), kpiNights = h('b');
+    var SVGNS = 'http://www.w3.org/2000/svg';
+    var donut = document.createElementNS(SVGNS, 'svg');
+    donut.setAttribute('viewBox', '0 0 42 42'); donut.setAttribute('class', 'jrc__donut'); donut.setAttribute('aria-hidden', 'true');
+    var track = document.createElementNS(SVGNS, 'circle');
+    ['cx', 'cy'].forEach(function (a) { track.setAttribute(a, 21); }); track.setAttribute('r', 15.9155);
+    track.setAttribute('stroke', 'rgba(255,255,255,.12)'); donut.appendChild(track);
+    var legend = h('ul', { class: 'jrc__legend' });
+    var tips = h('ul', { class: 'jrc__tips' });
+    var toast = h('div', { class: 'jrc__toast', role: 'status' });
+    var segs = [];
+
+    function kpi(valueEl, label) { return h('div', { class: 'jrc__kpi' }, [valueEl, h('span', { text: label })]); }
+    var cta = root.getAttribute('data-cta-url');
+    var ctaLabel = root.getAttribute('data-cta-label');
+    var copyBtn = h('button', { type: 'button', class: 'jrc__btn jrc__btn--sm', text: 'Zusammenfassung kopieren' });
+    var linkBtn = h('button', { type: 'button', class: 'jrc__btn jrc__btn--sm', text: 'Link teilen' });
+    var printBtn = h('button', { type: 'button', class: 'jrc__btn jrc__btn--sm', text: 'Drucken' });
+
+    var result = h('aside', { class: 'jrc__result', id: uid + '-result', 'aria-label': 'Ergebnis' }, [h('div', { class: 'jrc__card' }, [
+      h('div', { class: 'jrc__total-lbl', text: 'Geschätztes Gesamtbudget' }),
+      totalEl, rangeEl,
+      h('div', { class: 'jrc__kpis' }, [kpi(kpiPP, 'pro Person'), kpi(kpiDay, 'pro Person & Tag'), kpi(kpiYen, 'in Yen (¥)'), kpi(kpiNights, 'Übernachtungen')]),
+      h('div', { class: 'jrc__chart' }, [donut, legend]),
+      tips,
+      h('div', { class: 'jrc__actions' }, [
+        cta ? h('a', { class: 'jrc__btn jrc__btn--primary', href: cta, text: ctaLabel || 'Jetzt Reise-Essentials entdecken' }) : null,
+        copyBtn, linkBtn, printBtn
+      ])
+    ])]);
+
+    var bar = h('div', { class: 'jrc__bar' }, [
+      h('span', null, ['Gesamt ', h('b', { 'data-bar': '' })]),
+      h('button', { type: 'button', text: 'Details' })
+    ]);
+    bar.querySelector('button').addEventListener('click', function () {
+      result.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    });
+
+    app.appendChild(h('div', { class: 'jrc__grid' }, [form, result]));
+    app.appendChild(bar);
+    app.appendChild(toast);
+
+    /* ----- Update ----- */
+    var shown = 0, raf = null, last = null;
+    function animateTotal(to) {
+      if (raf) cancelAnimationFrame(raf);
+      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var from = shown, t0 = null;
+      if (reduce || Math.abs(to - from) < 1) { shown = to; paint(to); return; }
+      (function step(ts) {
+        if (t0 === null) t0 = ts;
+        var p = Math.min(1, (ts - t0) / 450), e = 1 - Math.pow(1 - p, 3);
+        shown = from + (to - from) * e; paint(shown);
+        if (p < 1) raf = requestAnimationFrame(step);
+      })(performance.now());
+    }
+    function paint(v) {
+      var t = fmt.format(v);
+      totalEl.textContent = t;
+      bar.querySelector('[data-bar]').textContent = t;
+    }
+    function toast_(msg) {
+      toast.textContent = msg; toast.classList.add('is-on');
+      clearTimeout(toast._t); toast._t = setTimeout(function () { toast.classList.remove('is-on'); }, 2200);
+    }
+
+    function update() {
+      sanitize();
+      souvVal.textContent = fmt.format(st.souvenirs);
+      var rate = st.rate;
+      var r = calculate(st, rate);
+      last = r;
+      var total = r.totalYen / rate, n = st.travelers;
+      animateTotal(total);
+      rangeEl.textContent = 'Realistische Spanne: ' + fmt.format(total * 0.9) + ' – ' + fmt.format(total * 1.15);
+      kpiPP.textContent = fmt.format(total / n);
+      kpiDay.textContent = fmt.format(total / n / st.days);
+      kpiYen.textContent = '¥ ' + fmtYen.format(r.totalYen);
+      kpiNights.textContent = Math.max(1, st.days - 1);
+
+      /* Donut + Legende */
+      while (legend.firstChild) legend.removeChild(legend.firstChild);
+      segs.forEach(function (s) { donut.removeChild(s); }); segs = [];
+      var offset = 0;
+      r.parts.forEach(function (p, i) {
+        var pct = (p.yen / r.totalYen) * 100, color = PALETTE[i % PALETTE.length];
+        var c = document.createElementNS(SVGNS, 'circle');
+        ['cx', 'cy'].forEach(function (a) { c.setAttribute(a, 21); }); c.setAttribute('r', 15.9155);
+        c.setAttribute('stroke', color);
+        c.setAttribute('stroke-dasharray', Math.max(0, pct - 0.4) + ' ' + (100 - Math.max(0, pct - 0.4)));
+        c.setAttribute('stroke-dashoffset', -offset);
+        donut.appendChild(c); segs.push(c); offset += pct;
+        var li = h('li', null, [h('i', { style: 'background:' + color }), h('span', { text: p.name }), h('b', { text: fmt.format(p.yen / rate) })]);
+        li.querySelector('b').title = Math.round(pct) + ' %';
+        legend.appendChild(li);
+      });
+
+      /* Tipps */
+      while (tips.firstChild) tips.removeChild(tips.firstChild);
+      var list = [r.season.tip];
+      var hasJr = r.cities.some(function (c) { return c.jr && c.fare > 0; });
+      if (hasJr) {
+        var diff = fmt.format(Math.abs(r.saving) / rate);
+        list.push(r.saving > 0
+          ? '🚄 Der ' + r.tier + '-Tage JR Pass spart dir ca. ' + diff + ' gegenüber Einzeltickets.'
+          : '🚄 Einzeltickets sind ca. ' + diff + ' günstiger als der ' + r.tier + '-Tage JR Pass für diese Route.');
+      }
+      if (st.travelers % 2 === 1 && st.travelers > 1) list.push('🛏️ Ungerade Gruppengröße: Plane einen Einzelzimmer-Aufschlag ein.');
+      if (st.days < 7 && r.cities.length > 3) list.push('⏱️ Viele Stationen in wenigen Tagen – Reisezeit und Kosten steigen schnell.');
+      list.forEach(function (t) { tips.appendChild(h('li', { text: t })); });
+      tips.style.display = list.length ? '' : 'none';
+
+      try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {}
+    }
+
+    function summary() {
+      var r = last, rate = st.rate, n = st.travelers;
+      var lines = ['Meine Japan-Reise – Budget', '',
+        n + ' Reisende · ' + st.days + ' Tage · ' + byId(SEASONS, st.season).name + ' · ' + byId(STYLES, st.style).name,
+        'Route: ' + r.cities.map(function (c) { return c.name; }).join(' → '), ''];
+      r.parts.forEach(function (p) { lines.push(p.name + ': ' + fmt.format(p.yen / rate)); });
+      lines.push('', 'Gesamt: ' + fmt.format(r.totalYen / rate) + ' (' + fmt.format(r.totalYen / rate / n) + ' p. P.)');
+      return lines.join('\n');
+    }
+    function copy(text, msg) {
+      function fallback() {
+        var ta = h('textarea', { style: 'position:fixed;opacity:0' }); ta.value = text; document.body.appendChild(ta);
+        ta.select(); try { document.execCommand('copy'); toast_(msg); } catch (e) { toast_('Kopieren nicht möglich'); }
+        document.body.removeChild(ta);
+      }
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(function () { toast_(msg); }, fallback);
+      else fallback();
+    }
+    copyBtn.addEventListener('click', function () { copy(summary(), 'Zusammenfassung kopiert'); });
+    linkBtn.addEventListener('click', function () {
+      copy(location.origin + location.pathname + '#jrc=' + encodeURIComponent(JSON.stringify(st)), 'Link kopiert');
+    });
+    printBtn.addEventListener('click', function () { window.print(); });
+
+    var initial = calculate(st, st.rate).totalYen / st.rate;
+    shown = initial * 0.85;
+    update();
+  }
+
+  function initAll() { document.querySelectorAll('[data-jrc]').forEach(init); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initAll); else initAll();
+  document.addEventListener('shopify:section:load', initAll);
+})();
+{% endjavascript %}
+
+{% schema %}
+{
+  "name": "Japan Reiserechner",
+  "tag": "div",
+  "class": "jrc-section",
+  "settings": [
+    { "type": "header", "content": "Texte" },
+    { "type": "text", "id": "eyebrow", "label": "Kleiner Titel", "default": "Japan Reiseplaner" },
+    { "type": "text", "id": "heading", "label": "Überschrift", "default": "Was kostet deine Japanreise?" },
+    { "type": "textarea", "id": "subheading", "label": "Untertext", "default": "Stelle deine Reise zusammen und erhalte in Sekunden eine realistische Budget-Schätzung – inklusive Flügen, Unterkunft, Essen und Bahn." },
+    { "type": "richtext", "id": "disclaimer", "label": "Hinweistext", "default": "<p>Alle Angaben sind unverbindliche Durchschnittswerte und ersetzen kein Angebot. Tatsächliche Preise können abweichen.</p>" },
+
+    { "type": "header", "content": "Währung" },
+    { "type": "select", "id": "currency", "label": "Anzeige-Währung", "default": "EUR",
+      "options": [ { "value": "EUR", "label": "Euro (€)" }, { "value": "CHF", "label": "Schweizer Franken (CHF)" } ] },
+    { "type": "number", "id": "jpy_rate", "label": "Wechselkurs: Yen pro 1 Einheit der Währung", "default": 170, "info": "Bitte gelegentlich aktualisieren. Besucher können den Kurs im Rechner selbst ändern." },
+
+    { "type": "header", "content": "Call-to-Action" },
+    { "type": "text", "id": "cta_label", "label": "Button-Text", "default": "Passende Reise-Essentials entdecken" },
+    { "type": "url", "id": "cta_url", "label": "Button-Link (leer = kein Button)" },
+
+    { "type": "header", "content": "Design" },
+    { "type": "color", "id": "accent", "label": "Akzentfarbe", "default": "#d7263d" },
+    { "type": "color", "id": "background", "label": "Hintergrund", "default": "#faf8f5" },
+    { "type": "color", "id": "text", "label": "Textfarbe", "default": "#18181b" },
+    { "type": "color", "id": "card", "label": "Kartenfarbe", "default": "#ffffff" },
+    { "type": "range", "id": "radius", "label": "Eckenradius", "min": 0, "max": 32, "step": 2, "unit": "px", "default": 20 },
+    { "type": "range", "id": "padding_top", "label": "Abstand oben", "min": 0, "max": 120, "step": 4, "unit": "px", "default": 56 },
+    { "type": "range", "id": "padding_bottom", "label": "Abstand unten", "min": 0, "max": 120, "step": 4, "unit": "px", "default": 56 }
+  ],
+  "presets": [ { "name": "Japan Reiserechner" } ]
+}
+{% endschema %}
